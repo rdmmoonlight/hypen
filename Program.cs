@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using YoutubeExplode;
-using YoutubeExplode.Videos.Streams;
+using YoutubeExplode.Playlists;
 using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup CORS Policy
+// Setup CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -25,16 +25,11 @@ app.UseCors("AllowAll");
 // Preflight OPTIONS Handler
 app.MapMethods("/{*path}", ["OPTIONS"], () => Results.Ok());
 
-// Environment Variables
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 string supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
 string supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? "";
 
-logger.LogInformation("[INIT] Checking Environment Variables...");
-logger.LogInformation("[INIT] Neon DB Configured: {IsConfigured}", !string.IsNullOrEmpty(dbConnectionString));
-logger.LogInformation("[INIT] Supabase URL Configured: {IsConfigured}", !string.IsNullOrEmpty(supabaseUrl));
-
-// Supabase Client Safe Init
+// Supabase Init
 Supabase.Client? supabaseClient = null;
 if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 {
@@ -43,7 +38,6 @@ if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
         var supabaseOptions = new SupabaseOptions { AutoConnectRealtime = false };
         supabaseClient = new Supabase.Client(supabaseUrl, supabaseKey, supabaseOptions);
         await supabaseClient.InitializeAsync();
-        logger.LogInformation("[INIT] Supabase Client initialized successfully.");
     }
     catch (Exception ex)
     {
@@ -53,49 +47,39 @@ if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 
 app.MapGet("/", () => Results.Ok("Hypen API is running!"));
 
-// Endpoint 1: Convert Single Track
+// Endpoint 1: Single Track
 app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 {
-    logger.LogInformation("[POST /api/convert] Request received for URL: {Url}", req.YoutubeUrl);
+    logger.LogInformation("[POST /api/convert] Processing: {Url}", req.YoutubeUrl);
     try
     {
         if (string.IsNullOrWhiteSpace(req.YoutubeUrl))
-        {
-            logger.LogWarning("[POST /api/convert] YoutubeUrl is empty.");
-            return Results.BadRequest(new { error = "YoutubeUrl cannot be empty." });
-        }
+            return Results.BadRequest(new { error = "YoutubeUrl is required." });
 
         var youtube = new YoutubeClient();
-        logger.LogInformation("[POST /api/convert] Fetching video metadata...");
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
-        logger.LogInformation("[POST /api/convert] Video found: '{Title}' ({Id})", video.Title, video.Id);
 
-        string audioPublicUrl = video.Url; // Fallback jika Supabase offline
+        string audioPublicUrl = video.Url;
 
-        // 1. Ambil audio stream dari Youtube
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
         var streamInfo = streamManifest.GetAudioOnlyStreams().OrderByDescending(s => s.Bitrate).FirstOrDefault();
 
         if (supabaseClient != null && streamInfo != null)
         {
-            logger.LogInformation("[POST /api/convert] Downloading audio stream ({Bitrate})...", streamInfo.Bitrate);
             using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
             using var memoryStream = new MemoryStream();
             await audioStream.CopyToAsync(memoryStream);
             var fileBytes = memoryStream.ToArray();
 
             string fileName = $"{video.Id}.mp3";
-            logger.LogInformation("[POST /api/convert] Uploading '{FileName}' to Supabase Storage...", fileName);
             await supabaseClient.Storage.From("songs").Upload(fileBytes, fileName, new Supabase.Storage.FileOptions { ContentType = "audio/mpeg", Upsert = true });
             audioPublicUrl = supabaseClient.Storage.From("songs").GetPublicUrl(fileName);
-            logger.LogInformation("[POST /api/convert] Supabase Public URL: {Url}", audioPublicUrl);
         }
 
         string coverUrl = video.Thumbnails
             .OrderByDescending(t => t.Resolution.Area)
             .FirstOrDefault()?.Url ?? "";
 
-        logger.LogInformation("[POST /api/convert] Inserting metadata to Neon DB...");
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
@@ -113,38 +97,44 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
         cmd.Parameters.AddWithValue("dur", (int)(video.Duration?.TotalSeconds ?? 0));
 
         var songId = await cmd.ExecuteScalarAsync();
-        logger.LogInformation("[POST /api/convert] Success. Generated Song ID: {SongId}", songId ?? "Existing (Conflict Ignored)");
 
         return Results.Ok(new { Id = songId, video.Title, Artist = video.Author.ChannelTitle, AudioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[POST /api/convert ERROR] Failed processing URL '{Url}': {Message}", req.YoutubeUrl, ex.Message);
+        logger.LogError(ex, "[POST /api/convert ERROR]: {Message}", ex.Message);
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
-// Endpoint 2: Import Playlist Bulk
+// Endpoint 2: Import Playlist Bulk (Handled for Youtube Music & Standard Playlists)
 app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 {
-    logger.LogInformation("[POST /api/convert-playlist] Request received for Playlist URL: {Url}", req.PlaylistUrl);
+    logger.LogInformation("[POST /api/convert-playlist] Processing: {Url}", req.PlaylistUrl);
     try
     {
         if (string.IsNullOrWhiteSpace(req.PlaylistUrl))
-        {
-            logger.LogWarning("[POST /api/convert-playlist] PlaylistUrl is empty.");
-            return Results.BadRequest(new { error = "PlaylistUrl cannot be empty." });
-        }
+            return Results.BadRequest(new { error = "PlaylistUrl is required." });
 
         var youtube = new YoutubeClient();
-        logger.LogInformation("[POST /api/convert-playlist] Fetching playlist metadata...");
-        var playlist = await youtube.Playlists.GetAsync(req.PlaylistUrl);
-        logger.LogInformation("[POST /api/convert-playlist] Playlist found: '{Title}' ({Id})", playlist.Title, playlist.Id);
+        
+        // Parse Playlist ID secara fleksibel dari URL
+        var playlistId = PlaylistId.TryParse(req.PlaylistUrl) ?? req.PlaylistUrl;
 
-        var videos = youtube.Playlists.GetVideosAsync(playlist.Id);
+        string playlistTitle = "Imported Playlist";
+        try
+        {
+            var playlist = await youtube.Playlists.GetAsync(playlistId);
+            playlistTitle = playlist.Title;
+        }
+        catch
+        {
+            logger.LogWarning("Could not fetch playlist metadata. Proceeding to parse video items directly.");
+        }
+
+        var videos = youtube.Playlists.GetVideosAsync(playlistId);
 
         int count = 0;
-        logger.LogInformation("[POST /api/convert-playlist] Connecting to Neon DB...");
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
@@ -170,29 +160,32 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 
                 await cmd.ExecuteNonQueryAsync();
                 count++;
-                logger.LogInformation("[POST /api/convert-playlist] Inserted track {Count}: '{Title}'", count, video.Title);
+                logger.LogInformation("Track added: {Title}", video.Title);
             }
             catch (Exception exItem)
             {
-                logger.LogWarning(exItem, "[POST /api/convert-playlist WARNING] Skipped video '{Title}': {Message}", video.Title, exItem.Message);
+                logger.LogWarning("Skipped track: {Message}", exItem.Message);
                 continue;
             }
         }
 
-        logger.LogInformation("[POST /api/convert-playlist] Batch import finished. Total added: {Count}", count);
-        return Results.Ok(new { PlaylistTitle = playlist.Title, TotalAdded = count });
+        if (count == 0)
+        {
+            return Results.BadRequest(new { error = "Tidak ada lagu publik yang dapat dibaca dari playlist ini. Pastikan playlist diset ke Public/Unlisted (bukan Private)." });
+        }
+
+        return Results.Ok(new { PlaylistTitle = playlistTitle, TotalAdded = count });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[POST /api/convert-playlist ERROR] Failed processing playlist '{Url}': {Message}", req.PlaylistUrl, ex.Message);
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        logger.LogError(ex, "[POST /api/convert-playlist ERROR]: {Message}", ex.Message);
+        return Results.Problem(detail: $"Gagal membaca playlist: {ex.Message}", statusCode: 500);
     }
 });
 
-// Endpoint 3: Fetch Songs Library
+// Endpoint 3: Fetch Songs
 app.MapGet("/api/songs", async () =>
 {
-    logger.LogInformation("[GET /api/songs] Fetching songs library...");
     try
     {
         var songs = new List<object>();
@@ -215,12 +208,11 @@ app.MapGet("/api/songs", async () =>
             });
         }
 
-        logger.LogInformation("[GET /api/songs] Fetched {Count} songs successfully.", songs.Count);
         return Results.Ok(songs);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[GET /api/songs ERROR] Failed reading songs from database: {Message}", ex.Message);
+        logger.LogError(ex, "[GET /api/songs ERROR]: {Message}", ex.Message);
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
