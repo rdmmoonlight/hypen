@@ -8,23 +8,38 @@ on:
     branches:
       - main
 
-# Memaksa deploy juga antre berurutan
+# Memaksa deploy antre berurutan
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+# Izin yang dibutuhkan untuk deploy ke GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
-    name: Deploy to Server
+    name: Deploy to Server & Pages
     # Hanya jalan jika workflow linting SELESAI dengan SUKSES
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout Latest Code
         uses: actions/checkout@v4
         with:
           ref: main # Selalu ambil commit paling akhir setelah auto-fix
+
+      # Inject Environment Variable BACKEND_URL ke config.js untuk Frontend HTML/JS
+      - name: Inject Dynamic Config File
+        run: |
+          echo "window.ENV_BACKEND_URL = '${{ vars.BACKEND_URL }}';" > config.js
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -34,5 +49,17 @@ jobs:
       - name: Build & Publish Application
         run: dotnet publish -c Release -o ./publish
 
-      # - name: Deploy Step (SSH / Docker / Cloud)
-      #   run: ...
+      # ========================================================
+      # GitHub Pages Deployment Steps
+      # ========================================================
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Artifact to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.' # Mengunggah direktori utama (index.html, theme.css, config.js)
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
