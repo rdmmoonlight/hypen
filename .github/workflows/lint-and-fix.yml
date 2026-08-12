@@ -28,11 +28,25 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Restore spesifik per file project C#
       - name: Restore Dependencies
-        run: dotnet restore
+        run: |
+          if [ -f "apps/backend/Hypen.csproj" ]; then
+            dotnet restore apps/backend/Hypen.csproj
+          fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then
+            dotnet restore apps/mobile/HypenMaui.csproj
+          fi
 
+      # Format spesifik per file project C#
       - name: Run Dotnet Format Fix
-        run: dotnet format --severity info
+        run: |
+          if [ -f "apps/backend/Hypen.csproj" ]; then
+            dotnet format apps/backend/Hypen.csproj --severity info
+          fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then
+            dotnet format apps/mobile/HypenMaui.csproj --severity info
+          fi
 
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
