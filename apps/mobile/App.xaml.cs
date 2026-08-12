@@ -1,3 +1,5 @@
+using HypenMaui.Pages.Home;
+
 namespace HypenMaui;
 
 public partial class App : Application
