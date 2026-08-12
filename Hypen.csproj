@@ -7,14 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Database Neon PostgreSQL -->
     <PackageReference Include="Npgsql" Version="8.0.3" />
-    
-    <!-- Scraper YouTube -->
     <PackageReference Include="YoutubeExplode" Version="6.3.16" />
-    
-    <!-- Firebase / Google Cloud Storage SDK -->
-    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
+    <!-- SDK Supabase C# -->
+    <PackageReference Include="supabase-csharp" Version="1.11.0" />
   </ItemGroup>
 
 </Project>
