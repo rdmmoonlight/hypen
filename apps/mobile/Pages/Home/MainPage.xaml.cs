@@ -142,7 +142,7 @@ public partial class MainPage : ContentPage
     private async void OnDeleteSelectedClicked(object sender, EventArgs e)
     {
         var selectedIds = DisplayedSongs.Where(s => s.IsSelected).Select(s => s.Id).ToArray();
-        if (!selectedIds.Any()) return;
+        if (selectedIds.Length == 0) return;
 
         bool confirm = await DisplayAlert("Konfirmasi", $"Hapus {selectedIds.Length} lagu terpilih?", "Ya", "Batal");
         if (!confirm) return;
