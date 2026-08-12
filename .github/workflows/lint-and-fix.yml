@@ -36,12 +36,23 @@ jobs:
           if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet restore apps/mobile/HypenMaui.csproj; fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
 
-      # Format Source Code
+      # Format Source Code (Whitespace & Style Fix aman dari MSBuildWorkspace crash)
       - name: Run Dotnet Format Fix
+        continue-on-error: true
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet format apps/backend/Hypen.csproj --severity info; fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet format apps/mobile/HypenMaui.csproj --severity info; fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet format apps/web/Hypen.Web.csproj --severity info; fi
+          # Format Whitespace & Basic Code Style tanpa merusak properti workspace
+          if [ -f "apps/backend/Hypen.csproj" ]; then 
+            dotnet format whitespace apps/backend/Hypen.csproj --no-restore
+            dotnet format style apps/backend/Hypen.csproj --no-restore --severity info
+          fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then 
+            dotnet format whitespace apps/mobile/HypenMaui.csproj --no-restore
+            dotnet format style apps/mobile/HypenMaui.csproj --no-restore --severity info
+          fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then 
+            dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
+            dotnet format style apps/web/Hypen.Web.csproj --no-restore --severity info
+          fi
 
       # Buang perubahan pada folder obj dan bin agar tidak mengganggu tracking
       - name: Revert Generated Files
@@ -58,3 +69,4 @@ jobs:
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           internal_git_options: '-c rebase.autoStash=true'
+          
