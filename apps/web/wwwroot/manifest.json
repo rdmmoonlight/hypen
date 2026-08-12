@@ -1,0 +1,22 @@
+{
+  "name": "Hypen Vault Player",
+  "short_name": "HypenVault",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#4cc9f0",
+  "description": "Pemutar Musik Hybrid Online & Offline Vault",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
