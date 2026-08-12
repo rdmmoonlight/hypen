@@ -9,8 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="YoutubeExplode" Version="6.3.16" />
-    <!-- SDK Supabase C# -->
-    <PackageReference Include="supabase-csharp" Version="1.11.0" />
+    <!-- Gunakan versi paket Supabase yang valid -->
+    <PackageReference Include="supabase-csharp" Version="0.16.2" />
   </ItemGroup>
 
 </Project>
