@@ -3,104 +3,130 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hypen</title>
-  <style>
-    body { font-family: sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; padding-bottom: 90px; }
-    h1 { color: #1db954; }
-    input, button { padding: 12px; border-radius: 6px; border: none; margin-bottom: 10px; }
-    input { width: 70%; background: #222; color: #fff; }
-    button { background: #1db954; color: #fff; font-weight: bold; cursor: pointer; }
-    .card { background: #181818; padding: 12px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-    .info { flex-grow: 1; margin-left: 12px; }
-    .player-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #282828; padding: 10px; display: flex; flex-direction: column; }
-    audio { width: 100%; }
-  </style>
+  <title>HYPEN - Gothic Vault Player</title>
+  
+  <!-- Font Google Gothic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- File Tema Gothic CSS -->
+  <link rel="stylesheet" href="theme-gothic.css">
 </head>
 <body>
 
-  <h1>My Cloud Spotify</h1>
+  <h1>HYPEN VAULT</h1>
 
-  <!-- Input Convert YouTube -->
-  <div>
-    <input type="text" id="ytUrl" placeholder="Tempel link YouTube...">
-    <button onclick="convertVideo()">+ Tambah ke Library</button>
-    <p id="status" style="color:#aaa; font-size: 13px;"></p>
+  <!-- Input Single Track -->
+  <div class="input-group">
+    <h3 class="gothic-title" style="margin-top:0; font-size:14px;">Import Single Track</h3>
+    <input type="text" id="ytUrl" placeholder="Tempel link video YouTube...">
+    <button class="btn-gothic" onclick="convertVideo()">+ Add Track</button>
   </div>
 
-  <hr style="border-color: #333; margin: 20px 0;">
+  <!-- Input Playlist YouTube -->
+  <div class="input-group">
+    <h3 class="gothic-title" style="margin-top:0; font-size:14px;">Import YouTube Playlist</h3>
+    <input type="text" id="playlistUrl" placeholder="Tempel link playlist YouTube...">
+    <button class="btn-gothic btn-secondary" onclick="convertPlaylist()">+ Import Playlist</button>
+  </div>
 
-  <h3>Library Lagu (Neon DB)</h3>
-  <div id="library"></div>
+  <p id="status" style="font-size: 13px; color: var(--accent-crimson); font-weight: bold; min-height: 20px;"></p>
 
-  <!-- Player Bar UI -->
+  <h3 class="gothic-title">Library Collection</h3>
+  <div id="libraryList" class="card-grid"></div>
+
+  <!-- Player Bar -->
   <div class="player-bar">
-    <div id="nowPlaying" style="font-size: 12px; color: #1db954; margin-bottom: 5px;">Pilih lagu...</div>
+    <div id="nowPlaying" class="now-playing">No track selected...</div>
     <audio id="audioPlayer" controls></audio>
   </div>
 
   <script>
-    // Ganti dengan URL Backend C# Anda di Render/Railway
-    const BACKEND_URL = "https://nama-backend-anda.onrender.com";
+    const BACKEND_URL = "https://hypen-api.onrender.com"; // Sesuaikan URL API Render Anda
 
-    // 1. Ambil daftar lagu dari DB Neon via C# API
+    // 1. Fetch Library
     async function loadLibrary() {
-      const res = await fetch(`${BACKEND_URL}/api/songs`);
-      const songs = await res.json();
-      
-      const container = document.getElementById('library');
-      container.innerHTML = '';
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/songs`);
+        const songs = await res.json();
+        
+        const container = document.getElementById('libraryList');
+        container.innerHTML = '';
 
-      songs.forEach(song => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML = `
-          <img src="${song.cover}" width="48" height="48" style="border-radius:4px;">
-          <div class="info">
-            <strong>${song.title}</strong><br>
-            <small style="color:#aaa">${song.artist}</small>
-          </div>
-          <button onclick="playSong('${song.audioUrl}', '${song.title}', '${song.artist}', '${song.cover}')">▶ Play</button>
-        `;
-        container.appendChild(div);
-      });
+        songs.forEach(song => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <img src="${song.Cover}" class="card-img" alt="Cover">
+            <div class="card-info">
+              <div class="card-title">${song.Title}</div>
+              <div class="card-artist">${song.Artist}</div>
+            </div>
+            <button class="btn-gothic" onclick="playSong('${song.AudioUrl}', '${song.Title.replace(/'/g, "\\'")}', '${song.Artist.replace(/'/g, "\\'")}', '${song.Cover}')">▶ Play</button>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        document.getElementById('status').innerText = 'Gagal memuat library.';
+      }
     }
 
-    // 2. Request Konversi ke Backend C#
+    // 2. Add Single Video
     async function convertVideo() {
       const url = document.getElementById('ytUrl').value;
       const status = document.getElementById('status');
-      if(!url) return alert('Masukkan URL!');
+      if (!url) return alert('Masukkan URL YouTube!');
 
-      status.innerText = 'Sedang dikonversi oleh server C# & diunggah ke cloud... (15-30 detik)';
-      
+      status.innerText = 'Memproses track...';
       try {
         const res = await fetch(`${BACKEND_URL}/api/convert`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ youtubeUrl: url })
         });
-
         if (res.ok) {
-          status.innerText = 'Berhasil ditambahkan ke Library!';
+          status.innerText = 'Track berhasil ditambahkan!';
           document.getElementById('ytUrl').value = '';
           loadLibrary();
-        } else {
-          status.innerText = 'Gagal memproses.';
         }
-      } catch (err) {
-        status.innerText = 'Error menghubungi backend.';
+      } catch (e) {
+        status.innerText = 'Gagal mengonversi video.';
       }
     }
 
-    // 3. Playback + Background Play / Lockscreen
+    // 3. Add Playlist
+    async function convertPlaylist() {
+      const url = document.getElementById('playlistUrl').value;
+      const status = document.getElementById('status');
+      if (!url) return alert('Masukkan URL Playlist!');
+
+      status.innerText = 'Mengimpor seluruh playlist YouTube...';
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/convert-playlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playlistUrl: url })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.innerText = `Berhasil mengimpor ${data.TotalAdded} lagu dari playlist!`;
+          document.getElementById('playlistUrl').value = '';
+          loadLibrary();
+        }
+      } catch (e) {
+        status.innerText = 'Gagal mengimpor playlist.';
+      }
+    }
+
+    // 4. Playback & Lockscreen Integration
     function playSong(url, title, artist, cover) {
       const player = document.getElementById('audioPlayer');
       document.getElementById('nowPlaying').innerText = `Playing: ${title} - ${artist}`;
-      
+
       player.src = url;
       player.play();
 
-      // Lockscreen & Background Control
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: title,
@@ -110,7 +136,7 @@
       }
     }
 
-    // Muat library saat web dibuka
+    // Init App
     loadLibrary();
   </script>
 </body>
