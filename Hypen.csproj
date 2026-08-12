@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Package untuk PostgreSQL Neon DB -->
+    <PackageReference Include="Npgsql" Version="8.0.3" />
+    
+    <!-- Package untuk Extract & Scrape YouTube Stream -->
+    <PackageReference Include="YoutubeExplode" Version="6.3.16" />
+    
+    <!-- Package untuk Upload Audio ke Cloudflare R2 (S3 Compatible) -->
+    <PackageReference Include="AWSSDK.S3" Version="3.7.307" />
+  </ItemGroup>
+
+</Project>
