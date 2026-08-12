@@ -18,10 +18,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 var logger = app.Logger;
 
-// PENTING: Panggil CORS Middleware di paling atas sebelum endpoint dipetakan
+// PENTING: Panggil CORS Middleware di paling atas
 app.UseCors("AllowAll");
 
 // Health-Check
@@ -83,10 +85,13 @@ app.MapGet("/api/songs", async () =>
 });
 
 // 2. Convert Single Track
-app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
+app.MapPost("/api/convert", async (ConvertRequest req) =>
 {
     try
     {
+        if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
+            return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
+
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
 
@@ -144,10 +149,13 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 });
 
 // 3. Import Playlist Bulk
-app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
+app.MapPost("/api/convert-playlist", async (PlaylistRequest req) =>
 {
     try
     {
+        if (req == null || string.IsNullOrWhiteSpace(req.PlaylistUrl))
+            return Results.BadRequest(new { error = "URL Playlist tidak boleh kosong." });
+
         var youtube = new YoutubeClient();
         var playlist = await youtube.Playlists.GetAsync(req.PlaylistUrl);
         var videos = youtube.Playlists.GetVideosAsync(playlist.Id);
@@ -201,13 +209,13 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
     }
 });
 
-// 4. Download Stream MP3 (POST untuk Keamanan Route Escaping)
-app.MapPost("/api/download", async ([FromBody] ConvertRequest req) =>
+// 4. Download Stream MP3 (Stabil dengan MemoryStream)
+app.MapPost("/api/download", async (ConvertRequest req, IHttpClientFactory httpClientFactory) =>
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(req.YoutubeUrl))
-            return Results.BadRequest("URL YouTube tidak boleh kosong.");
+        if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
+            return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
 
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
@@ -215,17 +223,22 @@ app.MapPost("/api/download", async ([FromBody] ConvertRequest req) =>
         var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
         if (streamInfo == null)
-            return Results.NotFound("Stream audio tidak ditemukan");
+            return Results.NotFound(new { error = "Stream audio tidak ditemukan" });
 
-        var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
+        // Mengunduh stream audio ke MemoryStream lokal agar tidak terputus di tengah jalan
+        using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
+        var memoryStream = new MemoryStream();
+        await audioStream.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
         string safeTitle = string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
 
-        return Results.File(stream, "audio/mpeg", $"{safeTitle}.mp3");
+        return Results.File(memoryStream, "audio/mpeg", $"{safeTitle}.mp3");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[POST /api/download ERROR]");
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        logger.LogError(ex, "[POST /api/download ERROR] Detail: {Message}", ex.Message);
+        return Results.Problem(detail: $"Gagal memproses download: {ex.Message}", statusCode: 500);
     }
 });
 
@@ -251,11 +264,11 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
 });
 
 // 6. Delete Batch Songs
-app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req) =>
+app.MapPost("/api/songs/delete-batch", async (BatchDeleteRequest req) =>
 {
     try
     {
-        if (req.Ids == null || req.Ids.Length == 0) return Results.BadRequest();
+        if (req == null || req.Ids == null || req.Ids.Length == 0) return Results.BadRequest();
 
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
@@ -273,7 +286,6 @@ app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req)
     }
 });
 
-// Jalankan aplikasi di baris paling akhir
 app.Run();
 
 // DTO Models
