@@ -24,31 +24,37 @@ jobs:
         with:
           node-version: '20'
 
-      # Setup Project Mobile & Capacitor dalam 1 folder kerja
+      # Setup Project Mobile & Capacitor secara Aman
       - name: Setup Capacitor Project & Assets
         run: |
           mkdir -p apps/mobile/www
           
-          # Salin file frontend web (Cek file di root/web)
+          # Salin file frontend web ke folder www apps/mobile
           if [ -d "web" ]; then
-            cp web/* apps/mobile/www/
+            cp -r web/* apps/mobile/www/
           else
             cp index.html theme.css config.js apps/mobile/www/ 2>/dev/null || true
           fi
           
           cd apps/mobile
           
-          # Inisialisasi package.json
-          npm init -y
+          # Inisialisasi package.json jika belum ada
+          if [ ! -f "package.json" ]; then
+            npm init -y
+          fi
           
-          # Install Capacitor CLI & Core
+          # Install Capacitor Core, CLI, dan Android
           npm install @capacitor/core @capacitor/cli @capacitor/android
           
-          # Inisialisasi Project Capacitor
-          npx cap init "Hypen Vault" "com.hypen.vault" --web-dir "www"
+          # Inisialisasi Project Capacitor jika belum ada config
+          if [ ! -f "capacitor.config.json" ]; then
+            npx cap init "Hypen Vault" "com.hypen.vault" --web-dir "www"
+          fi
           
-          # Tambahkan Platform Android
-          npx cap add android
+          # Tambahkan Platform Android HANYA jika folder android/ belum ada
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
 
       # Inject Izin Jaringan & Media ke AndroidManifest.xml
       - name: Configure Android Permissions
