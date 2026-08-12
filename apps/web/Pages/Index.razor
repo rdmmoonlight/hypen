@@ -3,6 +3,27 @@
 <PageTitle>Hypen Vault Player</PageTitle>
 
 <main class="main-container">
+    <!-- Integration Header Bar (Last.fm Status) -->
+    <div class="integration-bar input-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.03); padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-weight: 600; color: #ff0000;">Last.fm:</span>
+            @if (!string.IsNullOrEmpty(lastFmSessionKey))
+            {
+                <span style="color: #4cc9f0; font-size: 0.9em;">Connected (Scrobbling Active)</span>
+            }
+            else
+            {
+                <span style="color: var(--text-secondary); font-size: 0.9em;">Not Connected</span>
+            }
+        </div>
+        <div>
+            @if (string.IsNullOrEmpty(lastFmSessionKey))
+            {
+                <button class="btn-nebula btn-secondary" style="padding: 5px 12px; font-size: 0.85em;" @onclick="ConnectLastFm">Connect Last.fm</button>
+            }
+        </div>
+    </div>
+
     <!-- Input Track Single -->
     <div class="input-group">
         <h3 class="nebula-title">Import Single Track</h3>
