@@ -1,11 +1,36 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 
-var builder = WebApplication.CreateBuilder(args);
+// ============================================================
+// DTO MODELS
+// ============================================================
+
+public record ConvertRequest(
+    string YoutubeUrl);
+
+public record SaveSongRequest(
+    string YoutubeUrl,
+    string? Title,
+    string? Artist,
+    string? AudioUrl);
+
+public record ExtractionResult(
+    string AudioUrl,
+    string Title,
+    string Provider);
+
 
 // ============================================================
-// SERVICES
+// APPLICATION SETUP
+// ============================================================
+
+var builder = WebApplication.CreateBuilder(args);
+
+
+// ============================================================
+// CORS
 // ============================================================
 
 builder.Services.AddCors(options =>
@@ -18,6 +43,11 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+// ============================================================
+// HTTP CLIENT
+// ============================================================
+
 builder.Services.AddHttpClient("Extractor", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
@@ -28,18 +58,25 @@ builder.Services.AddHttpClient("Extractor", client =>
         "Chrome/151.0.0.0 Safari/537.36");
 });
 
+
+// ============================================================
+// BUILD
+// ============================================================
+
 var app = builder.Build();
 
 var logger = app.Logger;
 
 app.UseCors("AllowAll");
 
+
 // ============================================================
-// ENVIRONMENT
+// DATABASE
 // ============================================================
 
 string dbConnectionString =
-    Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
+    Environment.GetEnvironmentVariable("NEON_DB_CONNECTION")
+    ?? "";
 
 
 // ============================================================
@@ -58,7 +95,7 @@ app.MapGet("/", () =>
 
 
 // ============================================================
-// HELPERS
+// HELPER: EXTRACT YOUTUBE ID
 // ============================================================
 
 static string ExtractYoutubeId(string url)
@@ -77,41 +114,38 @@ static string ExtractYoutubeId(string url)
     string host =
         uri.Host.ToLowerInvariant();
 
-    // youtube.com/watch?v=...
     if (host == "youtube.com" ||
         host == "www.youtube.com" ||
         host == "m.youtube.com")
     {
         var query =
-            System.Web.HttpUtility.ParseQueryString(uri.Query);
+            System.Web.HttpUtility.ParseQueryString(
+                uri.Query);
 
         string? id = query["v"];
 
         if (!string.IsNullOrWhiteSpace(id))
             return id;
 
-        // /shorts/ID
         if (uri.AbsolutePath.StartsWith(
                 "/shorts/",
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-["/shorts/".Length..]
+                .Substring("/shorts/".Length)
                 .Split('/')[0];
         }
 
-        // /embed/ID
         if (uri.AbsolutePath.StartsWith(
                 "/embed/",
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-["/embed/".Length..]
+                .Substring("/embed/".Length)
                 .Split('/')[0];
         }
     }
 
-    // youtu.be/ID
     if (host == "youtu.be")
     {
         return uri.AbsolutePath
@@ -122,6 +156,10 @@ static string ExtractYoutubeId(string url)
     return "";
 }
 
+
+// ============================================================
+// HELPER: CHECK YOUTUBE URL
+// ============================================================
 
 static bool IsYoutubeUrl(string? url)
 {
@@ -147,6 +185,10 @@ static bool IsYoutubeUrl(string? url)
 }
 
 
+// ============================================================
+// HELPER: SAFE URL FOR LOGGING
+// ============================================================
+
 static string SafeUrl(string? url)
 {
     if (string.IsNullOrWhiteSpace(url))
@@ -164,111 +206,106 @@ static string SafeUrl(string? url)
 }
 
 
-static string Shorten(
-    string? value,
-    int maxLength = 3000)
-{
-    if (string.IsNullOrWhiteSpace(value))
-        return "";
-
-    value = value.Trim();
-
-    return value.Length <= maxLength
-        ? value
-        : value[..maxLength] + "...";
-}
-
-
 // ============================================================
-// EXTRACTOR RESULT
-// ============================================================
-
-record ExtractionResult(
-    string AudioUrl,
-    string Title,
-    string Provider);
-
-
-// ============================================================
-// EXTRACTOR
-// ============================================================
-//
-// Catatan:
-// Source yang kamu kirim sebelumnya tidak mempunyai extractor.
-// Endpoint /api/convert membutuhkan engine yang benar-benar
-// mengembalikan audio URL.
-//
-// Untuk saat ini extractor dibuat eksplisit agar log mudah
-// didiagnosis. Provider dapat diganti tanpa menyentuh database.
+// AUDIO EXTRACTION ENGINE
 // ============================================================
 
 async Task<ExtractionResult> ExtractAudioAsync(
     IHttpClientFactory httpClientFactory,
     string youtubeUrl)
 {
-    string youtubeId =
-        ExtractYoutubeId(youtubeUrl);
-
     logger.LogInformation(
-        "[EXTRACTOR] ========================================");
-
-    logger.LogInformation(
-        "[EXTRACTOR] Input URL: {Url}",
+        "[EXTRACTOR] Starting extraction for URL: {Url}",
         SafeUrl(youtubeUrl));
 
-    logger.LogInformation(
-        "[EXTRACTOR] YouTube ID: {VideoId}",
-        youtubeId);
+    string youtubeId = ExtractYoutubeId(youtubeUrl);
 
     if (string.IsNullOrWhiteSpace(youtubeId))
     {
-        throw new Exception(
-            "YouTube Video ID tidak dapat diekstrak dari URL.");
+        logger.LogError("[EXTRACTOR] YouTube ID extraction failed.");
+        throw new Exception("YouTube Video ID tidak dapat diekstrak dari URL.");
     }
 
-    // --------------------------------------------------------
-    // TEMPORARY TEST ENGINE
-    // --------------------------------------------------------
-    //
-    // Kita tidak menganggap URL YouTube sebagai audio URL.
-    //
-    // Jika ingin menghubungkan provider extractor tertentu,
-    // bagian ini adalah satu-satunya bagian yang perlu diganti.
-    //
-    // --------------------------------------------------------
+    var client = httpClientFactory.CreateClient("Extractor");
 
-    logger.LogWarning(
-        "[EXTRACTOR] Belum ada provider audio extraction yang " +
-        "aktif pada build ini.");
+    // Array Instance Cobalt API
+    string[] cobaltInstances = new[]
+    {
+        "https://api.cobalt.tools",
+        "https://cobalt-api.kwi.im",
+        "https://co.wuk.sh/api/json"
+    };
 
-    throw new Exception(
-        "Audio extraction engine belum dikonfigurasi pada build ini.");
+    var payload = new
+    {
+        url = $"https://www.youtube.com/watch?v={youtubeId}",
+        downloadMode = "audio",
+        audioFormat = "mp3"
+    };
+
+    foreach (var instance in cobaltInstances)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, instance);
+            req.Headers.Add("Accept", "application/json");
+            req.Headers.Add("Origin", "https://cobalt.tools");
+            req.Headers.Add("Referer", "https://cobalt.tools/");
+            req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await client.SendAsync(req);
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("url", out var urlElem))
+                {
+                    string streamUrl = urlElem.GetString() ?? "";
+                    string title = root.TryGetProperty("filename", out var fnElem) 
+                        ? fnElem.GetString() ?? $"Track {youtubeId}" 
+                        : $"Track {youtubeId}";
+
+                    if (!string.IsNullOrEmpty(streamUrl))
+                    {
+                        logger.LogInformation("[EXTRACTOR] Extraction succeeded via Cobalt ({Instance})", instance);
+                        return new ExtractionResult(streamUrl, title, "Cobalt API");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("[EXTRACTOR] Instance {Instance} failed: {Message}", instance, ex.Message);
+            continue;
+        }
+    }
+
+    logger.LogWarning("[EXTRACTOR] All remote extraction instances failed due to IP limits.");
+    throw new Exception("Ekstraksi otomatis gagal karena pembatasan IP cloud. Silakan gunakan endpoint POST /api/songs untuk menyimpan secara langsung.");
 }
 
 
 // ============================================================
-// 1. GET SONGS
+// GET /api/songs
 // ============================================================
 
 app.MapGet("/api/songs", async () =>
 {
     try
     {
+        logger.LogInformation("[GET /api/songs] Loading songs.");
+
         if (string.IsNullOrWhiteSpace(dbConnectionString))
         {
-            return Results.Problem(
-                detail:
-                    "NEON_DB_CONNECTION belum dikonfigurasi.",
-                statusCode: 500);
+            logger.LogError("[GET /api/songs] NEON_DB_CONNECTION is empty.");
+            return Results.Problem(detail: "NEON_DB_CONNECTION belum dikonfigurasi.", statusCode: 500);
         }
 
-        var songs =
-            new List<object>();
+        var songs = new List<object>();
 
-        await using var conn =
-            new NpgsqlConnection(
-                dbConnectionString);
-
+        await using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
         const string sql = """
@@ -283,150 +320,82 @@ app.MapGet("/api/songs", async () =>
             ORDER BY id DESC
             """;
 
-        await using var cmd =
-            new NpgsqlCommand(
-                sql,
-                conn);
-
-        await using var reader =
-            await cmd.ExecuteReaderAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
 
         while (await reader.ReadAsync())
         {
             songs.Add(new
             {
                 id = reader.GetInt32(0),
-
-                youtubeId =
-                    reader.IsDBNull(1)
-                        ? ""
-                        : reader.GetString(1),
-
-                title =
-                    reader.IsDBNull(2)
-                        ? ""
-                        : reader.GetString(2),
-
-                artist =
-                    reader.IsDBNull(3)
-                        ? "Unknown"
-                        : reader.GetString(3),
-
-                cover =
-                    reader.IsDBNull(4)
-                        ? ""
-                        : reader.GetString(4),
-
-                audioUrl =
-                    reader.IsDBNull(5)
-                        ? ""
-                        : reader.GetString(5)
+                youtubeId = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                title = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
+                cover = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                audioUrl = reader.IsDBNull(5) ? "" : reader.GetString(5)
             });
         }
 
+        logger.LogInformation("[GET /api/songs] Returned {Count} songs.", songs.Count);
         return Results.Ok(songs);
     }
     catch (Exception ex)
     {
-        logger.LogError(
-            ex,
-            "[GET /api/songs ERROR]");
-
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: 500);
+        logger.LogError(ex, "[GET /api/songs ERROR]");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
 
 // ============================================================
-// 2. CONVERT YOUTUBE → AUDIO
+// POST /api/convert
 // ============================================================
 
-app.MapPost(
-    "/api/convert",
-    async (
-        [FromBody] ConvertRequest req,
-        IHttpClientFactory httpClientFactory) =>
+app.MapPost("/api/convert", async ([FromBody] ConvertRequest req, IHttpClientFactory httpClientFactory) =>
 {
     try
     {
-        if (req == null ||
-            string.IsNullOrWhiteSpace(req.YoutubeUrl))
+        logger.LogInformation("[POST /api/convert] Request received.");
+
+        if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
         {
-            return Results.BadRequest(new
-            {
-                error =
-                    "URL YouTube tidak boleh kosong."
-            });
+            return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
         }
 
-        logger.LogInformation(
-            "[POST /api/convert] Input: {Url}",
-            SafeUrl(req.YoutubeUrl));
-
-        var result =
-            await ExtractAudioAsync(
-                httpClientFactory,
-                req.YoutubeUrl);
-
-        if (string.IsNullOrWhiteSpace(
-                result.AudioUrl))
+        if (!IsYoutubeUrl(req.YoutubeUrl))
         {
-            throw new Exception(
-                "Extractor mengembalikan audio URL kosong.");
+            return Results.BadRequest(new { error = "URL yang diberikan bukan URL YouTube yang valid." });
+        }
+
+        var result = await ExtractAudioAsync(httpClientFactory, req.YoutubeUrl);
+
+        if (string.IsNullOrWhiteSpace(result.AudioUrl))
+        {
+            throw new Exception("Extractor mengembalikan audio URL kosong.");
         }
 
         if (IsYoutubeUrl(result.AudioUrl))
         {
-            throw new Exception(
-                "Extractor mengembalikan URL YouTube, " +
-                "bukan URL audio.");
+            throw new Exception("Extractor mengembalikan URL YouTube, bukan URL audio.");
         }
 
-        string youtubeId =
-            ExtractYoutubeId(req.YoutubeUrl);
+        string youtubeId = ExtractYoutubeId(req.YoutubeUrl);
 
-        if (string.IsNullOrWhiteSpace(youtubeId))
+        string title = string.IsNullOrWhiteSpace(result.Title) ? $"Track {youtubeId}" : result.Title;
+        string artist = "YouTube Import";
+        string coverUrl = $"https://img.youtube.com/vi/{youtubeId}/hqdefault.jpg";
+
+        if (string.IsNullOrWhiteSpace(dbConnectionString))
         {
-            youtubeId =
-                Guid.NewGuid()
-                    .ToString("N")[..10];
+            throw new Exception("NEON_DB_CONNECTION belum dikonfigurasi.");
         }
 
-        string coverUrl =
-            $"https://img.youtube.com/vi/{youtubeId}/hqdefault.jpg";
-
-        string artist =
-            string.IsNullOrWhiteSpace(result.Title)
-                ? "YouTube Import"
-                : "YouTube Import";
-
-        await using var conn =
-            new NpgsqlConnection(
-                dbConnectionString);
-
+        await using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
         const string sql = """
-            INSERT INTO songs
-            (
-                youtube_id,
-                title,
-                artist,
-                cover_url,
-                audio_url,
-                duration_seconds
-            )
-            VALUES
-            (
-                @yid,
-                @title,
-                @artist,
-                @cover,
-                @url,
-                @dur
-            )
+            INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds)
+            VALUES (@yid, @title, @artist, @cover, @url, @dur)
             ON CONFLICT (youtube_id)
             DO UPDATE SET
                 title = EXCLUDED.title,
@@ -436,57 +405,22 @@ app.MapPost(
             RETURNING id;
             """;
 
-        await using var cmd =
-            new NpgsqlCommand(
-                sql,
-                conn);
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("yid", youtubeId);
+        cmd.Parameters.AddWithValue("title", title);
+        cmd.Parameters.AddWithValue("artist", artist);
+        cmd.Parameters.AddWithValue("cover", coverUrl);
+        cmd.Parameters.AddWithValue("url", result.AudioUrl);
+        cmd.Parameters.AddWithValue("dur", 180);
 
-        cmd.Parameters.AddWithValue(
-            "yid",
-            youtubeId);
+        object? songId = await cmd.ExecuteScalarAsync();
 
-        cmd.Parameters.AddWithValue(
-            "title",
-            result.Title);
-
-        cmd.Parameters.AddWithValue(
-            "artist",
-            artist);
-
-        cmd.Parameters.AddWithValue(
-            "cover",
-            coverUrl);
-
-        cmd.Parameters.AddWithValue(
-            "url",
-            result.AudioUrl);
-
-        cmd.Parameters.AddWithValue(
-            "dur",
-            180);
-
-        object? songId =
-            await cmd.ExecuteScalarAsync();
-
-        logger.LogInformation(
-            "[CONVERT] SUCCESS");
-
-        logger.LogInformation(
-            "[CONVERT] Provider: {Provider}",
-            result.Provider);
-
-        logger.LogInformation(
-            "[CONVERT] Song ID: {SongId}",
-            songId);
-
-        logger.LogInformation(
-            "[CONVERT] Audio URL: {AudioUrl}",
-            SafeUrl(result.AudioUrl));
+        logger.LogInformation("[POST /api/convert SUCCESS] Song ID: {SongId}", songId);
 
         return Results.Ok(new
         {
             id = songId,
-            title = result.Title,
+            title,
             artist,
             audioUrl = result.AudioUrl,
             provider = result.Provider
@@ -494,112 +428,58 @@ app.MapPost(
     }
     catch (Exception ex)
     {
-        logger.LogError(
-            ex,
-            "[POST /api/convert ERROR]");
-
-        return Results.Json(
-            new
-            {
-                error = ex.Message
-            },
-            statusCode: 500);
+        logger.LogError(ex, "[POST /api/convert ERROR]");
+        return Results.Json(new { error = ex.Message }, statusCode: 400);
     }
 });
 
 
 // ============================================================
-// 3. SAVE SONG
-// ============================================================
-//
-// Endpoint ini untuk client yang SUDAH mempunyai audio URL.
-// Tidak boleh fallback ke YouTube URL.
+// POST /api/songs
 // ============================================================
 
-app.MapPost(
-    "/api/songs",
-    async ([FromBody] SaveSongRequest req) =>
+app.MapPost("/api/songs", async ([FromBody] SaveSongRequest req) =>
 {
     try
     {
-        if (req == null ||
-            string.IsNullOrWhiteSpace(req.YoutubeUrl))
+        logger.LogInformation("[POST /api/songs] Request received.");
+
+        if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
         {
-            return Results.BadRequest(new
-            {
-                error =
-                    "URL YouTube tidak boleh kosong."
-            });
+            return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
         }
 
         if (string.IsNullOrWhiteSpace(req.AudioUrl))
         {
-            return Results.BadRequest(new
-            {
-                error =
-                    "AudioUrl wajib diisi. " +
-                    "Server tidak akan menyimpan URL YouTube " +
-                    "sebagai audio URL."
-            });
+            return Results.BadRequest(new { error = "AudioUrl wajib diisi. Server tidak akan menyimpan URL YouTube sebagai audio URL." });
         }
 
         if (IsYoutubeUrl(req.AudioUrl))
         {
-            return Results.BadRequest(new
-            {
-                error =
-                    "AudioUrl tidak boleh berupa URL YouTube."
-            });
+            return Results.BadRequest(new { error = "AudioUrl tidak boleh berupa URL YouTube." });
         }
 
-        string youtubeId =
-            ExtractYoutubeId(req.YoutubeUrl);
-
+        string youtubeId = ExtractYoutubeId(req.YoutubeUrl);
         if (string.IsNullOrWhiteSpace(youtubeId))
         {
-            youtubeId =
-                Guid.NewGuid()
-                    .ToString("N")[..10];
+            youtubeId = Guid.NewGuid().ToString("N")[..10];
         }
 
-        string coverUrl =
-            $"https://img.youtube.com/vi/{youtubeId}/hqdefault.jpg";
+        string coverUrl = $"https://img.youtube.com/vi/{youtubeId}/hqdefault.jpg";
+        string title = string.IsNullOrWhiteSpace(req.Title) ? $"Track {youtubeId}" : req.Title;
+        string artist = string.IsNullOrWhiteSpace(req.Artist) ? "YouTube Import" : req.Artist;
 
-        string title =
-            string.IsNullOrWhiteSpace(req.Title)
-                ? $"Track {youtubeId}"
-                : req.Title;
+        if (string.IsNullOrWhiteSpace(dbConnectionString))
+        {
+            throw new Exception("NEON_DB_CONNECTION belum dikonfigurasi.");
+        }
 
-        string artist =
-            string.IsNullOrWhiteSpace(req.Artist)
-                ? "YouTube Import"
-                : req.Artist;
-
-        await using var conn =
-            new NpgsqlConnection(
-                dbConnectionString);
-
+        await using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
         const string sql = """
-            INSERT INTO songs
-            (
-                youtube_id,
-                title,
-                artist,
-                cover_url,
-                audio_url,
-                duration_seconds
-            )
-            VALUES
-            (
-                @yid,
-                @title,
-                @artist,
-                @cover,
-                @url,
-                @dur
-            )
+            INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds)
+            VALUES (@yid, @title, @artist, @cover, @url, @dur)
             ON CONFLICT (youtube_id)
             DO UPDATE SET
                 title = EXCLUDED.title,
@@ -609,37 +489,17 @@ app.MapPost(
             RETURNING id;
             """;
 
-        await using var cmd =
-            new NpgsqlCommand(
-                sql,
-                conn);
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("yid", youtubeId);
+        cmd.Parameters.AddWithValue("title", title);
+        cmd.Parameters.AddWithValue("artist", artist);
+        cmd.Parameters.AddWithValue("cover", coverUrl);
+        cmd.Parameters.AddWithValue("url", req.AudioUrl);
+        cmd.Parameters.AddWithValue("dur", 180);
 
-        cmd.Parameters.AddWithValue(
-            "yid",
-            youtubeId);
+        object? songId = await cmd.ExecuteScalarAsync();
 
-        cmd.Parameters.AddWithValue(
-            "title",
-            title);
-
-        cmd.Parameters.AddWithValue(
-            "artist",
-            artist);
-
-        cmd.Parameters.AddWithValue(
-            "cover",
-            coverUrl);
-
-        cmd.Parameters.AddWithValue(
-            "url",
-            req.AudioUrl);
-
-        cmd.Parameters.AddWithValue(
-            "dur",
-            180);
-
-        object? songId =
-            await cmd.ExecuteScalarAsync();
+        logger.LogInformation("[POST /api/songs SUCCESS] Song ID: {SongId}", songId);
 
         return Results.Ok(new
         {
@@ -651,66 +511,43 @@ app.MapPost(
     }
     catch (Exception ex)
     {
-        logger.LogError(
-            ex,
-            "[POST /api/songs ERROR]");
-
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: 500);
+        logger.LogError(ex, "[POST /api/songs ERROR]");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
 
 // ============================================================
-// 4. DELETE SINGLE SONG
+// DELETE /api/songs/{id}
 // ============================================================
 
-app.MapDelete(
-    "/api/songs/{id:int}",
-    async (int id) =>
+app.MapDelete("/api/songs/{id:int}", async (int id) =>
 {
     try
     {
-        await using var conn =
-            new NpgsqlConnection(
-                dbConnectionString);
+        logger.LogInformation("[DELETE /api/songs/{SongId}]", id);
 
+        await using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
-        const string sql =
-            "DELETE FROM songs WHERE id = @id";
+        const string sql = "DELETE FROM songs WHERE id = @id";
 
-        await using var cmd =
-            new NpgsqlCommand(
-                sql,
-                conn);
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", id);
 
-        cmd.Parameters.AddWithValue(
-            "id",
-            id);
+        int rows = await cmd.ExecuteNonQueryAsync();
 
-        int rows =
-            await cmd.ExecuteNonQueryAsync();
+        if (rows == 0)
+        {
+            return Results.NotFound();
+        }
 
-        return rows > 0
-            ? Results.Ok(new
-            {
-                message =
-                    "Lagu berhasil dihapus"
-            })
-            : Results.NotFound();
+        return Results.Ok(new { message = "Lagu berhasil dihapus" });
     }
     catch (Exception ex)
     {
-        logger.LogError(
-            ex,
-            "[DELETE /api/songs ERROR for ID {SongId}]",
-            id);
-
-        return Results.Problem(
-            detail: ex.Message,
-            statusCode: 500);
+        logger.LogError(ex, "[DELETE /api/songs ERROR for ID {SongId}]", id);
+        return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
@@ -720,17 +557,3 @@ app.MapDelete(
 // ============================================================
 
 app.Run();
-
-
-// ============================================================
-// DTO
-// ============================================================
-
-public record ConvertRequest(
-    string YoutubeUrl);
-
-public record SaveSongRequest(
-    string YoutubeUrl,
-    string? Title,
-    string? Artist,
-    string? AudioUrl);
