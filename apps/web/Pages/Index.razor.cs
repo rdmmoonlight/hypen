@@ -100,10 +100,10 @@ public partial class Index
         try
         {
             SetStatus($"Mengunduh: {song.Title}...");
-            
+
             // Pemicu download langsung di peramban pengguna (client-side)
             await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Title}.mp3");
-            
+
             SetStatus("");
         }
         catch (Exception ex)

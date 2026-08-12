@@ -96,7 +96,7 @@ static string ExtractYoutubeId(string url)
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-                .Substring("/shorts/".Length)
+["/shorts/".Length..]
                 .Split('/')[0];
         }
 
@@ -106,7 +106,7 @@ static string ExtractYoutubeId(string url)
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-                .Substring("/embed/".Length)
+["/embed/".Length..]
                 .Split('/')[0];
         }
     }
