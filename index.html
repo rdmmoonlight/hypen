@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hypen</title>
+  <style>
+    body { font-family: sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; padding-bottom: 90px; }
+    h1 { color: #1db954; }
+    input, button { padding: 12px; border-radius: 6px; border: none; margin-bottom: 10px; }
+    input { width: 70%; background: #222; color: #fff; }
+    button { background: #1db954; color: #fff; font-weight: bold; cursor: pointer; }
+    .card { background: #181818; padding: 12px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .info { flex-grow: 1; margin-left: 12px; }
+    .player-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #282828; padding: 10px; display: flex; flex-direction: column; }
+    audio { width: 100%; }
+  </style>
+</head>
+<body>
+
+  <h1>My Cloud Spotify</h1>
+
+  <!-- Input Convert YouTube -->
+  <div>
+    <input type="text" id="ytUrl" placeholder="Tempel link YouTube...">
+    <button onclick="convertVideo()">+ Tambah ke Library</button>
+    <p id="status" style="color:#aaa; font-size: 13px;"></p>
+  </div>
+
+  <hr style="border-color: #333; margin: 20px 0;">
+
+  <h3>Library Lagu (Neon DB)</h3>
+  <div id="library"></div>
+
+  <!-- Player Bar UI -->
+  <div class="player-bar">
+    <div id="nowPlaying" style="font-size: 12px; color: #1db954; margin-bottom: 5px;">Pilih lagu...</div>
+    <audio id="audioPlayer" controls></audio>
+  </div>
+
+  <script>
+    // Ganti dengan URL Backend C# Anda di Render/Railway
+    const BACKEND_URL = "https://nama-backend-anda.onrender.com";
+
+    // 1. Ambil daftar lagu dari DB Neon via C# API
+    async function loadLibrary() {
+      const res = await fetch(`${BACKEND_URL}/api/songs`);
+      const songs = await res.json();
+      
+      const container = document.getElementById('library');
+      container.innerHTML = '';
+
+      songs.forEach(song => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <img src="${song.cover}" width="48" height="48" style="border-radius:4px;">
+          <div class="info">
+            <strong>${song.title}</strong><br>
+            <small style="color:#aaa">${song.artist}</small>
+          </div>
+          <button onclick="playSong('${song.audioUrl}', '${song.title}', '${song.artist}', '${song.cover}')">▶ Play</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // 2. Request Konversi ke Backend C#
+    async function convertVideo() {
+      const url = document.getElementById('ytUrl').value;
+      const status = document.getElementById('status');
+      if(!url) return alert('Masukkan URL!');
+
+      status.innerText = 'Sedang dikonversi oleh server C# & diunggah ke cloud... (15-30 detik)';
+      
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/convert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ youtubeUrl: url })
+        });
+
+        if (res.ok) {
+          status.innerText = 'Berhasil ditambahkan ke Library!';
+          document.getElementById('ytUrl').value = '';
+          loadLibrary();
+        } else {
+          status.innerText = 'Gagal memproses.';
+        }
+      } catch (err) {
+        status.innerText = 'Error menghubungi backend.';
+      }
+    }
+
+    // 3. Playback + Background Play / Lockscreen
+    function playSong(url, title, artist, cover) {
+      const player = document.getElementById('audioPlayer');
+      document.getElementById('nowPlaying').innerText = `Playing: ${title} - ${artist}`;
+      
+      player.src = url;
+      player.play();
+
+      // Lockscreen & Background Control
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: title,
+          artist: artist,
+          artwork: [{ src: cover, sizes: '512x512', type: 'image/jpeg' }]
+        });
+      }
+    }
+
+    // Muat library saat web dibuka
+    loadLibrary();
+  </script>
+</body>
+</html>
