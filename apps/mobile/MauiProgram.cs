@@ -39,7 +39,7 @@ public static class MauiProgram
     private static void SaveCrashLog(Exception ex)
     {
         if (ex == null) return;
-        
+
         // Format log agar rapi dan mudah dibaca
         var log = $"[Crash Time]: {DateTime.Now}\n" +
                   $"[Message]: {ex.Message}\n\n" +
