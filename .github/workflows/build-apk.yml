@@ -18,95 +18,77 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Install Workload .NET MAUI Android
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # Inisialisasi Resources & Platforms jika belum ada (tanpa menimpa file eksisting)
       - name: Ensure Android Resources & Configuration
         run: |
           echo "Checking and preparing MAUI Android resources..."
-
-          # 1. Pastikan struktur folder dasar terbuat
           mkdir -p apps/mobile/Resources/AppIcon
           mkdir -p apps/mobile/Resources/Splash
           mkdir -p apps/mobile/Resources/Fonts
           mkdir -p apps/mobile/Resources/Images
           mkdir -p apps/mobile/Platforms/Android
 
-          # 2. Cek dan buat AndroidManifest.xml valid jika belum ada (Mengatasi Error XML Namespace)
           if [ ! -f "apps/mobile/Platforms/Android/AndroidManifest.xml" ]; then
             echo "AndroidManifest.xml missing. Generating base manifest..."
-            cat <<'EOF' > apps/mobile/Platforms/Android/AndroidManifest.xml
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.companyname.hypenmaui">
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application android:allowBackup="true" android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-EOF
-          else
-            echo "AndroidManifest.xml already exists. Skipping..."
+            cat << 'EOF' > apps/mobile/Platforms/Android/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.companyname.hypenmaui">
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application android:allowBackup="true" android:supportsRtl="true">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
           fi
 
-          # 3. Cek dan buat AppIcon default jika belum ada
           if [ ! -f "apps/mobile/Resources/AppIcon/appicon.svg" ]; then
             echo "appicon.svg missing. Generating placeholder icon..."
-            cat <<'EOF' > apps/mobile/Resources/AppIcon/appicon.svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#512BD4"/>
-  <text x="50" y="55" font-size="32" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">H</text>
-</svg>
-EOF
-          else
-            echo "appicon.svg already exists. Skipping..."
+            cat << 'EOF' > apps/mobile/Resources/AppIcon/appicon.svg
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <rect width="100" height="100" rx="20" fill="#512BD4"/>
+            <text x="50" y="55" font-size="32" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">H</text>
+          </svg>
+          EOF
           fi
 
-          # 4. Cek dan buat Splash Screen default jika belum ada
           if [ ! -f "apps/mobile/Resources/Splash/splash.svg" ]; then
             echo "splash.svg missing. Copying placeholder..."
             cp apps/mobile/Resources/AppIcon/appicon.svg apps/mobile/Resources/Splash/splash.svg
-          else
-            echo "splash.svg already exists. Skipping..."
           fi
 
-          # 5. Cek dan buat MainActivity.cs jika belum ada (memastikan MainLauncher = true)
           if [ ! -f "apps/mobile/Platforms/Android/MainActivity.cs" ]; then
             echo "MainActivity.cs missing. Generating base MainActivity..."
-            cat <<'EOF' > apps/mobile/Platforms/Android/MainActivity.cs
-using Android.App;
-using Android.Content.PM;
-using Microsoft.Maui;
+            cat << 'EOF' > apps/mobile/Platforms/Android/MainActivity.cs
+          using Android.App;
+          using Android.Content.PM;
+          using Microsoft.Maui;
 
-namespace HypenMaui;
+          namespace HypenMaui;
 
-[Activity(
-    Theme = "@style/Maui.SplashTheme",
-    MainLauncher = true,
-    LaunchMode = LaunchMode.SingleTop,
-    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayoutClass | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-public class MainActivity : MauiAppCompatActivity
-{
-}
-EOF
-          else
-            echo "MainActivity.cs already exists. Skipping..."
+          [Activity(
+              Theme = "@style/Maui.SplashTheme",
+              MainLauncher = true,
+              LaunchMode = LaunchMode.SingleTop,
+              ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayoutClass | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
+          public class MainActivity : MauiAppCompatActivity
+          {
+          }
+          EOF
           fi
 
-      # Restore & Build APK dengan menentukan path file .csproj secara spesifik
       - name: Build MAUI Android App
         run: |
           dotnet restore apps/mobile/HypenMaui.csproj
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore
 
-      # Upload APK Artifact
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
