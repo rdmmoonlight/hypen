@@ -29,9 +29,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Community Toolkit Core & Media Element -->
-		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0" />
-		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="6.0.0" />
+		<!-- Wajib untuk .NET 10 (Menghilangkan Warning MA002 & Konflik NU1107) -->
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.20" />
+
+		<!-- Community Toolkit versi Pre-release yang kompatibel dengan .NET 10 -->
+		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0-preview1" />
+		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="6.0.0-preview1" />
 	</ItemGroup>
 
 </Project>
+
