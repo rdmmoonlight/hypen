@@ -12,8 +12,4 @@
   <ItemGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <SourceRoot Include="/home/runner/.nuget/packages/" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <PkgAWSSDK_Core Condition=" '$(PkgAWSSDK_Core)' == '' ">/home/runner/.nuget/packages/awssdk.core/3.7.302.20</PkgAWSSDK_Core>
-    <PkgAWSSDK_S3 Condition=" '$(PkgAWSSDK_S3)' == '' ">/home/runner/.nuget/packages/awssdk.s3/3.7.307</PkgAWSSDK_S3>
-  </PropertyGroup>
 </Project>
