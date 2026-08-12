@@ -2,7 +2,7 @@ name: Build Android APK (.NET MAUI)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "production" ]
 
 jobs:
   build-maui-apk:
