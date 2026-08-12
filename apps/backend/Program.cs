@@ -90,7 +90,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     {
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
-
+        
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
         var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
@@ -116,7 +116,8 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
             }
         }
 
-        string coverUrl = video.Thumbnails.GetWithHighestResolution()?.Url ?? "";
+        // Ambil resolusi Thumbnail tertinggi menggunakan LINQ
+        string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
@@ -161,9 +162,9 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
         {
             try
             {
-                string coverUrl = video.Thumbnails.GetWithHighestResolution()?.Url ?? "";
+                // Ambil resolusi Thumbnail tertinggi menggunakan LINQ
+                string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
-                // Ekstrak URL stream audio terpisah per item
                 string audioUrl = video.Url;
                 try
                 {
@@ -219,7 +220,7 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[DELETE /api/songs/{id} ERROR]");
+        logger.LogError(ex, "[DELETE /api/songs ERROR for ID {SongId}]", id);
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
