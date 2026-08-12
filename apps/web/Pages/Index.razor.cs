@@ -1,4 +1,5 @@
-using System.Net.Http.Json;
+using Hypen.Web.Models;
+using Hypen.Web.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
@@ -6,16 +7,15 @@ namespace Hypen.Web.Pages;
 
 public partial class Index : ComponentBase
 {
-    [Inject]
-    protected HttpClient Http { get; set; } = default!;
+    [Inject] protected ISongService SongService { get; set; } = default!;
+    [Inject] protected IJSRuntime JS { get; set; } = default!;
 
-    [Inject]
-    protected IJSRuntime JS { get; set; } = default!;
-
-    protected List<SongModel>? songs;
+    protected List<SongModel> songs = new();
     protected string ytUrl = "";
+    protected string playlistUrl = "";
+    protected string searchQuery = "";
     protected string statusMsg = "";
-    protected bool isError = false;
+    protected bool isError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -27,7 +27,7 @@ public partial class Index : ComponentBase
         try
         {
             SetStatus("Memuat library...");
-            songs = await Http.GetFromJsonAsync<List<SongModel>>("/api/songs");
+            songs = await SongService.GetSongsAsync();
             SetStatus("");
         }
         catch (Exception ex)
@@ -40,46 +40,39 @@ public partial class Index : ComponentBase
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
         SetStatus("Memproses track...");
-        try
+        
+        var result = await SongService.ConvertVideoAsync(ytUrl);
+        if (result != null)
         {
-            var res = await Http.PostAsJsonAsync("/api/convert", new { YoutubeUrl = ytUrl });
-            if (res.IsSuccessStatusCode)
-            {
-                SetStatus("Track berhasil ditambahkan!");
-                ytUrl = "";
-                await LoadLibrary();
-            }
+            SetStatus("Track berhasil ditambahkan!");
+            ytUrl = "";
+            await LoadLibrary();
         }
-        catch
+        else
         {
             SetStatus("Gagal mengonversi video.", true);
         }
     }
 
-    protected static void PlaySong(SongModel song)
+    protected async Task DownloadSingle(SongModel song)
     {
-        // Logika pemutaran audio
+        SetStatus($"Mengunduh: {song.Title}...");
+        await SongService.DownloadSongAsync(song.AudioUrl, song.Title);
+        SetStatus("");
     }
 
     protected async Task DeleteSingle(int id)
     {
         if (!await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini?")) return;
-        var res = await Http.DeleteAsync($"/api/songs/{id}");
-        if (res.IsSuccessStatusCode) await LoadLibrary();
+        if (await SongService.DeleteSongAsync(id))
+        {
+            await LoadLibrary();
+        }
     }
 
     private void SetStatus(string msg, bool error = false)
     {
         statusMsg = msg;
         isError = error;
-    }
-
-    public class SongModel
-    {
-        public int Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Artist { get; set; } = "";
-        public string AudioUrl { get; set; } = "";
-        public bool IsSelected { get; set; }
     }
 }
