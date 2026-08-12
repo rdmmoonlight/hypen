@@ -19,10 +19,19 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Package untuk HTTP & Media Playback -->
-		<PackageReference Include="CommunityToolkit.Maui" Version="9.0.0" />
-		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="4.0.0" />
-		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.0-preview.1.25121.1" />
+		<!-- App Icon & Splash Screen Setup -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appicon.svg" Color="#512BD4" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+		<!-- Custom Assets & Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Community Toolkit Core & Media Element -->
+		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0" />
+		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="6.0.0" />
 	</ItemGroup>
 
 </Project>
