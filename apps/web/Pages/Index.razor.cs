@@ -1,3 +1,4 @@
+using System.Web;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using Hypen.Web.Models;
@@ -22,7 +23,6 @@ public partial class Index
     protected string? currentPlayingTrack;
     protected string? currentAudioUrl;
     
-    // Key Sesi Last.fm (diambil setelah handshake autentikasi)
     protected string? lastFmSessionKey;
 
     protected IEnumerable<SongModel> FilteredSongs =>
@@ -33,28 +33,30 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Cek Token Autentikasi Callback Last.fm dari URL
         await HandleLastFmCallback();
-
-        // 2. Muat Daftar Lagu dari Server
         await LoadLibrary();
     }
 
     private async Task HandleLastFmCallback()
     {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        var uri = new Uri(Navigation.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+        var token = query["token"];
 
-        if (query.TryGetValue("token", out var token))
+        if (!string.IsNullOrEmpty(token))
         {
             try
             {
                 SetStatus("Menghubungkan ke Last.fm...");
-                lastFmSessionKey = await LastFmService.FetchSessionKeyAsync(token!);
+                lastFmSessionKey = await LastFmService.FetchSessionKeyAsync(token);
                 
                 if (!string.IsNullOrEmpty(lastFmSessionKey))
                 {
                     SetStatus("Berhasil terhubung ke Last.fm!");
+                }
+                else
+                {
+                    SetStatus("Gagal mendapatkan sesi Last.fm.", true);
                 }
             }
             catch (Exception ex)
@@ -126,7 +128,6 @@ public partial class Index
         currentPlayingTrack = $"PLAYING: {song.Title} - {song.Artist}";
         currentAudioUrl = song.AudioUrl;
 
-        // Kirim status "Now Playing" ke Last.fm jika sesi pengguna aktif
         if (!string.IsNullOrEmpty(lastFmSessionKey))
         {
             _ = LastFmService.UpdateNowPlayingAsync(song.Title, song.Artist, lastFmSessionKey);
@@ -189,7 +190,6 @@ public partial class Index
 
     protected void ConnectLastFm()
     {
-        // Redirect user ke halaman otorisasi resmi Last.fm
         var authUrl = LastFmService.GetAuthorizationUrl();
         Navigation.NavigateTo(authUrl, forceLoad: true);
     }
