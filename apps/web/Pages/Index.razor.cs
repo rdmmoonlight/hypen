@@ -6,10 +6,10 @@ namespace Hypen.Web.Pages;
 
 public partial class Index : ComponentBase
 {
-    [Inject] 
+    [Inject]
     protected HttpClient Http { get; set; } = default!;
 
-    [Inject] 
+    [Inject]
     protected IJSRuntime JS { get; set; } = default!;
 
     protected List<SongModel>? songs;
@@ -56,7 +56,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected void PlaySong(SongModel song)
+    protected static void PlaySong(SongModel song)
     {
         // Logika pemutaran audio
     }
