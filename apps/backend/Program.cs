@@ -23,7 +23,7 @@ builder.Services.AddHttpClient();
 var app = builder.Build();
 var logger = app.Logger;
 
-// PENTING: Panggil CORS Middleware di paling atas
+// PENTING: Panggil CORS Middleware paling atas
 app.UseCors("AllowAll");
 
 // Health-Check
@@ -84,63 +84,7 @@ app.MapGet("/api/songs", async () =>
     }
 });
 
-// Helper Function: Ekstraksi Direct Stream MP3 via Cobalt Infrastructure
-async Task<(string audioUrl, string title)> ExtractAudioViaEngineAsync(IHttpClientFactory httpClientFactory, string youtubeUrl)
-{
-    var client = httpClientFactory.CreateClient();
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-    client.DefaultRequestHeaders.Add("User-Agent", "HypenVault/1.0");
-
-    var payload = new
-    {
-        url = youtubeUrl,
-        downloadMode = "audio",
-        audioFormat = "mp3",
-        audioBitrate = "128"
-    };
-
-    var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-
-    // Beberapa instance Cobalt publik yang stabil
-    string[] instances =
-    [
-        "https://api.cobalt.tools",
-        "https://cobalt-api.kwi.im",
-        "https://api.v2.cobalt.tools"
-    ];
-
-    foreach (var instance in instances)
-    {
-        try
-        {
-            var response = await client.PostAsync(instance, jsonContent);
-            if (response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(body);
-                var root = doc.RootElement;
-
-                if (root.TryGetProperty("url", out var urlElement))
-                {
-                    string streamUrl = urlElement.GetString() ?? "";
-                    string title = root.TryGetProperty("filename", out var fnElement) ? fnElement.GetString() ?? "Hypen Track" : "Hypen Track";
-                    if (!string.IsNullOrEmpty(streamUrl))
-                    {
-                        return (streamUrl, title);
-                    }
-                }
-            }
-        }
-        catch
-        {
-            continue; // Coba instance berikutnya jika terjadi kendala jaringan
-        }
-    }
-
-    throw new Exception("Seluruh instance ekstrator audio gagal memproses URL YouTube ini.");
-}
-
-// Helper Function: Ekstraksi Video ID dari URL YouTube
+// Helper Function: Ekstraksi Youtube ID
 string ExtractYoutubeId(string url)
 {
     if (string.IsNullOrWhiteSpace(url)) return "";
@@ -154,7 +98,129 @@ string ExtractYoutubeId(string url)
         var parts = url.Split("youtu.be/");
         return parts.Length > 1 ? parts[1].Split('?')[0] : "";
     }
-    return "";
+    return url.Trim();
+}
+
+// Helper Function: Ultra-Reliable Multi-Engine Extractor (Y2Mate / Direct Scraper)
+async Task<(string audioUrl, string title)> ExtractAudioMultiEngineAsync(IHttpClientFactory httpClientFactory, string youtubeUrl)
+{
+    var client = httpClientFactory.CreateClient();
+    string videoId = ExtractYoutubeId(youtubeUrl);
+
+    if (string.IsNullOrEmpty(videoId))
+    {
+        throw new Exception("URL YouTube tidak valid atau Video ID tidak ditemukan.");
+    }
+
+    // --- ENGINE 1: Y2Mate Direct API Proxy (Menembus IP Cloud Render) ---
+    try
+    {
+        using var y2Req = new HttpRequestMessage(HttpMethod.Post, "https://www.y2mate.com/mates/analyzeV2/ajax");
+        y2Req.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        y2Req.Headers.Add("X-Requested-With", "XMLHttpRequest");
+
+        var formData = new Dictionary<string, string>
+        {
+            { "k_query", $"https://www.youtube.com/watch?v={videoId}" },
+            { "k_page", "home" },
+            { "hl", "en" },
+            { "q_auto", "0" }
+        };
+
+        y2Req.Content = new FormUrlEncodedContent(formData);
+        var y2Res = await client.SendAsync(y2Req);
+
+        if (y2Res.IsSuccessStatusCode)
+        {
+            var y2Body = await y2Res.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(y2Body);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("status", out var statusElem) && statusElem.GetString() == "ok")
+            {
+                string title = root.TryGetProperty("title", out var titleElem) ? titleElem.GetString() ?? "Hypen Track" : "Hypen Track";
+                string vidKey = root.TryGetProperty("vid", out var vidElem) ? vidElem.GetString() ?? "" : "";
+
+                // Cari key konversi format mp3
+                if (root.TryGetProperty("links", out var linksElem) && linksElem.TryGetProperty("mp3", out var mp3Elem))
+                {
+                    foreach (var prop in mp3Elem.EnumerateObject())
+                    {
+                        var item = prop.Value;
+                        if (item.TryGetProperty("k", out var kElem))
+                        {
+                            string key = kElem.GetString() ?? "";
+
+                            // Step 2: Request Convert Link
+                            using var convReq = new HttpRequestMessage(HttpMethod.Post, "https://www.y2mate.com/mates/convertV2/index");
+                            convReq.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                            convReq.Headers.Add("X-Requested-With", "XMLHttpRequest");
+
+                            var convData = new Dictionary<string, string>
+                            {
+                                { "vid", vidKey },
+                                { "k", key }
+                            };
+                            convReq.Content = new FormUrlEncodedContent(convData);
+
+                            var convRes = await client.SendAsync(convReq);
+                            if (convRes.IsSuccessStatusCode)
+                            {
+                                var convBody = await convRes.Content.ReadAsStringAsync();
+                                using var convDoc = JsonDocument.Parse(convBody);
+                                var convRoot = convDoc.RootElement;
+
+                                if (convRoot.TryGetProperty("dlink", out var dlinkElem))
+                                {
+                                    string downloadUrl = dlinkElem.GetString() ?? "";
+                                    if (!string.IsNullOrEmpty(downloadUrl))
+                                    {
+                                        return (downloadUrl, title);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch
+    {
+        // Lanjut ke Engine 2 jika Y2Mate sibuk
+    }
+
+    // --- ENGINE 2: Cobalt API Fallback ---
+    try
+    {
+        var cobaltPayload = new 
+        { 
+            url = $"https://www.youtube.com/watch?v={videoId}", 
+            downloadMode = "audio", 
+            audioFormat = "mp3" 
+        };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.cobalt.tools");
+        req.Headers.Add("Accept", "application/json");
+        req.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        req.Headers.Add("Origin", "https://cobalt.tools");
+        req.Headers.Add("Referer", "https://cobalt.tools/");
+        req.Content = new StringContent(JsonSerializer.Serialize(cobaltPayload), Encoding.UTF8, "application/json");
+
+        var res = await client.SendAsync(req);
+        if (res.IsSuccessStatusCode)
+        {
+            var body = await res.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("url", out var urlElem))
+            {
+                return (urlElem.GetString() ?? "", "Hypen Track");
+            }
+        }
+    }
+    catch { }
+
+    throw new Exception("Seluruh jalur ekstraksi audio gagal. YouTube membatasi akses dari server hosting ini.");
 }
 
 // 2. Convert Single Track
@@ -165,7 +231,7 @@ app.MapPost("/api/convert", async (ConvertRequest req, IHttpClientFactory httpCl
         if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
             return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
 
-        var (audioPublicUrl, title) = await ExtractAudioViaEngineAsync(httpClientFactory, req.YoutubeUrl);
+        var (audioPublicUrl, title) = await ExtractAudioMultiEngineAsync(httpClientFactory, req.YoutubeUrl);
         string youtubeId = ExtractYoutubeId(req.YoutubeUrl);
         if (string.IsNullOrEmpty(youtubeId)) youtubeId = Guid.NewGuid().ToString("N")[..10];
 
@@ -189,12 +255,12 @@ app.MapPost("/api/convert", async (ConvertRequest req, IHttpClientFactory httpCl
         cmd.Parameters.AddWithValue("dur", 180);
 
         var songId = await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { id = songId, title, artist, audioUrl = audioPublicUrl });
+        return Results.Ok(new { id = songId, title = title, artist = artist, audioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "[POST /api/convert ERROR]");
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        return Results.Json(new { error = ex.Message }, statusCode: 500);
     }
 });
 
@@ -211,7 +277,7 @@ app.MapPost("/api/convert-playlist", async (PlaylistRequest req) =>
     catch (Exception ex)
     {
         logger.LogError(ex, "[POST /api/convert-playlist ERROR]");
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        return Results.Json(new { error = ex.Message }, statusCode: 500);
     }
 });
 
@@ -223,15 +289,15 @@ app.MapPost("/api/download", async (ConvertRequest req, IHttpClientFactory httpC
         if (req == null || string.IsNullOrWhiteSpace(req.YoutubeUrl))
             return Results.BadRequest(new { error = "URL YouTube tidak boleh kosong." });
 
-        var (directAudioUrl, _) = await ExtractAudioViaEngineAsync(httpClientFactory, req.YoutubeUrl);
+        var (directAudioUrl, _) = await ExtractAudioMultiEngineAsync(httpClientFactory, req.YoutubeUrl);
 
-        // Langsung alihkan pengguna ke Direct Stream MP3 CDN
+        // Redirect pengguna langsung ke Direct CDN Stream MP3
         return Results.Redirect(directAudioUrl);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "[POST /api/download ERROR] Detail: {Message}", ex.Message);
-        return Results.Problem(detail: $"Gagal mengekstrak link download: {ex.Message}", statusCode: 500);
+        return Results.Json(new { error = $"Gagal mengekstrak link download: {ex.Message}" }, statusCode: 500);
     }
 });
 
@@ -252,7 +318,7 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
     catch (Exception ex)
     {
         logger.LogError(ex, "[DELETE /api/songs ERROR for ID {SongId}]", id);
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        return Results.Json(new { error = ex.Message }, statusCode: 500);
     }
 });
 
@@ -275,7 +341,7 @@ app.MapPost("/api/songs/delete-batch", async (BatchDeleteRequest req) =>
     catch (Exception ex)
     {
         logger.LogError(ex, "[POST /api/songs/delete-batch ERROR]");
-        return Results.Problem(detail: ex.Message, statusCode: 500);
+        return Results.Json(new { error = ex.Message }, statusCode: 500);
     }
 });
 
