@@ -4,9 +4,16 @@ on:
   push:
     branches: [ "main" ]
 
+# Memaksa workflow ini masuk antrean (queue) dan TIDAK berjalan bersamaan
+concurrency:
+  group: lint-fix-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   lint-and-fix:
     name: C# Format & Security Check
+    # Stop jika push berasal dari bot auto-fix itu sendiri (mencegah loop)
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +37,7 @@ jobs:
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style(ci): auto-fix code style and linting"
+          commit_message: "style(ci): auto-fix code style and linting [skip ci]"
           branch: main
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
