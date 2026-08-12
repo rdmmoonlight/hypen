@@ -54,10 +54,12 @@
             {
                 <div class="card">
                     <input type="checkbox" class="song-checkbox" @bind="song.IsSelected" />
-                    <div class="card-info" style="margin-left: 10px;">
-                        <div class="card-title">@song.Title</div>
-                        <div class="card-artist">@song.Artist</div>
+                    
+                    <div class="card-info" style="margin-left: 10px; flex-grow: 1;">
+                        <div class="card-title" style="font-weight: bold;">@song.Title</div>
+                        <div class="card-artist" style="color: var(--text-secondary); font-size: 0.9em;">@song.Artist</div>
                     </div>
+                    
                     <div class="card-actions">
                         <button class="btn-nebula" @onclick="() => PlaySong(song)">Play</button>
                         <button class="btn-nebula btn-secondary" @onclick="() => DownloadSingle(song)">Download</button>
@@ -70,7 +72,18 @@
 </main>
 
 <!-- Player Bar -->
-<div class="player-bar">
-    <div class="now-playing">@(currentPlayingTrack ?? "No track selected...")</div>
-    <audio id="audioPlayer" src="@currentAudioUrl" controls autoplay></audio>
+<div class="player-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 15, 26, 0.95); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.1); z-index: 1000;">
+    <div class="now-playing" style="font-weight: 500; color: #4cc9f0;">
+        @(currentPlayingTrack ?? "No track selected...")
+    </div>
+    <div>
+        @if (!string.IsNullOrEmpty(currentAudioUrl))
+        {
+            <audio id="audioPlayer" src="@currentAudioUrl" controls autoplay style="height: 35px;"></audio>
+        }
+        else
+        {
+            <audio id="audioPlayer" controls disabled style="height: 35px; opacity: 0.5;"></audio>
+        }
+    </div>
 </div>
