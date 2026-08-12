@@ -48,18 +48,26 @@ public partial class Index
     protected async Task ConvertVideo()
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
-        SetStatus("Memproses track...");
+        SetStatus("Menyimpan track ke library...");
 
-        var result = await SongService.ConvertVideoAsync(ytUrl);
-        if (result != null)
+        try
         {
-            SetStatus("Track berhasil ditambahkan!");
-            ytUrl = "";
-            await LoadLibrary();
+            // Panggil service yang menggunakan endpoint POST /api/songs
+            var result = await SongService.ConvertVideoAsync(ytUrl);
+            if (result != null)
+            {
+                SetStatus("Track berhasil ditambahkan!");
+                ytUrl = "";
+                await LoadLibrary();
+            }
+            else
+            {
+                SetStatus("Gagal menyimpan video ke database.", true);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            SetStatus("Gagal mengonversi video.", true);
+            SetStatus($"Error: {ex.Message}", true);
         }
     }
 
@@ -89,9 +97,19 @@ public partial class Index
 
     protected async Task DownloadSingle(SongModel song)
     {
-        SetStatus($"Mengunduh: {song.Title}...");
-        await SongService.DownloadSongAsync(song.AudioUrl, song.Title);
-        SetStatus("");
+        try
+        {
+            SetStatus($"Mengunduh: {song.Title}...");
+            
+            // Pemicu download langsung di peramban pengguna (client-side)
+            await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Title}.mp3");
+            
+            SetStatus("");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+        }
     }
 
     protected async Task DownloadSelected()
@@ -102,7 +120,7 @@ public partial class Index
         foreach (var song in selected)
         {
             await DownloadSingle(song);
-            await Task.Delay(500);
+            await Task.Delay(500); // Penundaan agar peramban tidak memblokir pop-up multiple download
         }
     }
 
