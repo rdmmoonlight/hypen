@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using YoutubeExplode;
-using YoutubeExplode.Playlists;
+using YoutubeExplode.Videos.Streams;
 using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup CORS
+// Setup CORS Policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -25,11 +25,12 @@ app.UseCors("AllowAll");
 // Preflight OPTIONS Handler
 app.MapMethods("/{*path}", ["OPTIONS"], () => Results.Ok());
 
+// Environment Variables
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 string supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
 string supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? "";
 
-// Supabase Init
+// Supabase Client Safe Init
 Supabase.Client? supabaseClient = null;
 if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 {
@@ -47,18 +48,47 @@ if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 
 app.MapGet("/", () => Results.Ok("Hypen API is running!"));
 
-// Endpoint 1: Single Track
-app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
+// 1. Fetch Songs Library
+app.MapGet("/api/songs", async () =>
 {
-    logger.LogInformation("[POST /api/convert] Processing: {Url}", req.YoutubeUrl);
     try
     {
-        if (string.IsNullOrWhiteSpace(req.YoutubeUrl))
-            return Results.BadRequest(new { error = "YoutubeUrl is required." });
+        var songs = new List<object>();
+        using var conn = new NpgsqlConnection(dbConnectionString);
+        await conn.OpenAsync();
 
+        using var cmd = new NpgsqlCommand("SELECT id, youtube_id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
+        using var reader = await cmd.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            songs.Add(new
+            {
+                id = reader.GetInt32(0),
+                youtubeId = reader.GetString(1),
+                title = reader.GetString(2),
+                artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
+                cover = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                audioUrl = reader.GetString(5)
+            });
+        }
+
+        return Results.Ok(songs);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[GET /api/songs ERROR]");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// 2. Convert Single Track
+app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
+{
+    try
+    {
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
-
         string audioPublicUrl = video.Url;
 
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
@@ -76,9 +106,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
             audioPublicUrl = supabaseClient.Storage.From("songs").GetPublicUrl(fileName);
         }
 
-        string coverUrl = video.Thumbnails
-            .OrderByDescending(t => t.Resolution.Area)
-            .FirstOrDefault()?.Url ?? "";
+        string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
@@ -97,42 +125,22 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
         cmd.Parameters.AddWithValue("dur", (int)(video.Duration?.TotalSeconds ?? 0));
 
         var songId = await cmd.ExecuteScalarAsync();
-
-        return Results.Ok(new { Id = songId, video.Title, Artist = video.Author.ChannelTitle, AudioUrl = audioPublicUrl });
+        return Results.Ok(new { id = songId, title = video.Title, artist = video.Author.ChannelTitle, audioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[POST /api/convert ERROR]: {Message}", ex.Message);
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
-// Endpoint 2: Import Playlist Bulk (Handled for Youtube Music & Standard Playlists)
+// 3. Import Playlist Bulk
 app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 {
-    logger.LogInformation("[POST /api/convert-playlist] Processing: {Url}", req.PlaylistUrl);
     try
     {
-        if (string.IsNullOrWhiteSpace(req.PlaylistUrl))
-            return Results.BadRequest(new { error = "PlaylistUrl is required." });
-
         var youtube = new YoutubeClient();
-
-        // Parse Playlist ID secara fleksibel dari URL
-        var playlistId = PlaylistId.TryParse(req.PlaylistUrl) ?? req.PlaylistUrl;
-
-        string playlistTitle = "Imported Playlist";
-        try
-        {
-            var playlist = await youtube.Playlists.GetAsync(playlistId);
-            playlistTitle = playlist.Title;
-        }
-        catch
-        {
-            logger.LogWarning("Could not fetch playlist metadata. Proceeding to parse video items directly.");
-        }
-
-        var videos = youtube.Playlists.GetVideosAsync(playlistId);
+        var playlist = await youtube.Playlists.GetAsync(req.PlaylistUrl);
+        var videos = youtube.Playlists.GetVideosAsync(playlist.Id);
 
         int count = 0;
         using var conn = new NpgsqlConnection(dbConnectionString);
@@ -142,9 +150,7 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
         {
             try
             {
-                string coverUrl = video.Thumbnails
-                    .OrderByDescending(t => t.Resolution.Area)
-                    .FirstOrDefault()?.Url ?? "";
+                string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
                 string sql = @"INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds) 
                                VALUES (@yid, @title, @artist, @cover, @url, @dur) 
@@ -160,59 +166,59 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 
                 await cmd.ExecuteNonQueryAsync();
                 count++;
-                logger.LogInformation("Track added: {Title}", video.Title);
             }
-            catch (Exception exItem)
+            catch
             {
-                logger.LogWarning("Skipped track: {Message}", exItem.Message);
                 continue;
             }
         }
 
-        if (count == 0)
-        {
-            return Results.BadRequest(new { error = "Tidak ada lagu publik yang dapat dibaca dari playlist ini. Pastikan playlist diset ke Public/Unlisted (bukan Private)." });
-        }
-
-        return Results.Ok(new { PlaylistTitle = playlistTitle, TotalAdded = count });
+        return Results.Ok(new { playlistTitle = playlist.Title, totalAdded = count });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[POST /api/convert-playlist ERROR]: {Message}", ex.Message);
-        return Results.Problem(detail: $"Gagal membaca playlist: {ex.Message}", statusCode: 500);
+        return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
 
-// Endpoint 3: Fetch Songs
-app.MapGet("/api/songs", async () =>
+// 4. Delete Single Song
+app.MapDelete("/api/songs/{id:int}", async (int id) =>
 {
     try
     {
-        var songs = new List<object>();
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
-        using var cmd = new NpgsqlCommand("SELECT id, youtube_id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
-        using var reader = await cmd.ExecuteReaderAsync();
+        using var cmd = new NpgsqlCommand("DELETE FROM songs WHERE id = @id", conn);
+        cmd.Parameters.AddWithValue("id", id);
+        int rows = await cmd.ExecuteNonQueryAsync();
 
-        while (await reader.ReadAsync())
-        {
-            songs.Add(new
-            {
-                Id = reader.GetInt32(0),
-                YoutubeId = reader.GetString(1),
-                Title = reader.GetString(2),
-                Artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
-                Cover = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                AudioUrl = reader.GetString(5)
-            });
-        }
-
-        return Results.Ok(songs);
+        return rows > 0 ? Results.Ok(new { message = "Lagu berhasil dihapus" }) : Results.NotFound();
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "[GET /api/songs ERROR]: {Message}", ex.Message);
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// 5. Delete Batch Songs
+app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req) =>
+{
+    try
+    {
+        if (req.Ids == null || req.Ids.Length == 0) return Results.BadRequest();
+
+        using var conn = new NpgsqlConnection(dbConnectionString);
+        await conn.OpenAsync();
+
+        using var cmd = new NpgsqlCommand("DELETE FROM songs WHERE id = ANY(@ids)", conn);
+        cmd.Parameters.AddWithValue("ids", req.Ids);
+        int rows = await cmd.ExecuteNonQueryAsync();
+
+        return Results.Ok(new { deletedCount = rows });
+    }
+    catch (Exception ex)
+    {
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
@@ -221,3 +227,4 @@ app.Run();
 
 public record ConvertRequest(string YoutubeUrl);
 public record PlaylistRequest(string PlaylistUrl);
+public record BatchDeleteRequest(int[] Ids);
