@@ -23,7 +23,7 @@ builder.Services.AddHttpClient();
 var app = builder.Build();
 var logger = app.Logger;
 
-// PENTING: Panggil CORS Middleware di paling atas
+// PENTING: Panggil CORS Middleware paling atas
 app.UseCors("AllowAll");
 
 // Health-Check
@@ -84,7 +84,7 @@ app.MapGet("/api/songs", async () =>
     }
 });
 
-// 2. Convert Single Track
+// 2. Convert Single Track (Menyimpan Metadata & Direct Audio URL)
 app.MapPost("/api/convert", async (ConvertRequest req) =>
 {
     try
@@ -98,10 +98,13 @@ app.MapPost("/api/convert", async (ConvertRequest req) =>
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
         var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
-        string audioPublicUrl = streamInfo?.Url ?? video.Url;
+        if (streamInfo == null)
+            return Results.NotFound(new { error = "Stream audio tidak ditemukan" });
 
-        // Upload ke Supabase Storage jika terhubung
-        if (supabaseClient != null && streamInfo != null)
+        string audioPublicUrl = streamInfo.Url;
+
+        // Upload ke Supabase Storage jika terhubung (Optional)
+        if (supabaseClient != null)
         {
             try
             {
@@ -209,8 +212,8 @@ app.MapPost("/api/convert-playlist", async (PlaylistRequest req) =>
     }
 });
 
-// 4. Download Stream MP3 (Stabil dengan MemoryStream)
-app.MapPost("/api/download", async (ConvertRequest req, IHttpClientFactory httpClientFactory) =>
+// 4. Direct Download Stream (Mengembalikan Direct CDN Stream Link / Redirect tanpa Beban Memori Server)
+app.MapPost("/api/download", async (ConvertRequest req) =>
 {
     try
     {
@@ -225,20 +228,13 @@ app.MapPost("/api/download", async (ConvertRequest req, IHttpClientFactory httpC
         if (streamInfo == null)
             return Results.NotFound(new { error = "Stream audio tidak ditemukan" });
 
-        // Mengunduh stream audio ke MemoryStream lokal agar tidak terputus di tengah jalan
-        using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
-        var memoryStream = new MemoryStream();
-        await audioStream.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        string safeTitle = string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
-
-        return Results.File(memoryStream, "audio/mpeg", $"{safeTitle}.mp3");
+        // Mengalihkan secara langsung ke URL CDN Google/YouTube (Super Ringan & Anti OOM Error 500)
+        return Results.Redirect(streamInfo.Url);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "[POST /api/download ERROR] Detail: {Message}", ex.Message);
-        return Results.Problem(detail: $"Gagal memproses download: {ex.Message}", statusCode: 500);
+        return Results.Problem(detail: $"Gagal mengekstrak link download: {ex.Message}", statusCode: 500);
     }
 });
 
