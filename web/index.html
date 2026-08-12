@@ -103,7 +103,6 @@
       songs.forEach(song => {
         const title = song.title || 'Untitled';
         const artist = song.artist || 'Unknown';
-        const cover = song.cover || '';
         const audioUrl = song.audioUrl || '';
         const id = song.id;
 
@@ -111,13 +110,12 @@
         card.className = 'card';
         card.innerHTML = `
           <input type="checkbox" class="song-checkbox" data-id="${id}" data-url="${audioUrl}" data-title="${title.replace(/"/g, '&quot;')}">
-          <img src="${cover}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50/141226/f0f3ff?text=♫'">
-          <div class="card-info">
+          <div class="card-info" style="margin-left: 10px;">
             <div class="card-title"></div>
             <div class="card-artist"></div>
           </div>
           <div class="card-actions">
-            <button class="btn-nebula" onclick="playSong('${audioUrl}', \`${title.replace(/`/g, '\\`')}\`, \`${artist.replace(/`/g, '\\`')}\`, '${cover}')">▶</button>
+            <button class="btn-nebula" onclick="playSong('${audioUrl}', \`${title.replace(/`/g, '\\`')}\`, \`${artist.replace(/`/g, '\\`')}\`)">▶</button>
             <button class="btn-nebula btn-secondary" onclick="downloadSingle('${audioUrl}', \`${title.replace(/`/g, '\\`')}\`)">📥</button>
             <button class="btn-nebula" style="background: #4a0000; border-color: #8b0000;" onclick="deleteSingle(${id})">🗑️</button>
           </div>
@@ -142,7 +140,6 @@
       document.querySelectorAll('.song-checkbox').forEach(cb => cb.checked = master.checked);
     }
 
-    // Direct Download MP3 Paralel Masif
     function downloadSelected() {
       const selected = document.querySelectorAll('.song-checkbox:checked');
       if (selected.length === 0) return alert('Pilih minimal 1 lagu!');
@@ -154,11 +151,10 @@
         setTimeout(() => {
           downloadSingle(url, title);
         }, delay);
-        delay += 600; // Jeda aman 0.6 detik antar unduhan
+        delay += 600;
       });
     }
 
-    // Perbaikan: Fetch file secara Async lalu unduh via Blob agar tidak membuka tab baru
     async function downloadSingle(url, title) {
       if (!url) return alert('URL audio tidak valid.');
       
@@ -177,14 +173,12 @@
         document.body.appendChild(a);
         a.click();
 
-        // Clean up
         window.URL.revokeObjectURL(blobUrl);
         document.body.removeChild(a);
         setStatus(`Berhasil mengunduh: ${title}`);
         setTimeout(() => setStatus(''), 3000);
       } catch (err) {
         console.error("Download Error:", err);
-        // Fallback: Jika CORS memblokir Fetch, buka via window.open sebagai opsi cadangan
         const fallbackAnchor = document.createElement('a');
         fallbackAnchor.href = url;
         fallbackAnchor.download = `${title}.mp3`;
@@ -279,20 +273,17 @@
       }
     }
 
-    function playSong(url, title, artist, cover) {
+    function playSong(url, title, artist) {
       const player = document.getElementById('audioPlayer');
       document.getElementById('nowPlaying').innerText = `PLAYING: ${title} - ${artist}`;
       player.src = url;
       player.play().catch(console.warn);
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title, artist, artwork: [{ src: cover, sizes: '512x512', type: 'image/jpeg' }]
-        });
+        navigator.mediaSession.metadata = new MediaMetadata({ title, artist });
       }
     }
 
     loadLibrary();
   </script>
 </body>
-    </html>
-  
+</html>
