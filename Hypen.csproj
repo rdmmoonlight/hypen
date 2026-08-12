@@ -7,14 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Package untuk PostgreSQL Neon DB -->
+    <!-- Database Neon PostgreSQL -->
     <PackageReference Include="Npgsql" Version="8.0.3" />
     
-    <!-- Package untuk Extract & Scrape YouTube Stream -->
+    <!-- Scraper YouTube -->
     <PackageReference Include="YoutubeExplode" Version="6.3.16" />
     
-    <!-- Package untuk Upload Audio ke Cloudflare R2 (S3 Compatible) -->
-    <PackageReference Include="AWSSDK.S3" Version="3.7.307" />
+    <!-- Firebase / Google Cloud Storage SDK -->
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
   </ItemGroup>
 
 </Project>
