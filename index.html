@@ -12,10 +12,13 @@
   
   <!-- File Tema CSS -->
   <link rel="stylesheet" href="theme.css?v=4.0">
+
+  <!-- Inject config dari GitHub Actions (Jika ada) -->
+  <script src="config.js" onerror="console.log('config.js tidak ditemukan, menggunakan fallback URL')"></script>
 </head>
 <body>
 
-  <!-- Container Utama (Tanpa Header Top Bar / Nama Aplikasi) -->
+  <!-- Container Utama -->
   <main class="main-container">
     <!-- Input Single Track -->
     <div class="input-group">
@@ -48,9 +51,12 @@
   </div>
 
   <script>
-    // Ambil BACKEND_URL secara dinamis (Cek dari query param ?api= atau env/origin default)
+    // Ambil BACKEND_URL secara dinamis:
+    // 1. window.ENV_BACKEND_URL (dari config.js yang digenerate CI/CD)
+    // 2. Query param ?api=...
+    // 3. Fallback default Render
     const urlParams = new URLSearchParams(window.location.search);
-    const BACKEND_URL = urlParams.get('api') || window.ENV_BACKEND_URL || "https://hypen-0s65.onrender.com";
+    const BACKEND_URL = window.ENV_BACKEND_URL || urlParams.get('api') || "https://hypen-0s65.onrender.com";
 
     function setStatus(msg, isError = false) {
       const statusEl = document.getElementById('status');
