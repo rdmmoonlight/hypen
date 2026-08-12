@@ -15,5 +15,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(backendU
 builder.Services.AddScoped<ISongService, SongService>();
 
 builder.Services.AddScoped<LastFmService>();
+builder.Services.AddScoped<OfflineMusicService>();
 
 await builder.Build().RunAsync();
