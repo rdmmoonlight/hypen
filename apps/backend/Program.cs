@@ -4,30 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 
 // ============================================================
-// DTO MODELS
-// ============================================================
-
-public record ConvertRequest(
-    string YoutubeUrl);
-
-public record SaveSongRequest(
-    string YoutubeUrl,
-    string? Title,
-    string? Artist,
-    string? AudioUrl);
-
-public record ExtractionResult(
-    string AudioUrl,
-    string Title,
-    string Provider);
-
-
-// ============================================================
 // APPLICATION SETUP
 // ============================================================
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 // ============================================================
 // CORS
@@ -43,7 +23,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 // ============================================================
 // HTTP CLIENT
 // ============================================================
@@ -51,33 +30,26 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient("Extractor", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
-
     client.DefaultRequestHeaders.UserAgent.ParseAdd(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) " +
         "Chrome/151.0.0.0 Safari/537.36");
 });
 
-
 // ============================================================
 // BUILD
 // ============================================================
 
 var app = builder.Build();
-
 var logger = app.Logger;
 
 app.UseCors("AllowAll");
-
 
 // ============================================================
 // DATABASE
 // ============================================================
 
-string dbConnectionString =
-    Environment.GetEnvironmentVariable("NEON_DB_CONNECTION")
-    ?? "";
-
+string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 
 // ============================================================
 // HEALTH CHECK
@@ -93,130 +65,13 @@ app.MapGet("/", () =>
     });
 });
 
-
-// ============================================================
-// HELPER: EXTRACT YOUTUBE ID
-// ============================================================
-
-static string ExtractYoutubeId(string url)
-{
-    if (string.IsNullOrWhiteSpace(url))
-        return "";
-
-    if (!Uri.TryCreate(
-            url.Trim(),
-            UriKind.Absolute,
-            out var uri))
-    {
-        return "";
-    }
-
-    string host =
-        uri.Host.ToLowerInvariant();
-
-    if (host == "youtube.com" ||
-        host == "www.youtube.com" ||
-        host == "m.youtube.com")
-    {
-        var query =
-            System.Web.HttpUtility.ParseQueryString(
-                uri.Query);
-
-        string? id = query["v"];
-
-        if (!string.IsNullOrWhiteSpace(id))
-            return id;
-
-        if (uri.AbsolutePath.StartsWith(
-                "/shorts/",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return uri.AbsolutePath
-["/shorts/".Length..]
-                .Split('/')[0];
-        }
-
-        if (uri.AbsolutePath.StartsWith(
-                "/embed/",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return uri.AbsolutePath
-["/embed/".Length..]
-                .Split('/')[0];
-        }
-    }
-
-    if (host == "youtu.be")
-    {
-        return uri.AbsolutePath
-            .Trim('/')
-            .Split('/')[0];
-    }
-
-    return "";
-}
-
-
-// ============================================================
-// HELPER: CHECK YOUTUBE URL
-// ============================================================
-
-static bool IsYoutubeUrl(string? url)
-{
-    if (string.IsNullOrWhiteSpace(url))
-        return false;
-
-    if (!Uri.TryCreate(
-            url,
-            UriKind.Absolute,
-            out var uri))
-    {
-        return false;
-    }
-
-    string host =
-        uri.Host.ToLowerInvariant();
-
-    return host == "youtube.com" ||
-           host == "www.youtube.com" ||
-           host == "m.youtube.com" ||
-           host == "youtu.be" ||
-           host.EndsWith(".youtube.com");
-}
-
-
-// ============================================================
-// HELPER: SAFE URL FOR LOGGING
-// ============================================================
-
-static string SafeUrl(string? url)
-{
-    if (string.IsNullOrWhiteSpace(url))
-        return "";
-
-    if (!Uri.TryCreate(
-            url,
-            UriKind.Absolute,
-            out var uri))
-    {
-        return "[INVALID_URL]";
-    }
-
-    return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";
-}
-
-
 // ============================================================
 // AUDIO EXTRACTION ENGINE
 // ============================================================
 
-async Task<ExtractionResult> ExtractAudioAsync(
-    IHttpClientFactory httpClientFactory,
-    string youtubeUrl)
+async Task<ExtractionResult> ExtractAudioAsync(IHttpClientFactory httpClientFactory, string youtubeUrl)
 {
-    logger.LogInformation(
-        "[EXTRACTOR] Starting extraction for URL: {Url}",
-        SafeUrl(youtubeUrl));
+    logger.LogInformation("[EXTRACTOR] Starting extraction for URL: {Url}", SafeUrl(youtubeUrl));
 
     string youtubeId = ExtractYoutubeId(youtubeUrl);
 
@@ -228,13 +83,12 @@ async Task<ExtractionResult> ExtractAudioAsync(
 
     var client = httpClientFactory.CreateClient("Extractor");
 
-    // Array Instance Cobalt API
-    string[] cobaltInstances =
-    [
+    string[] cobaltInstances = new[]
+    {
         "https://api.cobalt.tools",
         "https://cobalt-api.kwi.im",
         "https://co.wuk.sh/api/json"
-    ];
+    };
 
     var payload = new
     {
@@ -263,8 +117,8 @@ async Task<ExtractionResult> ExtractAudioAsync(
                 if (root.TryGetProperty("url", out var urlElem))
                 {
                     string streamUrl = urlElem.GetString() ?? "";
-                    string title = root.TryGetProperty("filename", out var fnElem)
-                        ? fnElem.GetString() ?? $"Track {youtubeId}"
+                    string title = root.TryGetProperty("filename", out var fnElem) 
+                        ? fnElem.GetString() ?? $"Track {youtubeId}" 
                         : $"Track {youtubeId}";
 
                     if (!string.IsNullOrEmpty(streamUrl))
@@ -285,7 +139,6 @@ async Task<ExtractionResult> ExtractAudioAsync(
     logger.LogWarning("[EXTRACTOR] All remote extraction instances failed due to IP limits.");
     throw new Exception("Ekstraksi otomatis gagal karena pembatasan IP cloud. Silakan gunakan endpoint POST /api/songs untuk menyimpan secara langsung.");
 }
-
 
 // ============================================================
 // GET /api/songs
@@ -346,7 +199,6 @@ app.MapGet("/api/songs", async () =>
     }
 });
 
-
 // ============================================================
 // POST /api/convert
 // ============================================================
@@ -380,7 +232,6 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req, IHttpClientFac
         }
 
         string youtubeId = ExtractYoutubeId(req.YoutubeUrl);
-
         string title = string.IsNullOrWhiteSpace(result.Title) ? $"Track {youtubeId}" : result.Title;
         string artist = "YouTube Import";
         string coverUrl = $"https://img.youtube.com/vi/{youtubeId}/hqdefault.jpg";
@@ -432,7 +283,6 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req, IHttpClientFac
         return Results.Json(new { error = ex.Message }, statusCode: 400);
     }
 });
-
 
 // ============================================================
 // POST /api/songs
@@ -516,7 +366,6 @@ app.MapPost("/api/songs", async ([FromBody] SaveSongRequest req) =>
     }
 });
 
-
 // ============================================================
 // DELETE /api/songs/{id}
 // ============================================================
@@ -551,9 +400,88 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
     }
 });
 
-
 // ============================================================
 // RUN
 // ============================================================
 
 app.Run();
+
+// ============================================================
+// HELPER METHODS & DTO RECORDS (MUST BE AT THE VERY BOTTOM)
+// ============================================================
+
+static string ExtractYoutubeId(string url)
+{
+    if (string.IsNullOrWhiteSpace(url))
+        return "";
+
+    if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+    {
+        return "";
+    }
+
+    string host = uri.Host.ToLowerInvariant();
+
+    if (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com")
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        string? id = query["v"];
+
+        if (!string.IsNullOrWhiteSpace(id))
+            return id;
+
+        if (uri.AbsolutePath.StartsWith("/shorts/", StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Substring("/shorts/".Length).Split('/')[0];
+        }
+
+        if (uri.AbsolutePath.StartsWith("/embed/", StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Substring("/embed/".Length).Split('/')[0];
+        }
+    }
+
+    if (host == "youtu.be")
+    {
+        return uri.AbsolutePath.Trim('/').Split('/')[0];
+    }
+
+    return "";
+}
+
+static bool IsYoutubeUrl(string? url)
+{
+    if (string.IsNullOrWhiteSpace(url))
+        return false;
+
+    if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+    {
+        return false;
+    }
+
+    string host = uri.Host.ToLowerInvariant();
+
+    return host == "youtube.com" ||
+           host == "www.youtube.com" ||
+           host == "m.youtube.com" ||
+           host == "youtu.be" ||
+           host.EndsWith(".youtube.com");
+}
+
+static string SafeUrl(string? url)
+{
+    if (string.IsNullOrWhiteSpace(url))
+        return "";
+
+    if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+    {
+        return "[INVALID_URL]";
+    }
+
+    return $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}";
+}
+
+// DTO Records
+public record ConvertRequest(string YoutubeUrl);
+public record SaveSongRequest(string YoutubeUrl, string? Title, string? Artist, string? AudioUrl);
+public record ExtractionResult(string AudioUrl, string Title, string Provider);
