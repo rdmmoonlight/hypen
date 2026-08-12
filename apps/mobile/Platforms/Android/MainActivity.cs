@@ -1,12 +1,14 @@
 using Android.App;
 using Android.Content.PM;
+using Microsoft.Maui;
 
 namespace HypenMaui;
 
 [Activity(
-    Theme = "@style/Maui.SplashTheme", 
-    MainLauncher = true, // <--- PASTIKAN INI TRUE
-    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayoutClass | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
+    Theme = "@style/Maui.SplashTheme",
+    MainLauncher = true,
+    LaunchMode = LaunchMode.SingleTop,
+    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
 }
