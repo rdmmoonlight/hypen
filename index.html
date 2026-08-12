@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube to MP3 Converter</title>
+  <!-- Load FFmpeg WebAssembly -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+</head>
+<body>
+  <h2>YouTube to MP3 (Client-Side)</h2>
+  <input type="text" id="ytUrl" placeholder="Tempel link YouTube di sini..." style="width: 300px;">
+  <button onclick="convertAudio()">Konversi ke MP3</button>
+  <p id="status"></p>
+
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    async function convertAudio() {
+      const status = document.getElementById('status');
+      const url = document.getElementById('ytUrl').value;
+
+      if (!url) return alert('Masukkan URL YouTube!');
+
+      try {
+        status.innerText = '1. Memuat FFmpeg.wasm...';
+        if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+        status.innerText = '2. Mengambil stream audio dari YouTube...';
+        // Contoh menggunakan API Invidious publik untuk mendapatkan direct stream URL
+        // (Ganti instance-invidious.com dengan domain invidious yang aktif)
+        const videoId = url.split('v=')[1]?.split('&')[0];
+        const apiRes = await fetch(`https://api.invidious.io/api/v1/videos/${videoId}`);
+        const data = await apiRes.json();
+        
+        // Cari stream audio dengan bitrate terbaik (biasanya format Opus)
+        const audioStream = data.adaptiveFormats.find(f => f.type.includes('audio/webm'));
+        const audioUrl = audioStream.url;
+
+        status.innerText = '3. Mengunduh file audio asli...';
+        ffmpeg.FS('writeFile', 'input.webm', await fetchFile(audioUrl));
+
+        status.innerText = '4. Mengonversi ke MP3 kualitas tinggi...';
+        // Konversi ke MP3 menggunakan bitrate 320k
+        await ffmpeg.run('-i', 'input.webm', '-b:a', '320k', 'output.mp3');
+
+        status.innerText = '5. Menyelesaikan...';
+        const mp3Data = ffmpeg.FS('readFile', 'output.mp3');
+
+        // Buat link download untuk pengguna
+        const blob = new Blob([mp3Data.buffer], { type: 'audio/mp3' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${data.title}.mp3`;
+        a.innerText = 'Download File MP3';
+        document.body.appendChild(a);
+
+        status.innerText = 'Selesai!';
+      } catch (err) {
+        console.error(err);
+        status.innerText = 'Terjadi kesalahan saat memproses audio.';
+      }
+    }
+  </script>
+</body>
+</html>
