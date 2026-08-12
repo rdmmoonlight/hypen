@@ -11,14 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   
   <!-- File Tema CSS -->
-  <link rel="stylesheet" href="theme.css?v=4.0">
+  <link rel="stylesheet" href="theme.css?v=5.0">
 
-  <!-- Inject config dari GitHub Actions (Optional Load) -->
   <script>
-    // Inisialisasi variabel global agar tidak error jika config.js absen
     window.ENV_BACKEND_URL = window.ENV_BACKEND_URL || "";
   </script>
-  <script src="config.js" async onerror="console.log('config.js tidak ditemukan, menggunakan fallback URL')"></script>
+  <script src="config.js" async onerror="console.log('config.js tidak ditemukan, memakai fallback URL')"></script>
 </head>
 <body>
 
@@ -55,7 +53,6 @@
   </div>
 
   <script>
-    // Fungsi mendapatkan Backend URL secara dinamis
     function getBackendUrl() {
       const urlParams = new URLSearchParams(window.location.search);
       return window.ENV_BACKEND_URL || urlParams.get('api') || "https://hypen-0s65.onrender.com";
@@ -67,7 +64,7 @@
       statusEl.style.color = isError ? '#f72585' : '#4cc9f0';
     }
 
-    // 1. Fetch Library
+    // 1. Fetch Library dengan Proteksi Properti (CamelCase & PascalCase)
     async function loadLibrary() {
       const baseUrl = getBackendUrl();
       try {
@@ -75,10 +72,12 @@
         const res = await fetch(`${baseUrl}/api/songs`);
         
         if (!res.ok) {
-          throw new Error(`Server responding with status ${res.status}`);
+          throw new Error(`Server status ${res.status}`);
         }
 
         const songs = await res.json();
+        console.log("Data Lagu Dari API:", songs); // Untuk debugging di Console F12
+
         const container = document.getElementById('libraryList');
         container.innerHTML = '';
 
@@ -88,20 +87,31 @@
         }
 
         songs.forEach(song => {
+          // Mengatasi perbedaan huruf besar/kecil dari JSON backend
+          const title = song.Title || song.title || 'Untitled';
+          const artist = song.Artist || song.artist || 'Unknown';
+          const cover = song.Cover || song.cover || song.cover_url || song.CoverUrl || '';
+          const audioUrl = song.AudioUrl || song.audioUrl || song.audio_url || '';
+          const youtubeId = song.YoutubeId || song.youtubeId || song.youtube_id || '';
+
+          // Escape string aman untuk parameter fungsi JS
+          const safeTitle = title.replace(/'/g, "\\'");
+          const safeArtist = artist.replace(/'/g, "\\'");
+
           const card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = `
-            <img src="${song.Cover || ''}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50'">
+            <img src="${cover}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50/141226/f0f3ff?text=♫'">
             <div class="card-info">
-              <div class="card-title">${song.Title}</div>
-              <div class="card-artist">${song.Artist}</div>
+              <div class="card-title">${title}</div>
+              <div class="card-artist">${artist}</div>
             </div>
-            <button class="btn-nebula" onclick="playSong('${song.AudioUrl}', '${song.Title.replace(/'/g, "\\'")}', '${song.Artist.replace(/'/g, "\\'")}', '${song.Cover}')">▶ Play</button>
+            <button class="btn-nebula" onclick="playSong('${audioUrl}', '${safeTitle}', '${safeArtist}', '${cover}', '${youtubeId}')">▶ Play</button>
           `;
           container.appendChild(card);
         });
 
-        setStatus(''); // Clear status jika sukses
+        setStatus(''); // Bersihkan status saat sukses
       } catch (e) {
         console.error("Fetch Library Error:", e);
         setStatus(`Gagal memuat library (${e.message}). Coba refresh halaman.`, true);
@@ -148,7 +158,7 @@
         });
         const data = await res.json();
         if (res.ok) {
-          setStatus(`Berhasil mengimpor ${data.TotalAdded} lagu dari playlist!`);
+          setStatus(`Berhasil mengimpor ${data.TotalAdded || 0} lagu dari playlist!`);
           document.getElementById('playlistUrl').value = '';
           loadLibrary();
         } else {
@@ -159,13 +169,16 @@
       }
     }
 
-    // 4. Playback & Lockscreen Integration
-    function playSong(url, title, artist, cover) {
+    // 4. Playback Function
+    function playSong(url, title, artist, cover, youtubeId) {
       const player = document.getElementById('audioPlayer');
       document.getElementById('nowPlaying').innerText = `PLAYING: ${title} - ${artist}`;
 
+      // Jika URL berupa direct mp3 (dari Supabase), langsung putar di audio player
       player.src = url;
-      player.play();
+      player.play().catch(err => {
+        console.warn("Autoplay blocked/failed, retrying player:", err);
+      });
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
