@@ -1,11 +1,9 @@
 @page "/"
-@inject HttpClient Http
-@inject IJSRuntime JS
+@inherits IndexBase
 
 <PageTitle>Hypen Vault Player</PageTitle>
 
 <main class="main-container">
-    <!-- Input Track Single -->
     <div class="input-group">
         <h3 class="nebula-title">Import Single Track</h3>
         <div class="input-inline">
@@ -14,55 +12,28 @@
         </div>
     </div>
 
-    <!-- Input Playlist YouTube -->
-    <div class="input-group">
-        <h3 class="nebula-title">Import YouTube Playlist</h3>
-        <div class="input-inline">
-            <input type="text" @bind="playlistUrl" placeholder="Tempel link playlist YouTube..." />
-            <button class="btn-nebula btn-secondary" @onclick="ConvertPlaylist">+ Import Playlist</button>
-        </div>
-    </div>
-
     @if (!string.IsNullOrEmpty(statusMsg))
     {
         <p class="status-msg" style="color: @(isError ? "#f72585" : "#4cc9f0");">@statusMsg</p>
     }
 
-    <!-- Controls Bar -->
-    <div class="controls-bar input-group">
-        <div class="input-inline" style="margin-bottom: 10px;">
-            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="🔍 Cari judul lagu atau artis..." />
-        </div>
-        <div class="action-buttons-inline">
-            <label><input type="checkbox" @onchange="ToggleSelectAll" /> Pilih Semua</label>
-            <button class="btn-nebula btn-secondary" @onclick="DownloadSelected">📥 Download Selected</button>
-            <button class="btn-nebula" style="background: crimson;" @onclick="DeleteSelected">🗑️ Hapus Selected</button>
-        </div>
-    </div>
-
     <h3 class="nebula-title section-header">Library Collection</h3>
     <div class="card-grid">
-        @if (FilteredSongs == null)
+        @if (songs == null)
         {
             <p style="color: var(--text-secondary); text-align: center;">Memuat library...</p>
         }
-        else if (!FilteredSongs.Any())
-        {
-            <p style="color: var(--text-secondary); text-align: center;">Tidak ada lagu ditemukan.</p>
-        }
         else
         {
-            @foreach (var song in FilteredSongs)
+            @foreach (var song in songs)
             {
                 <div class="card">
-                    <input type="checkbox" class="song-checkbox" @bind="song.IsSelected" />
                     <div class="card-info" style="margin-left: 10px;">
                         <div class="card-title">@song.Title</div>
                         <div class="card-artist">@song.Artist</div>
                     </div>
                     <div class="card-actions">
                         <button class="btn-nebula" @onclick="() => PlaySong(song)">▶</button>
-                        <button class="btn-nebula btn-secondary" @onclick="() => DownloadSingle(song)">📥</button>
                         <button class="btn-nebula" style="background: #4a0000; border-color: #8b0000;" @onclick="() => DeleteSingle(song.Id)">🗑️</button>
                     </div>
                 </div>
@@ -70,158 +41,3 @@
         }
     </div>
 </main>
-
-<!-- Player Bar -->
-<div class="player-bar">
-    <div class="now-playing">@(currentPlayingTrack ?? "No track selected...")</div>
-    <audio id="audioPlayer" src="@currentAudioUrl" controls autoplay></audio>
-</div>
-
-@code {
-    private List<SongModel>? songs;
-    private string ytUrl = "";
-    private string playlistUrl = "";
-    private string searchQuery = "";
-    private string statusMsg = "";
-    private bool isError = false;
-
-    private string? currentPlayingTrack;
-    private string? currentAudioUrl;
-
-    private IEnumerable<SongModel> FilteredSongs =>
-        string.IsNullOrWhiteSpace(searchQuery)
-            ? songs ?? Enumerable.Empty<SongModel>()
-            : (songs ?? Enumerable.Empty<SongModel>())
-                .Where(s => s.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                            s.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadLibrary();
-    }
-
-    private async Task LoadLibrary()
-    {
-        try
-        {
-            SetStatus("Memuat library...");
-            songs = await Http.GetFromJsonAsync<List<SongModel>>("/api/songs");
-            SetStatus("");
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Gagal memuat library: {ex.Message}", true);
-        }
-    }
-
-    private async Task ConvertVideo()
-    {
-        if (string.IsNullOrWhiteSpace(ytUrl)) return;
-        SetStatus("Memproses track...");
-        try
-        {
-            var res = await Http.PostAsJsonAsync("/api/convert", new { YoutubeUrl = ytUrl });
-            if (res.IsSuccessStatusCode)
-            {
-                SetStatus("Track berhasil ditambahkan!");
-                ytUrl = "";
-                await LoadLibrary();
-            }
-            else
-            {
-                SetStatus("Gagal mengonversi video.", true);
-            }
-        }
-        catch
-        {
-            SetStatus("Gagal mengonversi video.", true);
-        }
-    }
-
-    private async Task ConvertPlaylist()
-    {
-        if (string.IsNullOrWhiteSpace(playlistUrl)) return;
-        SetStatus("Mengimpor playlist YouTube...");
-        try
-        {
-            var res = await Http.PostAsJsonAsync("/api/convert-playlist", new { PlaylistUrl = playlistUrl });
-            if (res.IsSuccessStatusCode)
-            {
-                SetStatus("Berhasil mengimpor playlist!");
-                playlistUrl = "";
-                await LoadLibrary();
-            }
-        }
-        catch
-        {
-            SetStatus("Gagal mengimpor playlist.", true);
-        }
-    }
-
-    private void PlaySong(SongModel song)
-    {
-        currentPlayingTrack = $"PLAYING: {song.Title} - {song.Artist}";
-        currentAudioUrl = song.AudioUrl;
-    }
-
-    private async Task DownloadSingle(SongModel song)
-    {
-        if (string.IsNullOrEmpty(song.AudioUrl)) return;
-        // Panggil helper JS terisolasi untuk mentrigger browser download
-        await JS.InvokeVoidAsync("downloadFileFromUrl", song.AudioUrl, $"{song.Title}.mp3");
-    }
-
-    private async Task DownloadSelected()
-    {
-        var selected = songs?.Where(s => s.IsSelected).ToList();
-        if (selected == null || !selected.Any()) return;
-
-        foreach (var song in selected)
-        {
-            await DownloadSingle(song);
-            await Task.Delay(500);
-        }
-    }
-
-    private async Task DeleteSingle(int id)
-    {
-        if (!await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini?")) return;
-        var res = await Http.DeleteAsync($"/api/songs/{id}");
-        if (res.IsSuccessStatusCode) await LoadLibrary();
-    }
-
-    private async Task DeleteSelected()
-    {
-        var selectedIds = songs?.Where(s => s.IsSelected).Select(s => s.Id).ToArray();
-        if (selectedIds == null || selectedIds.Length == 0) return;
-
-        if (!await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu?")) return;
-
-        var res = await Http.PostAsJsonAsync("/api/songs/delete-batch", new { Ids = selectedIds });
-        if (res.IsSuccessStatusCode) await LoadLibrary();
-    }
-
-    private void ToggleSelectAll(ChangeEventArgs e)
-    {
-        bool isChecked = (bool)(e.Value ?? false);
-        if (songs != null)
-        {
-            foreach (var song in songs) song.IsSelected = isChecked;
-        }
-    }
-
-    private void SetStatus(string msg, bool error = false)
-    {
-        statusMsg = msg;
-        isError = error;
-    }
-
-    public class SongModel
-    {
-        public int Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Artist { get; set; } = "";
-        public string AudioUrl { get; set; } = "";
-        public bool IsSelected { get; set; }
-    }
-}
