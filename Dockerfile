@@ -1,28 +1,23 @@
-# ========================================================
-# Build Stage: Menggunakan .NET 10.0 SDK
-# ========================================================
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
+# 1. Stage Build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Salin file .csproj apapun yang ada di folder root dan restore
-COPY *.csproj ./
-RUN dotnet restore
+# Copy project file dari path monorepo
+COPY ["apps/backend/Hypen.csproj", "apps/backend/"]
+RUN dotnet restore "apps/backend/Hypen.csproj"
 
-# Salin seluruh kode program dan lakukan Publish/Build
+# Copy seluruh source code
 COPY . .
-RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+WORKDIR "/src/apps/backend"
+RUN dotnet publish "Hypen.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# ========================================================
-# Runtime Stage: Menggunakan ASP.NET Core 10.0 Runtime
-# ========================================================
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS final
+# 2. Stage Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
-
-EXPOSE 8080
-ENV ASPNETCORE_URLS=http://+:8080
-
 COPY --from=build /app/publish .
 
-# Catatan: Jika nama DLL hasil build adalah huruf kecil (hypen.dll), 
-# ubah "Hypen.dll" menjadi "hypen.dll" di bawah ini.
+# Port default Render
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
 ENTRYPOINT ["dotnet", "Hypen.dll"]
