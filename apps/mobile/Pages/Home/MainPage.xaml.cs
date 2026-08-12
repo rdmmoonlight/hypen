@@ -9,8 +9,8 @@ public partial class MainPage : ContentPage
 {
     private const string BACKEND_URL = "https://hypen-0s65.onrender.com";
     private readonly HttpClient _httpClient = new();
-    private List<SongModel> _allSongs = new();
-    public ObservableCollection<SongModel> DisplayedSongs { get; set; } = new();
+    private List<SongModel> _allSongs = [];
+    public ObservableCollection<SongModel> DisplayedSongs { get; set; } = [];
 
     public MainPage()
     {
@@ -21,24 +21,32 @@ public partial class MainPage : ContentPage
 
     private async Task LoadLibraryAsync()
     {
-        try {
+        try
+        {
             StatusLabel.Text = "Memuat library...";
             var response = await _httpClient.GetAsync($"{BACKEND_URL}/api/songs");
-            
-            if (response.IsSuccessStatusCode) {
+
+            if (response.IsSuccessStatusCode)
+            {
                 var json = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var songs = JsonSerializer.Deserialize<List<SongModel>>(json, options) ?? new();
+                var songs = JsonSerializer.Deserialize<List<SongModel>>(json, options) ?? [];
 
                 _allSongs = songs;
                 FilterAndRenderSongs();
                 StatusLabel.Text = "";
-            } else {
+            }
+            else
+            {
                 StatusLabel.Text = $"Gagal memuat library (HTTP {response.StatusCode})";
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             StatusLabel.Text = $"Error: {ex.Message}";
-        } finally {
+        }
+        finally
+        {
             RefreshControl.IsRefreshing = false;
         }
     }
@@ -48,10 +56,12 @@ public partial class MainPage : ContentPage
         var query = SearchInput.Text?.ToLower() ?? "";
         DisplayedSongs.Clear();
 
-        foreach (var song in _allSongs) {
-            if (string.IsNullOrEmpty(query) || 
-                song.Title.ToLower().Contains(query) || 
-                song.Artist.ToLower().Contains(query)) {
+        foreach (var song in _allSongs)
+        {
+            if (string.IsNullOrEmpty(query) ||
+                song.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                song.Artist.Contains(query, StringComparison.CurrentCultureIgnoreCase))
+            {
                 DisplayedSongs.Add(song);
             }
         }
@@ -63,7 +73,8 @@ public partial class MainPage : ContentPage
     // 1. Playback Audio
     private void OnPlaySingleClicked(object sender, EventArgs e)
     {
-        if (sender is Button btn && btn.CommandParameter is SongModel song) {
+        if (sender is Button btn && btn.CommandParameter is SongModel song)
+        {
             NowPlayingLabel.Text = $"PLAYING: {song.Title} - {song.Artist}";
             AudioPlayer.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(song.AudioUrl);
             AudioPlayer.Play();
@@ -73,22 +84,26 @@ public partial class MainPage : ContentPage
     // 2. Download Single MP3
     private async void OnDownloadSingleClicked(object sender, EventArgs e)
     {
-        if (sender is Button btn && btn.CommandParameter is SongModel song) {
+        if (sender is Button btn && btn.CommandParameter is SongModel song)
+        {
             await DownloadSongToDeviceAsync(song);
         }
     }
 
     private async Task DownloadSongToDeviceAsync(SongModel song)
     {
-        try {
+        try
+        {
             StatusLabel.Text = $"Mengunduh: {song.Title}...";
             var fileBytes = await _httpClient.GetByteArrayAsync(song.AudioUrl);
-            
+
             string downloadsPath = Path.Combine(Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryDownloads)!.AbsolutePath, $"{song.Title}.mp3");
             await File.WriteAllBytesAsync(downloadsPath, fileBytes);
 
             StatusLabel.Text = $"Tersimpan di Download: {song.Title}.mp3";
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             StatusLabel.Text = $"Gagal unduh: {ex.Message}";
         }
     }
@@ -97,12 +112,14 @@ public partial class MainPage : ContentPage
     private async void OnDownloadSelectedClicked(object sender, EventArgs e)
     {
         var selected = DisplayedSongs.Where(s => s.IsSelected).ToList();
-        if (!selected.Any()) {
+        if (selected.Count == 0)
+        {
             await DisplayAlert("Info", "Pilih minimal 1 lagu!", "OK");
             return;
         }
 
-        foreach (var song in selected) {
+        foreach (var song in selected)
+        {
             await DownloadSongToDeviceAsync(song);
             await Task.Delay(300);
         }
@@ -111,7 +128,8 @@ public partial class MainPage : ContentPage
     // 4. Delete Single Track
     private async void OnDeleteSingleClicked(object sender, EventArgs e)
     {
-        if (sender is Button btn && btn.CommandParameter is SongModel song) {
+        if (sender is Button btn && btn.CommandParameter is SongModel song)
+        {
             bool confirm = await DisplayAlert("Konfirmasi", $"Hapus {song.Title}?", "Ya", "Batal");
             if (!confirm) return;
 
