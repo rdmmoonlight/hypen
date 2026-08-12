@@ -4,21 +4,15 @@ using Microsoft.JSInterop;
 
 namespace Hypen.Web.Services;
 
-public class SongService : ISongService
+public class SongService(HttpClient http, IJSRuntime js) : ISongService
 {
-    private readonly HttpClient _http;
-    private readonly IJSRuntime _js;
-
-    public SongService(HttpClient http, IJSRuntime js)
-    {
-        _http = http;
-        _js = js;
-    }
+    private readonly HttpClient _http = http;
+    private readonly IJSRuntime _js = js;
 
     public async Task<List<SongModel>> GetSongsAsync()
     {
         var result = await _http.GetFromJsonAsync<List<SongModel>>("/api/songs");
-        return result ?? new List<SongModel>();
+        return result ?? [];
     }
 
     public async Task<ConvertResponse?> ConvertVideoAsync(string youtubeUrl)

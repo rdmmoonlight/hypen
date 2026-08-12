@@ -10,7 +10,7 @@ public partial class Index : ComponentBase
     [Inject] protected ISongService SongService { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
 
-    protected List<SongModel> songs = new();
+    protected List<SongModel> songs = [];
     protected string ytUrl = "";
     protected string playlistUrl = "";
     protected string searchQuery = "";
@@ -40,7 +40,7 @@ public partial class Index : ComponentBase
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
         SetStatus("Memproses track...");
-        
+
         var result = await SongService.ConvertVideoAsync(ytUrl);
         if (result != null)
         {
