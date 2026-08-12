@@ -8,7 +8,7 @@
         <h3 class="nebula-title">Import Single Track</h3>
         <div class="input-inline">
             <input type="text" @bind="ytUrl" placeholder="Tempel link video YouTube..." />
-            <button class="btn-nebula" @onclick="ConvertVideo">+ Add Track</button>
+            <button class="btn-nebula" @onclick="ConvertVideo">Add Track</button>
         </div>
     </div>
 
@@ -17,7 +17,7 @@
         <h3 class="nebula-title">Import YouTube Playlist</h3>
         <div class="input-inline">
             <input type="text" @bind="playlistUrl" placeholder="Tempel link playlist YouTube..." />
-            <button class="btn-nebula btn-secondary" @onclick="ConvertPlaylist">+ Import Playlist</button>
+            <button class="btn-nebula btn-secondary" @onclick="ConvertPlaylist">Import Playlist</button>
         </div>
     </div>
 
@@ -29,12 +29,12 @@
     <!-- Controls Bar -->
     <div class="controls-bar input-group">
         <div class="input-inline" style="margin-bottom: 10px;">
-            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="🔍 Cari judul lagu atau artis..." />
+            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Cari judul lagu atau artis..." />
         </div>
         <div class="action-buttons-inline">
             <label><input type="checkbox" @onchange="ToggleSelectAll" /> Pilih Semua</label>
-            <button class="btn-nebula btn-secondary" @onclick="DownloadSelected">📥 Download Selected</button>
-            <button class="btn-nebula" style="background: crimson;" @onclick="DeleteSelected">🗑️ Hapus Selected</button>
+            <button class="btn-nebula btn-secondary" @onclick="DownloadSelected">Download Selected</button>
+            <button class="btn-nebula btn-danger" @onclick="DeleteSelected">Hapus Selected</button>
         </div>
     </div>
 
@@ -59,9 +59,9 @@
                         <div class="card-artist">@song.Artist</div>
                     </div>
                     <div class="card-actions">
-                        <button class="btn-nebula" @onclick="() => PlaySong(song)">▶</button>
-                        <button class="btn-nebula btn-secondary" @onclick="() => DownloadSingle(song)">📥</button>
-                        <button class="btn-nebula" style="background: #4a0000; border-color: #8b0000;" @onclick="() => DeleteSingle(song.Id)">🗑️</button>
+                        <button class="btn-nebula" @onclick="() => PlaySong(song)">Play</button>
+                        <button class="btn-nebula btn-secondary" @onclick="() => DownloadSingle(song)">Download</button>
+                        <button class="btn-nebula btn-danger" @onclick="() => DeleteSingle(song.Id)">Hapus</button>
                     </div>
                 </div>
             }
