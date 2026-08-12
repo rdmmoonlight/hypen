@@ -1,27 +1,27 @@
 @page "/"
 @inherits IndexBase
 
-<PageTitle>Hypen Vault Player</PageTitle>
+<PageTitle>Hypen Vault Player - Crypt Edition</PageTitle>
 
 <main class="main-container">
     <div class="input-group">
-        <h3 class="nebula-title">Import Single Track</h3>
+        <h3 class="gothic-title">Summon Single Track</h3>
         <div class="input-inline">
-            <input type="text" @bind="ytUrl" placeholder="Tempel link video YouTube..." />
-            <button class="btn-nebula" @onclick="ConvertVideo">+ Add Track</button>
+            <input type="text" @bind="ytUrl" placeholder="Tempel tautan ritual YouTube..." />
+            <button class="btn-gothic" @onclick="ConvertVideo">♰ Add Track</button>
         </div>
     </div>
 
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <p class="status-msg" style="color: @(isError ? "#f72585" : "#4cc9f0");">@statusMsg</p>
+        <p class="status-msg" style="color: @(isError ? "#8b0000" : "#7b1fa2");">@statusMsg</p>
     }
 
-    <h3 class="nebula-title section-header">Library Collection</h3>
+    <h3 class="gothic-title section-header">Graveyard Library</h3>
     <div class="card-grid">
         @if (songs == null)
         {
-            <p style="color: var(--text-secondary); text-align: center;">Memuat library...</p>
+            <p style="color: var(--text-secondary); text-align: center;">Membangkitkan arwah lagu...</p>
         }
         else
         {
@@ -33,8 +33,8 @@
                         <div class="card-artist">@song.Artist</div>
                     </div>
                     <div class="card-actions">
-                        <button class="btn-nebula" @onclick="() => PlaySong(song)">▶</button>
-                        <button class="btn-nebula" style="background: #4a0000; border-color: #8b0000;" @onclick="() => DeleteSingle(song.Id)">🗑️</button>
+                        <button class="btn-gothic" @onclick="() => PlaySong(song)">▶</button>
+                        <button class="btn-gothic btn-danger" @onclick="() => DeleteSingle(song.Id)">⚰️</button>
                     </div>
                 </div>
             }
