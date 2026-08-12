@@ -193,11 +193,11 @@ async Task<(string audioUrl, string title)> ExtractAudioMultiEngineAsync(IHttpCl
     // --- ENGINE 2: Cobalt API Fallback ---
     try
     {
-        var cobaltPayload = new 
-        { 
-            url = $"https://www.youtube.com/watch?v={videoId}", 
-            downloadMode = "audio", 
-            audioFormat = "mp3" 
+        var cobaltPayload = new
+        {
+            url = $"https://www.youtube.com/watch?v={videoId}",
+            downloadMode = "audio",
+            audioFormat = "mp3"
         };
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.cobalt.tools");
@@ -255,7 +255,7 @@ app.MapPost("/api/convert", async (ConvertRequest req, IHttpClientFactory httpCl
         cmd.Parameters.AddWithValue("dur", 180);
 
         var songId = await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { id = songId, title = title, artist = artist, audioUrl = audioPublicUrl });
+        return Results.Ok(new { id = songId, title, artist, audioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
