@@ -206,7 +206,7 @@ app.MapPost("/api/download", async ([FromBody] ConvertRequest req) =>
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(req.YoutubeUrl)) 
+        if (string.IsNullOrWhiteSpace(req.YoutubeUrl))
             return Results.BadRequest("URL YouTube tidak boleh kosong.");
 
         var youtube = new YoutubeClient();
@@ -214,7 +214,7 @@ app.MapPost("/api/download", async ([FromBody] ConvertRequest req) =>
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
         var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
-        if (streamInfo == null) 
+        if (streamInfo == null)
             return Results.NotFound("Stream audio tidak ditemukan");
 
         var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
