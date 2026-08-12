@@ -61,7 +61,7 @@ app.MapGet("/api/songs", async () =>
 });
 
 // Helper Function: Extract Youtube ID
-string ExtractYoutubeId(string url)
+static string ExtractYoutubeId(string url)
 {
     if (string.IsNullOrWhiteSpace(url)) return "";
     if (url.Contains("v="))
@@ -110,7 +110,7 @@ app.MapPost("/api/songs", async ([FromBody] SaveSongRequest req) =>
         cmd.Parameters.AddWithValue("dur", 180);
 
         var songId = await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { id = songId, title = title, artist = artist, audioUrl = audioUrl });
+        return Results.Ok(new { id = songId, title, artist, audioUrl });
     }
     catch (Exception ex)
     {
