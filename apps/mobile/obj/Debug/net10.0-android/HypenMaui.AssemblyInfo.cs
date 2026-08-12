@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HypenMaui")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b681c565075fdde2d8362719dae5d9cec60e3e53")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0b81cc5424b7858e84c18b2618929eb5d1b19c65")]
 [assembly: System.Reflection.AssemblyProductAttribute("HypenMaui")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HypenMaui")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

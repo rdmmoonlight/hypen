@@ -102,12 +102,12 @@ async Task<(string audioUrl, string title)> ExtractAudioViaEngineAsync(IHttpClie
     var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
     // Beberapa instance Cobalt publik yang stabil
-    string[] instances = new[]
-    {
+    string[] instances =
+    [
         "https://api.cobalt.tools",
         "https://cobalt-api.kwi.im",
         "https://api.v2.cobalt.tools"
-    };
+    ];
 
     foreach (var instance in instances)
     {
@@ -189,7 +189,7 @@ app.MapPost("/api/convert", async (ConvertRequest req, IHttpClientFactory httpCl
         cmd.Parameters.AddWithValue("dur", 180);
 
         var songId = await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { id = songId, title = title, artist = artist, audioUrl = audioPublicUrl });
+        return Results.Ok(new { id = songId, title, artist, audioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
