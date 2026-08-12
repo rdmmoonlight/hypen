@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Hypen")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8569b6539f200df7b9bad35b8f7f992e61ff555c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ef5a60df9d1b8ca8b8009f120464a08bd99fc84")]
 [assembly: System.Reflection.AssemblyProductAttribute("Hypen")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Hypen")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
