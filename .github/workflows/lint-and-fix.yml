@@ -29,42 +29,37 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # Restore spesifik per project
+      # Restore Project
       - name: Restore Dependencies
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then
-            dotnet restore apps/backend/Hypen.csproj
-          fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then
-            dotnet restore apps/mobile/HypenMaui.csproj
-          fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then
-            dotnet restore apps/web/Hypen.Web.csproj
-          fi
+          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet restore apps/mobile/HypenMaui.csproj; fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
 
-      # Format spesifik per project
+      # Format Source Code
       - name: Run Dotnet Format Fix
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then
-            dotnet format apps/backend/Hypen.csproj --severity info
-          fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then
-            dotnet format apps/mobile/HypenMaui.csproj --severity info
-          fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then
-            dotnet format apps/web/Hypen.Web.csproj --severity info
-          fi
+          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet format apps/backend/Hypen.csproj --severity info; fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet format apps/mobile/HypenMaui.csproj --severity info; fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet format apps/web/Hypen.Web.csproj --severity info; fi
 
-      # Bersihkan folder bin dan obj dari tracking sebelum auto-commit
-      - name: Clean Build Temporary Files
+      # Bersihkan folder obj dan bin dari tracking Git jika terlanjur terubah
+      - name: Revert Generated Files
         run: |
-          git status
-          git checkout -- apps/**/obj/ apps/**/bin/ 2>/dev/null || true
+          git checkout -- **/obj/** **/bin/** 2>/dev/null || true
+
+      # Tarik commit remote terbaru untuk menghindari konflik push
+      - name: Pull Latest Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
 
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "style(ci): auto-fix code style and linting [skip ci]"
           branch: main
+          file_pattern: 'apps/**/*.cs apps/**/*.razor'
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
