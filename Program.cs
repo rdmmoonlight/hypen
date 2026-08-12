@@ -1,15 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using YoutubeExplode;
+using YoutubeExplode.Videos.Streams;
 using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Setup CORS dengan aturan eksplisit
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
+// Setup CORS Policy
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowAll", policy => {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
@@ -17,19 +16,17 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
-
-// 2. Gunakan CORS sebelum endpoint apapun
 app.UseCors("AllowAll");
 
-// Handshake khusus untuk Preflight OPTIONS Request dari Browser
-app.MapMethods("/{*path}", ["OPTIONS"], () => Results.Ok());
+// Preflight OPTIONS Handler
+app.MapMethods("/{*path}", new[] { "OPTIONS" }, () => Results.Ok());
 
 // Environment Variables
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 string supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? "";
 string supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? "";
 
-// Safe Initialization untuk Supabase Client
+// Supabase Client Safe Init
 Supabase.Client? supabaseClient = null;
 if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
 {
@@ -45,10 +42,9 @@ if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
     }
 }
 
-// Health Check Endpoint
 app.MapGet("/", () => Results.Ok("Hypen API is running!"));
 
-// Endpoint 1: Single Track
+// Endpoint 1: Convert Single Track
 app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 {
     try
@@ -56,14 +52,14 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
 
-        string audioPublicUrl = video.Url; // Default fallback
+        string audioPublicUrl = video.Url; // Fallback jika Supabase offline
 
-        // Jika Supabase aktif, simpan ke Supabase Storage
-        if (supabaseClient != null)
+        // 1. Ambil audio stream dari Youtube
+        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
+        var streamInfo = streamManifest.GetAudioOnlyStreams().OrderByDescending(s => s.Bitrate).FirstOrDefault();
+
+        if (supabaseClient != null && streamInfo != null)
         {
-            var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
-            var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
-
             using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
             using var memoryStream = new MemoryStream();
             await audioStream.CopyToAsync(memoryStream);
@@ -85,7 +81,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
                        VALUES (@yid, @title, @artist, @cover, @url, @dur) 
                        ON CONFLICT (youtube_id) DO NOTHING
                        RETURNING id;";
-
+        
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("yid", video.Id.Value);
         cmd.Parameters.AddWithValue("title", video.Title);
@@ -96,7 +92,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 
         var songId = await cmd.ExecuteScalarAsync();
 
-        return Results.Ok(new { Id = songId, video.Title, Artist = video.Author.ChannelTitle, AudioUrl = audioPublicUrl });
+        return Results.Ok(new { Id = songId, Title = video.Title, Artist = video.Author.ChannelTitle, AudioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
@@ -104,7 +100,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     }
 });
 
-// Endpoint 2: Playlist Import
+// Endpoint 2: Import Playlist Bulk
 app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 {
     try
@@ -154,7 +150,7 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
     }
 });
 
-// Endpoint 3: Fetch Songs
+// Endpoint 3: Fetch Songs Library
 app.MapGet("/api/songs", async () =>
 {
     try
@@ -165,11 +161,10 @@ app.MapGet("/api/songs", async () =>
 
         using var cmd = new NpgsqlCommand("SELECT id, youtube_id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
         using var reader = await cmd.ExecuteReaderAsync();
-
+        
         while (await reader.ReadAsync())
         {
-            songs.Add(new
-            {
+            songs.Add(new {
                 Id = reader.GetInt32(0),
                 YoutubeId = reader.GetString(1),
                 Title = reader.GetString(2),
