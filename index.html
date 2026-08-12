@@ -13,8 +13,12 @@
   <!-- File Tema CSS -->
   <link rel="stylesheet" href="theme.css?v=4.0">
 
-  <!-- Inject config dari GitHub Actions (Jika ada) -->
-  <script src="config.js" onerror="console.log('config.js tidak ditemukan, menggunakan fallback URL')"></script>
+  <!-- Inject config dari GitHub Actions (Optional Load) -->
+  <script>
+    // Inisialisasi variabel global agar tidak error jika config.js absen
+    window.ENV_BACKEND_URL = window.ENV_BACKEND_URL || "";
+  </script>
+  <script src="config.js" async onerror="console.log('config.js tidak ditemukan, menggunakan fallback URL')"></script>
 </head>
 <body>
 
@@ -51,12 +55,11 @@
   </div>
 
   <script>
-    // Ambil BACKEND_URL secara dinamis:
-    // 1. window.ENV_BACKEND_URL (dari config.js yang digenerate CI/CD)
-    // 2. Query param ?api=...
-    // 3. Fallback default Render
-    const urlParams = new URLSearchParams(window.location.search);
-    const BACKEND_URL = window.ENV_BACKEND_URL || urlParams.get('api') || "https://hypen-0s65.onrender.com";
+    // Fungsi mendapatkan Backend URL secara dinamis
+    function getBackendUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return window.ENV_BACKEND_URL || urlParams.get('api') || "https://hypen-0s65.onrender.com";
+    }
 
     function setStatus(msg, isError = false) {
       const statusEl = document.getElementById('status');
@@ -66,18 +69,29 @@
 
     // 1. Fetch Library
     async function loadLibrary() {
+      const baseUrl = getBackendUrl();
       try {
-        const res = await fetch(`${BACKEND_URL}/api/songs`);
-        const songs = await res.json();
+        setStatus('Memuat library...');
+        const res = await fetch(`${baseUrl}/api/songs`);
         
+        if (!res.ok) {
+          throw new Error(`Server responding with status ${res.status}`);
+        }
+
+        const songs = await res.json();
         const container = document.getElementById('libraryList');
         container.innerHTML = '';
+
+        if (!Array.isArray(songs) || songs.length === 0) {
+          setStatus('Library masih kosong.');
+          return;
+        }
 
         songs.forEach(song => {
           const card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = `
-            <img src="${song.Cover}" class="card-img" alt="Cover">
+            <img src="${song.Cover || ''}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50'">
             <div class="card-info">
               <div class="card-title">${song.Title}</div>
               <div class="card-artist">${song.Artist}</div>
@@ -86,8 +100,11 @@
           `;
           container.appendChild(card);
         });
+
+        setStatus(''); // Clear status jika sukses
       } catch (e) {
-        setStatus('Gagal memuat library.', true);
+        console.error("Fetch Library Error:", e);
+        setStatus(`Gagal memuat library (${e.message}). Coba refresh halaman.`, true);
       }
     }
 
@@ -97,8 +114,9 @@
       if (!url) return alert('Masukkan URL YouTube!');
 
       setStatus('Memproses track...');
+      const baseUrl = getBackendUrl();
       try {
-        const res = await fetch(`${BACKEND_URL}/api/convert`, {
+        const res = await fetch(`${baseUrl}/api/convert`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ youtubeUrl: url })
@@ -121,8 +139,9 @@
       if (!url) return alert('Masukkan URL Playlist!');
 
       setStatus('Mengimpor seluruh playlist YouTube...');
+      const baseUrl = getBackendUrl();
       try {
-        const res = await fetch(`${BACKEND_URL}/api/convert-playlist`, {
+        const res = await fetch(`${baseUrl}/api/convert-playlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playlistUrl: url })
