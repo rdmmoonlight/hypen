@@ -7,6 +7,8 @@ on:
       - completed
     branches:
       - main
+  push:
+    branches: [ "main" ]
 
 # Memaksa deploy antre berurutan
 concurrency:
@@ -22,8 +24,6 @@ permissions:
 jobs:
   deploy:
     name: Deploy to Server & Pages
-    # Hanya jalan jika workflow linting SELESAI dengan SUKSES
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     environment:
@@ -34,9 +34,9 @@ jobs:
       - name: Checkout Latest Code
         uses: actions/checkout@v4
         with:
-          ref: main # Selalu ambil commit paling akhir setelah auto-fix
+          ref: main
 
-      # Inject Environment Variable BACKEND_URL ke config.js untuk Frontend HTML/JS
+      # Inject Environment Variable BACKEND_URL ke config.js
       - name: Inject Dynamic Config File
         run: |
           echo "window.ENV_BACKEND_URL = '${{ vars.BACKEND_URL }}';" > config.js
@@ -49,17 +49,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Build & Publish .NET (Otomatis mencari file .csproj)
-      - name: Build & Publish Application
+      # Restore & Publish .NET langsung mengarah ke apps/backend/Hypen.csproj
+      - name: Build & Publish Backend Application
         run: |
-          PROJ_FILE=$(find . -maxdepth 3 -name "*.csproj" | head -n 1)
-          if [ -n "$PROJ_FILE" ]; then
-            echo "Building project: $PROJ_FILE"
-            dotnet restore "$PROJ_FILE"
-            dotnet publish "$PROJ_FILE" -c Release -o ./publish /p:UseAppHost=false
-          else
-            echo "No .csproj file found, skipping .NET publish."
-          fi
+          dotnet restore apps/backend/Hypen.csproj
+          dotnet publish apps/backend/Hypen.csproj -c Release -o ./publish /p:UseAppHost=false
 
       # ========================================================
       # GitHub Pages Deployment Steps
