@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Controls.Hosting;
 using System;
@@ -19,34 +20,41 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // 1. Daftarkan Exception Handler untuk menangkap crash
-        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+        // Tangkap Unhandled Exception untuk disimpan ke log
+        AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                SaveCrashLog(ex);
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            SaveCrashLog(e.Exception);
+        };
+
+#if DEBUG
+        builder.Logging.AddDebug();
+#endif
 
         return builder.Build();
     }
 
-    private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-    {
-        SaveCrashLog(e.ExceptionObject as Exception);
-    }
-
-    private static void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
-    {
-        SaveCrashLog(e.Exception);
-    }
-
     private static void SaveCrashLog(Exception ex)
     {
-        if (ex == null) return;
+        try
+        {
+            var log = $"[Crash Time]: {DateTime.Now}\n" +
+                      $"[Message]: {ex.Message}\n\n" +
+                      $"[Stack Trace]:\n{ex.StackTrace}";
 
-        // Format log agar rapi dan mudah dibaca
-        var log = $"[Crash Time]: {DateTime.Now}\n" +
-                  $"[Message]: {ex.Message}\n\n" +
-                  $"[Stack Trace]:\n{ex.StackTrace}";
-
-        // Simpan log ke direktori data lokal aplikasi
-        var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-        File.WriteAllText(logPath, log);
+            var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
+            File.WriteAllText(logPath, log);
+        }
+        catch
+        {
+            // Abaikan jika penulisan log ke file gagal
+        }
     }
 }
