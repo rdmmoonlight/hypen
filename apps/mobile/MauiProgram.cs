@@ -1,6 +1,8 @@
+using CommunityToolkit.Maui;
+using CommunityToolkit.Maui.MediaElement;
 using Microsoft.Extensions.Logging;
-using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Controls.Hosting;
+using Microsoft.Maui.Hosting;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -14,13 +16,15 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .UseMauiCommunityToolkit()              // Direct chaining wajib
+            .UseMauiCommunityToolkitMediaElement()  // Direct chaining wajib
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Tangkap Unhandled Exception untuk disimpan ke log
+        // Global Exception Handler
         AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
         {
             if (e.ExceptionObject is Exception ex)
@@ -54,7 +58,7 @@ public static class MauiProgram
         }
         catch
         {
-            // Abaikan jika penulisan log ke file gagal
+            // Abaikan jika penulisan log gagal
         }
     }
 }
