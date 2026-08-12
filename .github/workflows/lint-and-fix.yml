@@ -1,17 +1,16 @@
-name: Auto Lint, Fix & Commit C# Code
+name: Code Quality Check & Auto-Fix
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   lint-and-fix:
+    name: C# Format & Security Check
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Checkout repository dengan token izin write
+    # 1. Checkout repository
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
@@ -28,15 +27,15 @@ jobs:
     - name: Restore Dependencies
       run: dotnet restore
 
-    # 4. Jalankan dotnet format untuk auto-fix style & linting
+    # 4. Jalankan dotnet format untuk merapikan kodingan C#
     - name: Run Dotnet Format Fix
       run: dotnet format --severity info
 
-    # 5. Commit dan Push kembali ke GitHub jika ada file yang di-fix otomatis
+    # 5. Commit & Push jika ada perubahan style/formatting
     - name: Commit & Push Changes
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "style(ci): auto-fix code style and linting [skip ci]"
+        commit_message: "style(ci): auto-fix code style and linting"
         branch: main
         commit_user_name: "github-actions[bot]"
         commit_user_email: "github-actions[bot]@users.noreply.github.com"
