@@ -5,8 +5,10 @@ using YoutubeExplode;
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Configure CORS
-builder.Services.AddCors(options => {
-    options.AddPolicy("AllowAll", policy => {
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
@@ -41,7 +43,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
                        VALUES (@yid, @title, @artist, @cover, @url, @dur) 
                        ON CONFLICT (youtube_id) DO NOTHING
                        RETURNING id;";
-        
+
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("yid", video.Id.Value);
         cmd.Parameters.AddWithValue("title", video.Title);
@@ -52,7 +54,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 
         var songId = await cmd.ExecuteScalarAsync();
 
-        return Results.Ok(new { Id = songId, Title = video.Title, Artist = video.Author.ChannelTitle });
+        return Results.Ok(new { Id = songId, video.Title, Artist = video.Author.ChannelTitle });
     }
     catch (Exception ex)
     {
@@ -114,10 +116,11 @@ app.MapGet("/api/songs", async () =>
 
         using var cmd = new NpgsqlCommand("SELECT id, youtube_id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
         using var reader = await cmd.ExecuteReaderAsync();
-        
+
         while (await reader.ReadAsync())
         {
-            songs.Add(new {
+            songs.Add(new
+            {
                 Id = reader.GetInt32(0),
                 YoutubeId = reader.GetString(1),
                 Title = reader.GetString(2),
