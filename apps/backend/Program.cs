@@ -21,12 +21,11 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 var logger = app.Logger;
 
+// PENTING: Panggil CORS Middleware di paling atas sebelum endpoint dipetakan
 app.UseCors("AllowAll");
 
-// Health-Check & Preflight
+// Health-Check
 app.MapGet("/", () => Results.Ok(new { status = "Live", service = "Hypen Vault API", version = "1.0.0" }));
-app.MapMethods("/", ["HEAD"], () => Results.Ok());
-app.MapMethods("/{*path}", ["OPTIONS"], () => Results.Ok());
 
 // Environment Variables
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
@@ -116,7 +115,6 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
             }
         }
 
-        // Ambil resolusi Thumbnail tertinggi menggunakan LINQ
         string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
         using var conn = new NpgsqlConnection(dbConnectionString);
@@ -162,7 +160,6 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
         {
             try
             {
-                // Ambil resolusi Thumbnail tertinggi menggunakan LINQ
                 string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
 
                 string audioUrl = video.Url;
@@ -204,7 +201,35 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
     }
 });
 
-// 4. Delete Single Song
+// 4. Download Stream MP3 (POST untuk Keamanan Route Escaping)
+app.MapPost("/api/download", async ([FromBody] ConvertRequest req) =>
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(req.YoutubeUrl)) 
+            return Results.BadRequest("URL YouTube tidak boleh kosong.");
+
+        var youtube = new YoutubeClient();
+        var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
+        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
+        var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
+
+        if (streamInfo == null) 
+            return Results.NotFound("Stream audio tidak ditemukan");
+
+        var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
+        string safeTitle = string.Join("_", video.Title.Split(Path.GetInvalidFileNameChars()));
+
+        return Results.File(stream, "audio/mpeg", $"{safeTitle}.mp3");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[POST /api/download ERROR]");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// 5. Delete Single Song
 app.MapDelete("/api/songs/{id:int}", async (int id) =>
 {
     try
@@ -225,7 +250,7 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
     }
 });
 
-// 5. Delete Batch Songs
+// 6. Delete Batch Songs
 app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req) =>
 {
     try
@@ -248,8 +273,10 @@ app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req)
     }
 });
 
+// Jalankan aplikasi di baris paling akhir
 app.Run();
 
+// DTO Models
 public record ConvertRequest(string YoutubeUrl);
 public record PlaylistRequest(string PlaylistUrl);
 public record BatchDeleteRequest(int[] Ids);
