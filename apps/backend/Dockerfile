@@ -1,5 +1,5 @@
-# 1. Stage SDK untuk Build Application
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+# 1. Stage SDK untuk Build Application (.NET 10.0)
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project file dan restore dependency
@@ -11,8 +11,8 @@ COPY . .
 WORKDIR "/src/apps/backend"
 RUN dotnet publish "Hypen.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# 2. Stage Runtime + Dependencies (Python 3, FFmpeg, & yt-dlp)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# 2. Stage Runtime + Dependencies (.NET 10.0 + Python 3 + FFmpeg + yt-dlp)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 # Install Python 3, FFmpeg, dan Curl di OS Linux Container
