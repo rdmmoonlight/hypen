@@ -1,0 +1,11 @@
+# Build & Temporary Files (.NET)
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Operating System
+.DS_Store
+Thumbs.db
