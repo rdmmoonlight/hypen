@@ -11,12 +11,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   
   <!-- File Tema CSS -->
-  <link rel="stylesheet" href="theme.css?v=5.0">
+  <link rel="stylesheet" href="theme.css?v=6.0">
 
   <script>
     window.ENV_BACKEND_URL = window.ENV_BACKEND_URL || "";
   </script>
-  <script src="config.js" async onerror="console.log('config.js tidak ditemukan, memakai fallback URL')"></script>
+  <script src="config.js" async onerror="console.log('config.js tidak ditemukan, menggunakan fallback URL')"></script>
 </head>
 <body>
 
@@ -64,7 +64,7 @@
       statusEl.style.color = isError ? '#f72585' : '#4cc9f0';
     }
 
-    // 1. Fetch Library dengan Proteksi Properti (CamelCase & PascalCase)
+    // 1. Fetch Library (Sesuai Struktur JSON Backend)
     async function loadLibrary() {
       const baseUrl = getBackendUrl();
       try {
@@ -76,8 +76,6 @@
         }
 
         const songs = await res.json();
-        console.log("Data Lagu Dari API:", songs); // Untuk debugging di Console F12
-
         const container = document.getElementById('libraryList');
         container.innerHTML = '';
 
@@ -87,31 +85,35 @@
         }
 
         songs.forEach(song => {
-          // Mengatasi perbedaan huruf besar/kecil dari JSON backend
-          const title = song.Title || song.title || 'Untitled';
-          const artist = song.Artist || song.artist || 'Unknown';
-          const cover = song.Cover || song.cover || song.cover_url || song.CoverUrl || '';
-          const audioUrl = song.AudioUrl || song.audioUrl || song.audio_url || '';
-          const youtubeId = song.YoutubeId || song.youtubeId || song.youtube_id || '';
-
-          // Escape string aman untuk parameter fungsi JS
-          const safeTitle = title.replace(/'/g, "\\'");
-          const safeArtist = artist.replace(/'/g, "\\'");
+          // Membaca camelCase persis seperti response JSON backend
+          const songTitle = song.title || 'Untitled';
+          const songArtist = song.artist || 'Unknown';
+          const songCover = song.cover || '';
+          const audioUrl = song.audioUrl || '';
 
           const card = document.createElement('div');
           card.className = 'card';
+          
           card.innerHTML = `
-            <img src="${cover}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50/141226/f0f3ff?text=♫'">
+            <img src="${songCover}" class="card-img" alt="Cover" onerror="this.src='https://via.placeholder.com/50/141226/f0f3ff?text=♫'">
             <div class="card-info">
-              <div class="card-title">${title}</div>
-              <div class="card-artist">${artist}</div>
+              <div class="card-title"></div>
+              <div class="card-artist"></div>
             </div>
-            <button class="btn-nebula" onclick="playSong('${audioUrl}', '${safeTitle}', '${safeArtist}', '${cover}', '${youtubeId}')">▶ Play</button>
+            <button class="btn-nebula">▶ Play</button>
           `;
+
+          // Pengisian aman dari tanda petik atau karakter khusus
+          card.querySelector('.card-title').textContent = songTitle;
+          card.querySelector('.card-artist').textContent = songArtist;
+          
+          // Binding event click langsung
+          card.querySelector('button').onclick = () => playSong(audioUrl, songTitle, songArtist, songCover);
+
           container.appendChild(card);
         });
 
-        setStatus(''); // Bersihkan status saat sukses
+        setStatus(''); // Bersihkan status setelah sukses
       } catch (e) {
         console.error("Fetch Library Error:", e);
         setStatus(`Gagal memuat library (${e.message}). Coba refresh halaman.`, true);
@@ -158,7 +160,7 @@
         });
         const data = await res.json();
         if (res.ok) {
-          setStatus(`Berhasil mengimpor ${data.TotalAdded || 0} lagu dari playlist!`);
+          setStatus(`Berhasil mengimpor ${data.totalAdded || data.TotalAdded || 0} lagu dari playlist!`);
           document.getElementById('playlistUrl').value = '';
           loadLibrary();
         } else {
@@ -170,14 +172,13 @@
     }
 
     // 4. Playback Function
-    function playSong(url, title, artist, cover, youtubeId) {
+    function playSong(url, title, artist, cover) {
       const player = document.getElementById('audioPlayer');
       document.getElementById('nowPlaying').innerText = `PLAYING: ${title} - ${artist}`;
 
-      // Jika URL berupa direct mp3 (dari Supabase), langsung putar di audio player
       player.src = url;
       player.play().catch(err => {
-        console.warn("Autoplay blocked/failed, retrying player:", err);
+        console.warn("Autoplay diproses:", err);
       });
 
       if ('mediaSession' in navigator) {
