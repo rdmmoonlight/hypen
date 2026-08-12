@@ -48,10 +48,10 @@ jobs:
             cp apps/mobile/Resources/AppIcon/appicon.svg apps/mobile/Resources/Splash/splash.svg
           fi
 
-          # 4. Generate MainActivity.cs (Lengkap dengan using directive)
+          # 4. Generate MainActivity.cs (Memperbaiki typo ScreenLayout)
           if [ ! -f "apps/mobile/Platforms/Android/MainActivity.cs" ]; then
             echo "MainActivity.cs missing. Generating base MainActivity..."
-            printf 'using Android.App;\nusing Android.Content.PM;\nusing Microsoft.Maui;\n\nnamespace HypenMaui;\n\n[Activity(\n    Theme = "@style/Maui.SplashTheme",\n    MainLauncher = true,\n    LaunchMode = LaunchMode.SingleTop,\n    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayoutClass | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]\npublic class MainActivity : MauiAppCompatActivity\n{\n}\n' > apps/mobile/Platforms/Android/MainActivity.cs
+            printf 'using Android.App;\nusing Android.Content.PM;\nusing Microsoft.Maui;\n\nnamespace HypenMaui;\n\n[Activity(\n    Theme = "@style/Maui.SplashTheme",\n    MainLauncher = true,\n    LaunchMode = LaunchMode.SingleTop,\n    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]\npublic class MainActivity : MauiAppCompatActivity\n{\n}\n' > apps/mobile/Platforms/Android/MainActivity.cs
           fi
 
       - name: Build MAUI Android App
