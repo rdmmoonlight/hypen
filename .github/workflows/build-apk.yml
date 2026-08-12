@@ -24,12 +24,12 @@ jobs:
         with:
           node-version: '20'
 
-      # Setup Project Mobile & Capacitor secara Aman
+      # Setup Project Mobile & Capacitor
       - name: Setup Capacitor Project & Assets
         run: |
           mkdir -p apps/mobile/www
           
-          # Salin file frontend web ke folder www apps/mobile
+          # Salin file frontend web ke folder www
           if [ -d "web" ]; then
             cp -r web/* apps/mobile/www/
           else
@@ -43,16 +43,14 @@ jobs:
             npm init -y
           fi
           
-          # Install Capacitor Core, CLI, dan Android
+          # Install Capacitor CLI & Platform
           npm install @capacitor/core @capacitor/cli @capacitor/android
           
-          # Inisialisasi Project Capacitor jika belum ada config
-          if [ ! -f "capacitor.config.json" ]; then
-            npx cap init "Hypen Vault" "com.hypen.vault" --web-dir "www"
-          fi
-          
-          # Tambahkan Platform Android HANYA jika folder android/ belum ada
-          if [ ! -d "android" ]; then
+          # Force re-add android jika gradlew tidak ditemukan
+          if [ ! -f "android/gradlew" ]; then
+            echo "File gradlew tidak ditemukan. Membersihkan dan mere-generate platform Android..."
+            rm -rf android
+            npx cap init "Hypen Vault" "com.hypen.vault" --web-dir "www" 2>/dev/null || true
             npx cap add android
           fi
 
