@@ -1,8 +1,7 @@
 name: Code Quality Check & Auto-Fix
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 concurrency:
   group: lint-fix-${{ github.ref }}
@@ -43,18 +42,12 @@ jobs:
           if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet format apps/mobile/HypenMaui.csproj --severity info; fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet format apps/web/Hypen.Web.csproj --severity info; fi
 
-      # Bersihkan folder obj dan bin dari tracking Git jika terlanjur terubah
+      # Buang perubahan pada folder obj dan bin agar tidak mengganggu tracking
       - name: Revert Generated Files
         run: |
           git checkout -- **/obj/** **/bin/** 2>/dev/null || true
 
-      # Tarik commit remote terbaru untuk menghindari konflik push
-      - name: Pull Latest Changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
-
+      # Commit & Push secara aman
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
@@ -63,3 +56,4 @@ jobs:
           file_pattern: 'apps/**/*.cs apps/**/*.razor'
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          internal_git_options: '-c rebase.autoStash=true'
