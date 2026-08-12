@@ -10,7 +10,7 @@ public partial class Index
     [Inject] protected ISongService SongService { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
 
-    protected List<SongModel> songs = new();
+    protected List<SongModel> songs = [];
     protected string ytUrl = "";
     protected string playlistUrl = "";
     protected string searchQuery = "";
@@ -49,7 +49,7 @@ public partial class Index
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
         SetStatus("Memproses track...");
-        
+
         var result = await SongService.ConvertVideoAsync(ytUrl);
         if (result != null)
         {
@@ -67,7 +67,7 @@ public partial class Index
     {
         if (string.IsNullOrWhiteSpace(playlistUrl)) return;
         SetStatus("Mengimpor playlist YouTube...");
-        
+
         var result = await SongService.ConvertPlaylistAsync(playlistUrl);
         if (result != null)
         {
@@ -97,7 +97,7 @@ public partial class Index
     protected async Task DownloadSelected()
     {
         var selected = songs.Where(s => s.IsSelected).ToList();
-        if (!selected.Any()) return;
+        if (selected.Count == 0) return;
 
         foreach (var song in selected)
         {
