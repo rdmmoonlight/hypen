@@ -1,7 +1,8 @@
 name: Code Quality Check & Auto-Fix
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 concurrency:
   group: lint-fix-${{ github.ref }}
