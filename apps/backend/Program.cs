@@ -90,7 +90,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     {
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
-        
+
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
         var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
