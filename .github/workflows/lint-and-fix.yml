@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "main" ]
 
-# Memaksa workflow ini masuk antrean (queue) dan TIDAK berjalan bersamaan
 concurrency:
   group: lint-fix-${{ github.ref }}
   cancel-in-progress: false
@@ -12,7 +11,6 @@ concurrency:
 jobs:
   lint-and-fix:
     name: C# Format & Security Check
-    # Stop jika push berasal dari bot auto-fix itu sendiri (mencegah loop)
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
@@ -28,11 +26,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # Install Workload .NET MAUI Android agar runner mengenali target net10.0-android
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # Restore spesifik per file project C#
+      # Restore spesifik per project
       - name: Restore Dependencies
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then
@@ -41,8 +38,11 @@ jobs:
           if [ -f "apps/mobile/HypenMaui.csproj" ]; then
             dotnet restore apps/mobile/HypenMaui.csproj
           fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then
+            dotnet restore apps/web/Hypen.Web.csproj
+          fi
 
-      # Format spesifik per file project C#
+      # Format spesifik per project
       - name: Run Dotnet Format Fix
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then
@@ -51,6 +51,15 @@ jobs:
           if [ -f "apps/mobile/HypenMaui.csproj" ]; then
             dotnet format apps/mobile/HypenMaui.csproj --severity info
           fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then
+            dotnet format apps/web/Hypen.Web.csproj --severity info
+          fi
+
+      # Bersihkan folder bin dan obj dari tracking sebelum auto-commit
+      - name: Clean Build Temporary Files
+        run: |
+          git status
+          git checkout -- apps/**/obj/ apps/**/bin/ 2>/dev/null || true
 
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
