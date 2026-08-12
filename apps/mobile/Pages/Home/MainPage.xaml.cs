@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace HypenMaui;
+namespace HypenMaui.Pages.Home;
 
 public partial class MainPage : ContentPage
 {
@@ -70,7 +70,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // 2. Download File MP3 ke HP Android
+    // 2. Download Single MP3
     private async void OnDownloadSingleClicked(object sender, EventArgs e)
     {
         if (sender is Button btn && btn.CommandParameter is SongModel song) {
@@ -84,7 +84,6 @@ public partial class MainPage : ContentPage
             StatusLabel.Text = $"Mengunduh: {song.Title}...";
             var fileBytes = await _httpClient.GetByteArrayAsync(song.AudioUrl);
             
-            // Path Folder Download HP Android
             string downloadsPath = Path.Combine(Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryDownloads)!.AbsolutePath, $"{song.Title}.mp3");
             await File.WriteAllBytesAsync(downloadsPath, fileBytes);
 
@@ -105,7 +104,7 @@ public partial class MainPage : ContentPage
 
         foreach (var song in selected) {
             await DownloadSongToDeviceAsync(song);
-            await Task.Delay(300); // Jeda aman
+            await Task.Delay(300);
         }
     }
 
