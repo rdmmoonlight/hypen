@@ -154,18 +154,44 @@
         setTimeout(() => {
           downloadSingle(url, title);
         }, delay);
-        delay += 500; // Beri jeda 0.5 detik antar unduhan agar browser aman dari blokir popup
+        delay += 600; // Jeda aman 0.6 detik antar unduhan
       });
     }
 
-    function downloadSingle(url, title) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title}.mp3`;
-      a.target = "_blank";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    // Perbaikan: Fetch file secara Async lalu unduh via Blob agar tidak membuka tab baru
+    async function downloadSingle(url, title) {
+      if (!url) return alert('URL audio tidak valid.');
+      
+      try {
+        setStatus(`Mengunduh: ${title}...`);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const blob = await res.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = `${title || 'track'}.mp3`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Clean up
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
+        setStatus(`Berhasil mengunduh: ${title}`);
+        setTimeout(() => setStatus(''), 3000);
+      } catch (err) {
+        console.error("Download Error:", err);
+        // Fallback: Jika CORS memblokir Fetch, buka via window.open sebagai opsi cadangan
+        const fallbackAnchor = document.createElement('a');
+        fallbackAnchor.href = url;
+        fallbackAnchor.download = `${title}.mp3`;
+        fallbackAnchor.target = "_blank";
+        fallbackAnchor.click();
+        setStatus('');
+      }
     }
 
     async function deleteSingle(id) {
@@ -221,6 +247,8 @@
           setStatus('Track berhasil ditambahkan!');
           document.getElementById('ytUrl').value = '';
           loadLibrary();
+        } else {
+          setStatus('Gagal mengonversi video.', true);
         }
       } catch (e) {
         setStatus('Gagal mengonversi video.', true);
@@ -243,6 +271,8 @@
           setStatus(`Berhasil mengimpor ${data.totalAdded || 0} lagu!`);
           document.getElementById('playlistUrl').value = '';
           loadLibrary();
+        } else {
+          setStatus('Gagal mengimpor playlist.', true);
         }
       } catch (e) {
         setStatus('Gagal mengimpor playlist.', true);
@@ -264,4 +294,5 @@
     loadLibrary();
   </script>
 </body>
-</html>
+    </html>
+  
