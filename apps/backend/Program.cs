@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using Supabase;
 using YoutubeExplode;
 using YoutubeExplode.Videos.Streams;
-using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +13,8 @@ builder.Services.AddCors(options =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .WithExposedHeaders("Content-Disposition");
     });
 });
 
@@ -22,7 +23,9 @@ var logger = app.Logger;
 
 app.UseCors("AllowAll");
 
-// Preflight OPTIONS Handler
+// Health-Check & Preflight
+app.MapGet("/", () => Results.Ok(new { status = "Live", service = "Hypen Vault API", version = "1.0.0" }));
+app.MapMethods("/", ["HEAD"], () => Results.Ok());
 app.MapMethods("/{*path}", ["OPTIONS"], () => Results.Ok());
 
 // Environment Variables
@@ -45,8 +48,6 @@ if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
         logger.LogWarning("[INIT WARNING] Supabase init failed: {Message}", ex.Message);
     }
 }
-
-app.MapGet("/", () => Results.Ok("Hypen API is running!"));
 
 // 1. Fetch Songs Library
 app.MapGet("/api/songs", async () =>
@@ -89,24 +90,33 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     {
         var youtube = new YoutubeClient();
         var video = await youtube.Videos.GetAsync(req.YoutubeUrl);
-        string audioPublicUrl = video.Url;
-
+        
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
-        var streamInfo = streamManifest.GetAudioOnlyStreams().OrderByDescending(s => s.Bitrate).FirstOrDefault();
+        var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
+        string audioPublicUrl = streamInfo?.Url ?? video.Url;
+
+        // Upload ke Supabase Storage jika terhubung
         if (supabaseClient != null && streamInfo != null)
         {
-            using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
-            using var memoryStream = new MemoryStream();
-            await audioStream.CopyToAsync(memoryStream);
-            var fileBytes = memoryStream.ToArray();
+            try
+            {
+                using var audioStream = await youtube.Videos.Streams.GetAsync(streamInfo);
+                using var memoryStream = new MemoryStream();
+                await audioStream.CopyToAsync(memoryStream);
+                var fileBytes = memoryStream.ToArray();
 
-            string fileName = $"{video.Id}.mp3";
-            await supabaseClient.Storage.From("songs").Upload(fileBytes, fileName, new Supabase.Storage.FileOptions { ContentType = "audio/mpeg", Upsert = true });
-            audioPublicUrl = supabaseClient.Storage.From("songs").GetPublicUrl(fileName);
+                string fileName = $"{video.Id}.mp3";
+                await supabaseClient.Storage.From("songs").Upload(fileBytes, fileName, new Supabase.Storage.FileOptions { ContentType = "audio/mpeg", Upsert = true });
+                audioPublicUrl = supabaseClient.Storage.From("songs").GetPublicUrl(fileName);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("[SUPABASE STORAGE WARNING] {Message}", ex.Message);
+            }
         }
 
-        string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
+        string coverUrl = video.Thumbnails.GetWithHighestResolution()?.Url ?? "";
 
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
@@ -129,6 +139,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "[POST /api/convert ERROR]");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
@@ -150,7 +161,17 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
         {
             try
             {
-                string coverUrl = video.Thumbnails.OrderByDescending(t => t.Resolution.Area).FirstOrDefault()?.Url ?? "";
+                string coverUrl = video.Thumbnails.GetWithHighestResolution()?.Url ?? "";
+
+                // Ekstrak URL stream audio terpisah per item
+                string audioUrl = video.Url;
+                try
+                {
+                    var streamManifest = await youtube.Videos.Streams.GetManifestAsync(video.Id);
+                    var streamInfo = streamManifest.GetAudioOnlyStreams().GetWithHighestBitrate();
+                    if (streamInfo != null) audioUrl = streamInfo.Url;
+                }
+                catch { }
 
                 string sql = @"INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds) 
                                VALUES (@yid, @title, @artist, @cover, @url, @dur) 
@@ -161,7 +182,7 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
                 cmd.Parameters.AddWithValue("title", video.Title);
                 cmd.Parameters.AddWithValue("artist", video.Author.ChannelTitle);
                 cmd.Parameters.AddWithValue("cover", coverUrl);
-                cmd.Parameters.AddWithValue("url", video.Url);
+                cmd.Parameters.AddWithValue("url", audioUrl);
                 cmd.Parameters.AddWithValue("dur", (int)(video.Duration?.TotalSeconds ?? 0));
 
                 await cmd.ExecuteNonQueryAsync();
@@ -177,6 +198,7 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "[POST /api/convert-playlist ERROR]");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
@@ -197,6 +219,7 @@ app.MapDelete("/api/songs/{id:int}", async (int id) =>
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "[DELETE /api/songs/{id} ERROR]");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
@@ -219,6 +242,7 @@ app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req)
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "[POST /api/songs/delete-batch ERROR]");
         return Results.Problem(detail: ex.Message, statusCode: 500);
     }
 });
