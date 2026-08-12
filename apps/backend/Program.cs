@@ -112,13 +112,13 @@ async Task<(string audioUrl, string title, string uploader)> ExtractAudioPipedAs
     }
 
     // Daftar server Piped API Publik yang stabil
-    string[] pipedInstances = new[]
-    {
+    string[] pipedInstances =
+    [
         "https://api.piped.video",
         "https://pipedapi.kavin.rocks",
         "https://piped-api.garudalinux.org",
         "https://api.piped.mha.fi"
-    };
+    ];
 
     foreach (var instance in pipedInstances)
     {
@@ -202,7 +202,7 @@ app.MapPost("/api/convert", async (ConvertRequest req, IHttpClientFactory httpCl
         cmd.Parameters.AddWithValue("dur", 180);
 
         var songId = await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { id = songId, title = title, artist = artist, audioUrl = audioPublicUrl });
+        return Results.Ok(new { id = songId, title, artist, audioUrl = audioPublicUrl });
     }
     catch (Exception ex)
     {
