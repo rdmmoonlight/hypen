@@ -1,3 +1,6 @@
+using Android.App;
+using Android.Content.PM;
+
 namespace HypenMaui;
 
 [Activity(
