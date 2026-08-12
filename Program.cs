@@ -4,11 +4,9 @@ using YoutubeExplode;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Konfigurasi CORS Service
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
+// 1. Configure CORS
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowAll", policy => {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
@@ -17,16 +15,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 2. WAJIB: Akfikan Middleware CORS SEBELUM Routing/Map Endpoints!
+// 2. Enable CORS Middleware
 app.UseCors("AllowAll");
 
-// Database Connection String
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 
-// Health check endpoint (untuk tes API jalan atau tidak)
 app.MapGet("/", () => Results.Ok("Hypen API is running!"));
 
-// Endpoint 1: Add Single Track
+// Endpoint 1: Single Track
 app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 {
     try
@@ -45,7 +41,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
                        VALUES (@yid, @title, @artist, @cover, @url, @dur) 
                        ON CONFLICT (youtube_id) DO NOTHING
                        RETURNING id;";
-
+        
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("yid", video.Id.Value);
         cmd.Parameters.AddWithValue("title", video.Title);
@@ -56,7 +52,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 
         var songId = await cmd.ExecuteScalarAsync();
 
-        return Results.Ok(new { Id = songId, video.Title, Artist = video.Author.ChannelTitle });
+        return Results.Ok(new { Id = songId, Title = video.Title, Artist = video.Author.ChannelTitle });
     }
     catch (Exception ex)
     {
@@ -64,20 +60,20 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     }
 });
 
-// Endpoint 2: Import Playlist YouTube
+// Endpoint 2: Import Playlist (Fixed with await foreach)
 app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
 {
     try
     {
         var youtube = new YoutubeClient();
         var playlist = await youtube.Playlists.GetAsync(req.PlaylistUrl);
-        var videos = await youtube.Playlists.GetVideosAsync(playlist.Id);
+        var videos = youtube.Playlists.GetVideosAsync(playlist.Id);
 
         int count = 0;
         using var conn = new NpgsqlConnection(dbConnectionString);
         await conn.OpenAsync();
 
-        foreach (var video in videos)
+        await foreach (var video in videos)
         {
             string coverUrl = video.Thumbnails
                 .OrderByDescending(t => t.Resolution.Area)
@@ -107,7 +103,7 @@ app.MapPost("/api/convert-playlist", async ([FromBody] PlaylistRequest req) =>
     }
 });
 
-// Endpoint 3: Fetch Songs Library
+// Endpoint 3: Fetch Songs
 app.MapGet("/api/songs", async () =>
 {
     try
@@ -118,11 +114,10 @@ app.MapGet("/api/songs", async () =>
 
         using var cmd = new NpgsqlCommand("SELECT id, youtube_id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
         using var reader = await cmd.ExecuteReaderAsync();
-
+        
         while (await reader.ReadAsync())
         {
-            songs.Add(new
-            {
+            songs.Add(new {
                 Id = reader.GetInt32(0),
                 YoutubeId = reader.GetString(1),
                 Title = reader.GetString(2),
