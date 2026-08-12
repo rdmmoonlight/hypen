@@ -1,0 +1,30 @@
+<?xml version = "1.0" encoding = "UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HypenMaui.App">
+    
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Warna Tema Futuristik / Nebula -->
+            <Color x:Key="PrimaryBackground">#0b0914</Color>
+            <Color x:Key="CardBackground">#141226</Color>
+            <Color x:Key="AccentCyan">#4cc9f0</Color>
+            <Color x:Key="AccentPink">#f72585</Color>
+
+            <!-- Gaya Default untuk Entry / Search Input -->
+            <Style TargetType="Entry">
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="PlaceholderColor" Value="#6c757d" />
+                <Setter Property="BackgroundColor" Value="#141226" />
+                <Setter Property="HeightRequest" Value="45" />
+            </Style>
+
+            <!-- Gaya Default untuk Button -->
+            <Style TargetType="Button">
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="HeightRequest" Value="40" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
