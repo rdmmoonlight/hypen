@@ -8,7 +8,9 @@ namespace Hypen.Web.Pages;
 public partial class Index
 {
     [Inject] protected ISongService SongService { get; set; } = default!;
+    [Inject] protected LastFmService LastFmService { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
+    [Inject] protected NavigationManager Navigation { get; set; } = default!;
 
     protected List<SongModel> songs = [];
     protected string ytUrl = "";
@@ -19,6 +21,9 @@ public partial class Index
 
     protected string? currentPlayingTrack;
     protected string? currentAudioUrl;
+    
+    // Key Sesi Last.fm (diambil setelah handshake autentikasi)
+    protected string? lastFmSessionKey;
 
     protected IEnumerable<SongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
@@ -28,7 +33,35 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. Cek Token Autentikasi Callback Last.fm dari URL
+        await HandleLastFmCallback();
+
+        // 2. Muat Daftar Lagu dari Server
         await LoadLibrary();
+    }
+
+    private async Task HandleLastFmCallback()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("token", out var token))
+        {
+            try
+            {
+                SetStatus("Menghubungkan ke Last.fm...");
+                lastFmSessionKey = await LastFmService.FetchSessionKeyAsync(token!);
+                
+                if (!string.IsNullOrEmpty(lastFmSessionKey))
+                {
+                    SetStatus("Berhasil terhubung ke Last.fm!");
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Gagal menghubungkan Last.fm: {ex.Message}", true);
+            }
+        }
     }
 
     protected async Task LoadLibrary()
@@ -52,7 +85,6 @@ public partial class Index
 
         try
         {
-            // Panggil service yang menggunakan endpoint POST /api/songs
             var result = await SongService.ConvertVideoAsync(ytUrl);
             if (result != null)
             {
@@ -89,10 +121,16 @@ public partial class Index
         }
     }
 
-    protected void PlaySong(SongModel song)
+    protected async Task PlaySong(SongModel song)
     {
         currentPlayingTrack = $"PLAYING: {song.Title} - {song.Artist}";
         currentAudioUrl = song.AudioUrl;
+
+        // Kirim status "Now Playing" ke Last.fm jika sesi pengguna aktif
+        if (!string.IsNullOrEmpty(lastFmSessionKey))
+        {
+            _ = LastFmService.UpdateNowPlayingAsync(song.Title, song.Artist, lastFmSessionKey);
+        }
     }
 
     protected async Task DownloadSingle(SongModel song)
@@ -100,10 +138,7 @@ public partial class Index
         try
         {
             SetStatus($"Mengunduh: {song.Title}...");
-
-            // Pemicu download langsung di peramban pengguna (client-side)
             await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Title}.mp3");
-
             SetStatus("");
         }
         catch (Exception ex)
@@ -120,7 +155,7 @@ public partial class Index
         foreach (var song in selected)
         {
             await DownloadSingle(song);
-            await Task.Delay(500); // Penundaan agar peramban tidak memblokir pop-up multiple download
+            await Task.Delay(500);
         }
     }
 
@@ -150,6 +185,13 @@ public partial class Index
     {
         bool isChecked = (bool)(e.Value ?? false);
         foreach (var song in songs) song.IsSelected = isChecked;
+    }
+
+    protected void ConnectLastFm()
+    {
+        // Redirect user ke halaman otorisasi resmi Last.fm
+        var authUrl = LastFmService.GetAuthorizationUrl();
+        Navigation.NavigateTo(authUrl, forceLoad: true);
     }
 
     private void SetStatus(string msg, bool error = false)
