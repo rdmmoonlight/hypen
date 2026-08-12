@@ -132,7 +132,7 @@ static string ExtractYoutubeId(string url)
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-                .Substring("/shorts/".Length)
+["/shorts/".Length..]
                 .Split('/')[0];
         }
 
@@ -141,7 +141,7 @@ static string ExtractYoutubeId(string url)
                 StringComparison.OrdinalIgnoreCase))
         {
             return uri.AbsolutePath
-                .Substring("/embed/".Length)
+["/embed/".Length..]
                 .Split('/')[0];
         }
     }
@@ -229,12 +229,12 @@ async Task<ExtractionResult> ExtractAudioAsync(
     var client = httpClientFactory.CreateClient("Extractor");
 
     // Array Instance Cobalt API
-    string[] cobaltInstances = new[]
-    {
+    string[] cobaltInstances =
+    [
         "https://api.cobalt.tools",
         "https://cobalt-api.kwi.im",
         "https://co.wuk.sh/api/json"
-    };
+    ];
 
     var payload = new
     {
@@ -263,8 +263,8 @@ async Task<ExtractionResult> ExtractAudioAsync(
                 if (root.TryGetProperty("url", out var urlElem))
                 {
                     string streamUrl = urlElem.GetString() ?? "";
-                    string title = root.TryGetProperty("filename", out var fnElem) 
-                        ? fnElem.GetString() ?? $"Track {youtubeId}" 
+                    string title = root.TryGetProperty("filename", out var fnElem)
+                        ? fnElem.GetString() ?? $"Track {youtubeId}"
                         : $"Track {youtubeId}";
 
                     if (!string.IsNullOrEmpty(streamUrl))
