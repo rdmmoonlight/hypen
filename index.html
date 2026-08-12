@@ -1,143 +1,97 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shake The World</title>
-  
-  <!-- Font Google Gothic -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  
-  <!-- File Tema Gothic CSS (Sudah Diperbaiki Ke theme.css) -->
-  <link rel="stylesheet" href="theme.css?v=1.0">
-</head>
-<body>
+<script>
+  const BACKEND_URL = "https://hypen-0s65.onrender.com";
 
-  <h1>HYPEN VAULT</h1>
+  // 1. Fetch Library
+  async function loadLibrary() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/songs`);
+      const songs = await res.json();
+      
+      const container = document.getElementById('libraryList');
+      container.innerHTML = '';
 
-  <!-- Input Single Track -->
-  <div class="input-group">
-    <h3 class="gothic-title" style="margin-top:0; font-size:14px;">Import Single Track</h3>
-    <input type="text" id="ytUrl" placeholder="Tempel link video YouTube...">
-    <button class="btn-gothic" onclick="convertVideo()">+ Add Track</button>
-  </div>
-
-  <!-- Input Playlist YouTube -->
-  <div class="input-group">
-    <h3 class="gothic-title" style="margin-top:0; font-size:14px;">Import YouTube Playlist</h3>
-    <input type="text" id="playlistUrl" placeholder="Tempel link playlist YouTube...">
-    <button class="btn-gothic btn-secondary" onclick="convertPlaylist()">+ Import Playlist</button>
-  </div>
-
-  <p id="status" style="font-size: 13px; color: var(--accent-crimson); font-weight: bold; min-height: 20px;"></p>
-
-  <h3 class="gothic-title">Library Collection</h3>
-  <div id="libraryList" class="card-grid"></div>
-
-  <!-- Player Bar -->
-  <div class="player-bar">
-    <div id="nowPlaying" class="now-playing">No track selected...</div>
-    <audio id="audioPlayer" controls></audio>
-  </div>
-
-  <script>
-    const BACKEND_URL = "https://hypen-api.onrender.com";
-
-    // 1. Fetch Library
-    async function loadLibrary() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/songs`);
-        const songs = await res.json();
-        
-        const container = document.getElementById('libraryList');
-        container.innerHTML = '';
-
-        songs.forEach(song => {
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = `
-            <img src="${song.Cover}" class="card-img" alt="Cover">
-            <div class="card-info">
-              <div class="card-title">${song.Title}</div>
-              <div class="card-artist">${song.Artist}</div>
-            </div>
-            <button class="btn-gothic" onclick="playSong('${song.AudioUrl}', '${song.Title.replace(/'/g, "\\'")}', '${song.Artist.replace(/'/g, "\\'")}', '${song.Cover}')">▶ Play</button>
-          `;
-          container.appendChild(card);
-        });
-      } catch (e) {
-        document.getElementById('status').innerText = 'Gagal memuat library.';
-      }
+      songs.forEach(song => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <img src="${song.Cover}" class="card-img" alt="Cover">
+          <div class="card-info">
+            <div class="card-title">${song.Title}</div>
+            <div class="card-artist">${song.Artist}</div>
+          </div>
+          <button class="btn-gothic" onclick="playSong('${song.AudioUrl}', '${song.Title.replace(/'/g, "\\'")}', '${song.Artist.replace(/'/g, "\\'")}', '${song.Cover}')">▶ Play</button>
+        `;
+        container.appendChild(card);
+      });
+    } catch (e) {
+      document.getElementById('status').innerText = 'Gagal memuat library.';
     }
+  }
 
-    // 2. Add Single Video
-    async function convertVideo() {
-      const url = document.getElementById('ytUrl').value;
-      const status = document.getElementById('status');
-      if (!url) return alert('Masukkan URL YouTube!');
+  // 2. Add Single Video
+  async function convertVideo() {
+    const url = document.getElementById('ytUrl').value;
+    const status = document.getElementById('status');
+    if (!url) return alert('Masukkan URL YouTube!');
 
-      status.innerText = 'Memproses track...';
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/convert`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ youtubeUrl: url })
-        });
-        if (res.ok) {
-          status.innerText = 'Track berhasil ditambahkan!';
-          document.getElementById('ytUrl').value = '';
-          loadLibrary();
-        }
-      } catch (e) {
-        status.innerText = 'Gagal mengonversi video.';
+    status.innerText = 'Memproses track...';
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeUrl: url })
+      });
+      if (res.ok) {
+        status.innerText = 'Track berhasil ditambahkan!';
+        document.getElementById('ytUrl').value = '';
+        loadLibrary();
       }
+    } catch (e) {
+      status.innerText = 'Gagal mengonversi video.';
     }
+  }
 
-    // 3. Add Playlist
-    async function convertPlaylist() {
-      const url = document.getElementById('playlistUrl').value;
-      const status = document.getElementById('status');
-      if (!url) return alert('Masukkan URL Playlist!');
+  // 3. Add Playlist
+  async function convertPlaylist() {
+    const url = document.getElementById('playlistUrl').value;
+    const status = document.getElementById('status');
+    if (!url) return alert('Masukkan URL Playlist!');
 
-      status.innerText = 'Mengimpor seluruh playlist YouTube...';
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/convert-playlist`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playlistUrl: url })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          status.innerText = `Berhasil mengimpor ${data.TotalAdded} lagu dari playlist!`;
-          document.getElementById('playlistUrl').value = '';
-          loadLibrary();
-        }
-      } catch (e) {
-        status.innerText = 'Gagal mengimpor playlist.';
+    status.innerText = 'Mengimpor seluruh playlist YouTube...';
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/convert-playlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playlistUrl: url })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        status.innerText = `Berhasil mengimpor ${data.TotalAdded} lagu dari playlist!`;
+        document.getElementById('playlistUrl').value = '';
+        loadLibrary();
       }
+    } catch (e) {
+      status.innerText = 'Gagal mengimpor playlist.';
     }
+  }
 
-    // 4. Playback & Lockscreen Integration
-    function playSong(url, title, artist, cover) {
-      const player = document.getElementById('audioPlayer');
-      document.getElementById('nowPlaying').innerText = `Playing: ${title} - ${artist}`;
+  // 4. Playback & Lockscreen Integration
+  function playSong(url, title, artist, cover) {
+    const player = document.getElementById('audioPlayer');
+    document.getElementById('nowPlaying').innerText = `Playing: ${title} - ${artist}`;
 
-      player.src = url;
-      player.play();
+    player.src = url;
+    player.play();
 
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: title,
-          artist: artist,
-          artwork: [{ src: cover, sizes: '512x512', type: 'image/jpeg' }]
-        });
-      }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title,
+        artist: artist,
+        artwork: [{ src: cover, sizes: '512x512', type: 'image/jpeg' }]
+      });
     }
+  }
 
-    // Init App
-    loadLibrary();
-  </script>
-</body>
-</html>
+  // Init App
+  loadLibrary();
+</script>
