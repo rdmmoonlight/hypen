@@ -16,6 +16,9 @@
 
 		<!-- Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
+
+		<!-- Abaikan error konflik batasan versi dependensi .NET 9 vs .NET 10 -->
+		<NoWarn>$(NoWarn);NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -29,14 +32,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Wajib untuk .NET 10 (Menghilangkan Warning MA002 & Konflik NU1107) -->
+		<!-- Paket Utama .NET 10 (Didaftarkan Eksplisit untuk Resolusi Konflik NU1107) -->
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.20" />
+		<PackageReference Include="Microsoft.Maui.Core" Version="10.0.20" />
+		<PackageReference Include="Microsoft.Maui.Essentials" Version="10.0.20" />
 
-		<!-- Community Toolkit versi Pre-release yang kompatibel dengan .NET 10 -->
-		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0-preview1" />
-		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="6.0.0-preview1" />
+		<!-- Community Toolkit -->
+		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0" />
+		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="6.0.0" />
 	</ItemGroup>
 
 </Project>
-
