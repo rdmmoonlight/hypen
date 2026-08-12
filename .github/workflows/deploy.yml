@@ -1,21 +1,9 @@
-name: Deploy Application
+name: Deploy Application (Blazor WASM)
 
 on:
-  workflow_run:
-    workflows: ["Code Quality Check & Auto-Fix"]
-    types:
-      - completed
-    branches:
-      - main
   push:
     branches: [ "main" ]
 
-# Memaksa deploy antre berurutan
-concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: false
-
-# Izin yang dibutuhkan untuk deploy ke GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -23,57 +11,29 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to Server & Pages
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Checkout Latest Code
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          ref: main
 
-      # Prepare Folder _site untuk GitHub Pages
-      - name: Prepare Web Assets & Generate Config
-        run: |
-          mkdir -p _site
-          
-          # 1. Salin aset dari folder web/ jika ada, atau dari root
-          if [ -d "web" ]; then
-            cp -r web/* _site/
-          else
-            cp index.html theme.css _site/ 2>/dev/null || true
-          fi
-          
-          # 2. Buat file config.js secara otomatis di dalam folder _site
-          echo "window.ENV_BACKEND_URL = '${{ vars.BACKEND_URL }}';" > _site/config.js
-
-      # Setup .NET untuk Publish Backend (Pengecekan Aman)
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build & Publish Backend Application
+      # Publish Blazor WebAssembly App ke folder _site
+      - name: Publish Blazor WebAssembly
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then
-            dotnet restore apps/backend/Hypen.csproj
-            dotnet publish apps/backend/Hypen.csproj -c Release -o ./publish /p:UseAppHost=false
-          fi
-
-      # ========================================================
-      # GitHub Pages Deployment Steps
-      # ========================================================
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+          dotnet publish apps/web/Hypen.Web.csproj -c Release -o _site/wwwroot
+          
+          # Trik wajib GitHub Pages untuk Blazor WASM (Single Page Application Fallback)
+          cp _site/wwwroot/index.html _site/wwwroot/404.html
+          touch _site/wwwroot/.nojekyll
 
       - name: Upload Artifact to Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '_site'
+          path: '_site/wwwroot'
 
       - name: Deploy to GitHub Pages
         id: deployment
