@@ -1,6 +1,6 @@
-# Build & Temporary Files (.NET)
-[Bb]in/
-[Oo]bj/
+# .NET Build & Temp
+**/[Bb]in/
+**/[Oo]bj/
 .vs/
 .vscode/
 *.user
