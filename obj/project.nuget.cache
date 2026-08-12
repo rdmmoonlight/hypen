@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "dgSpecHash": "fd/UWirk1bk=",
+  "success": true,
+  "projectFilePath": "/home/runner/work/hypen/hypen/Hypen.csproj",
+  "expectedPackageFiles": [
+    "/home/runner/.nuget/packages/anglesharp/1.1.2/anglesharp.1.1.2.nupkg.sha512",
+    "/home/runner/.nuget/packages/awssdk.core/3.7.302.20/awssdk.core.3.7.302.20.nupkg.sha512",
+    "/home/runner/.nuget/packages/awssdk.s3/3.7.307/awssdk.s3.3.7.307.nupkg.sha512",
+    "/home/runner/.nuget/packages/npgsql/8.0.3/npgsql.8.0.3.nupkg.sha512",
+    "/home/runner/.nuget/packages/youtubeexplode/6.3.16/youtubeexplode.6.3.16.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'AngleSharp' 1.1.2 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-pgww-w46g-26qg",
+      "projectPath": "/home/runner/work/hypen/hypen/Hypen.csproj",
+      "warningLevel": 1,
+      "filePath": "/home/runner/work/hypen/hypen/Hypen.csproj",
+      "libraryId": "AngleSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
+}

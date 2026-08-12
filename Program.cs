@@ -8,7 +8,8 @@ using Amazon.S3.Transfer;
 var builder = WebApplication.CreateBuilder(args);
 
 // CORS agar bisa dipanggil dari GitHub Pages
-builder.Services.AddCors(options => {
+builder.Services.AddCors(options =>
+{
     options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
@@ -37,7 +38,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     string fileName = $"{video.Id}.mp3";
     var s3Config = new AmazonS3Config { ServiceURL = r2ServiceUrl };
     using var s3Client = new AmazonS3Client(r2AccessKey, r2SecretKey, s3Config);
-    
+
     var fileTransferUtility = new TransferUtility(s3Client);
     await fileTransferUtility.UploadAsync(audioStream, r2BucketName, fileName);
 
@@ -50,7 +51,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
     string sql = @"INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds) 
                    VALUES (@yid, @title, @artist, @cover, @url, @dur) 
                    RETURNING id;";
-    
+
     using var cmd = new NpgsqlCommand(sql, conn);
     cmd.Parameters.AddWithValue("yid", video.Id.Value);
     cmd.Parameters.AddWithValue("title", video.Title);
@@ -61,7 +62,7 @@ app.MapPost("/api/convert", async ([FromBody] ConvertRequest req) =>
 
     var songId = await cmd.ExecuteScalarAsync();
 
-    return Results.Ok(new { Id = songId, Title = video.Title, AudioUrl = audioPublicUrl });
+    return Results.Ok(new { Id = songId, video.Title, AudioUrl = audioPublicUrl });
 });
 
 // Endpoint untuk mengambil daftar Library dari Database Neon
@@ -73,10 +74,11 @@ app.MapGet("/api/songs", async () =>
 
     using var cmd = new NpgsqlCommand("SELECT id, title, artist, cover_url, audio_url FROM songs ORDER BY id DESC", conn);
     using var reader = await cmd.ExecuteReaderAsync();
-    
+
     while (await reader.ReadAsync())
     {
-        songs.Add(new {
+        songs.Add(new
+        {
             Id = reader.GetInt32(0),
             Title = reader.GetString(1),
             Artist = reader.IsDBNull(2) ? "Unknown" : reader.GetString(2),
