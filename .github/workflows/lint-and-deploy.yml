@@ -10,15 +10,13 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 0: Cek Folder yang Berubah
+  # STEP 0: Cek Perubahan Folder Mobile
   # ----------------------------------------------------
   check-changes:
     name: Check File Changes
     runs-on: ubuntu-latest
     outputs:
-      web: ${{ steps.filter.outputs.web }}
-      backend: ${{ steps.filter.outputs.backend }}
-      mobile_only: ${{ steps.filter.outputs.mobile == 'true' && steps.filter.outputs.web == 'false' && steps.filter.outputs.backend == 'false' }}
+      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -28,15 +26,11 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            web:
-              - 'apps/web/**'
-            backend:
-              - 'apps/backend/**'
             mobile:
               - 'apps/mobile/**'
 
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix (Selalu Jalan)
+  # STEP 1: Linting, Formatting, & Auto-Fix (Jalan Selalu)
   # ----------------------------------------------------
   lint-and-fix:
     name: C# Format & Quality Check
@@ -94,8 +88,8 @@ jobs:
   build-web:
     name: Build Blazor WASM
     needs: [check-changes, lint-and-fix]
-    # Skip total kalau perubahan HANYA di apps/mobile
-    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.web == 'true'
+    # Jika mobile = true, job ini DI-SKIP
+    if: needs.check-changes.outputs.mobile != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -133,8 +127,8 @@ jobs:
   build-backend:
     name: Verify Backend Build
     needs: [check-changes, lint-and-fix]
-    # Skip total kalau perubahan HANYA di apps/mobile
-    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.backend == 'true'
+    # Jika mobile = true, job ini DI-SKIP
+    if: needs.check-changes.outputs.mobile != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -159,7 +153,8 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: [check-changes, build-web]
-    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.web == 'true' && needs.build-web.result == 'success'
+    # Jika mobile = true, job ini DI-SKIP
+    if: needs.check-changes.outputs.mobile != 'true' && needs.build-web.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       pages: write
