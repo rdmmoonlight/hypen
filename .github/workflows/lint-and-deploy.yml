@@ -31,15 +31,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Clean & Restore Dependencies
+      - name: Restore Dependencies & Clean
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then 
-            dotnet clean apps/backend/Hypen.csproj
             dotnet restore apps/backend/Hypen.csproj
+            dotnet clean apps/backend/Hypen.csproj --no-restore
           fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then 
-            dotnet clean apps/web/Hypen.Web.csproj
             dotnet restore apps/web/Hypen.Web.csproj
+            dotnet clean apps/web/Hypen.Web.csproj --no-restore
           fi
 
       - name: Run Dotnet Format Fix
@@ -89,14 +89,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Publish Blazor WebAssembly
+      - name: Restore & Publish Blazor WebAssembly
         run: |
-          # Bersihkan cache build lama untuk mencegah duplikasi StaticWebAssets Manifest
-          dotnet clean apps/web/Hypen.Web.csproj
           rm -rf publish_output
-          
-          # Publish ulang ke folder output
-          dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output
+          dotnet restore apps/web/Hypen.Web.csproj
+          dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output --no-restore
           
           # Membuat file .nojekyll agar folder _framework tidak diabaikan oleh GitHub Pages
           touch publish_output/wwwroot/.nojekyll
@@ -131,8 +128,8 @@ jobs:
       - name: Build Backend App
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then 
-            dotnet clean apps/backend/Hypen.csproj
-            dotnet build apps/backend/Hypen.csproj -c Release
+            dotnet restore apps/backend/Hypen.csproj
+            dotnet build apps/backend/Hypen.csproj -c Release --no-restore
           fi
 
   # ----------------------------------------------------
