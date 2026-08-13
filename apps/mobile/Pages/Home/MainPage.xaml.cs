@@ -1,8 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using HypenMaui.Services;
 using Microsoft.Maui.Storage;
 
@@ -10,8 +7,6 @@ namespace HypenMaui.Pages.Home;
 
 public partial class MainPage : ContentPage
 {
-    private const string BACKEND_URL = "https://hypen-0s65.onrender.com";
-    private readonly HttpClient _httpClient = new();
     private List<SongModel> _allSongs = [];
     public ObservableCollection<SongModel> DisplayedSongs { get; set; } = [];
 
@@ -23,27 +18,36 @@ public partial class MainPage : ContentPage
         _ = LoadLibraryAsync();
     }
 
+    // Memindai file musik yang sudah ada di penyimpanan perangkat (offline, tanpa backend)
     private async Task LoadLibraryAsync()
     {
         try
         {
-            StatusLabel.Text = "Memuat library...";
-            var response = await _httpClient.GetAsync($"{BACKEND_URL}/api/songs");
+            StatusLabel.Text = "Memeriksa izin akses musik...";
 
-            if (response.IsSuccessStatusCode)
+            var status = await Permissions.RequestAsync<MediaAudioPermission>();
+            if (status != PermissionStatus.Granted)
             {
-                var json = await response.Content.ReadAsStringAsync();
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var songs = JsonSerializer.Deserialize<List<SongModel>>(json, options) ?? [];
+                StatusLabel.Text = "Izin akses musik ditolak. Buka Pengaturan untuk mengaktifkan.";
+                return;
+            }
 
-                _allSongs = songs;
-                FilterAndRenderSongs();
-                StatusLabel.Text = "";
-            }
-            else
+            StatusLabel.Text = "Memindai musik di perangkat...";
+
+            var context = Android.App.Application.Context;
+            var localSongs = await Task.Run(() => LocalMusicService.GetAllAudioFiles(context));
+
+            _allSongs = localSongs.Select(s => new SongModel
             {
-                StatusLabel.Text = $"Gagal memuat library (HTTP {response.StatusCode})";
-            }
+                Id = s.Id,
+                Title = s.Title,
+                Artist = s.Artist,
+                Cover = s.AlbumArtUri,
+                AudioUrl = s.ContentUri
+            }).ToList();
+
+            FilterAndRenderSongs();
+            StatusLabel.Text = _allSongs.Count == 0 ? "Tidak ada file musik ditemukan di perangkat." : "";
         }
         catch (Exception ex)
         {
@@ -74,7 +78,10 @@ public partial class MainPage : ContentPage
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => FilterAndRenderSongs();
     private async void OnRefreshTriggered(object sender, EventArgs e) => await LoadLibraryAsync();
 
-    // 1. Playback Audio
+    // Rescan penuh library lokal (menggantikan tombol "Download Selected" lama)
+    private async void OnRescanClicked(object sender, EventArgs e) => await LoadLibraryAsync();
+
+    // Playback Audio Lokal
     private void OnPlaySingleClicked(object sender, EventArgs e)
     {
         if (sender is Button btn && btn.CommandParameter is SongModel song)
@@ -85,80 +92,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // 2. Download Single MP3
-    private async void OnDownloadSingleClicked(object sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.CommandParameter is SongModel song)
-        {
-            await DownloadSongToDeviceAsync(song);
-        }
-    }
-
-    private async Task DownloadSongToDeviceAsync(SongModel song)
-    {
-        try
-        {
-            StatusLabel.Text = $"Mengunduh: {song.Title}...";
-            var fileBytes = await _httpClient.GetByteArrayAsync(song.AudioUrl);
-
-            string downloadsPath = Path.Combine(Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryDownloads)!.AbsolutePath, $"{song.Title}.mp3");
-            await File.WriteAllBytesAsync(downloadsPath, fileBytes);
-
-            StatusLabel.Text = $"Tersimpan di Download: {song.Title}.mp3";
-        }
-        catch (Exception ex)
-        {
-            StatusLabel.Text = $"Gagal unduh: {ex.Message}";
-        }
-    }
-
-    // 3. Mass Download MP3
-    private async void OnDownloadSelectedClicked(object sender, EventArgs e)
-    {
-        var selected = DisplayedSongs.Where(s => s.IsSelected).ToList();
-        if (selected.Count == 0)
-        {
-            await DisplayAlert("Info", "Pilih minimal 1 lagu!", "OK");
-            return;
-        }
-
-        foreach (var song in selected)
-        {
-            await DownloadSongToDeviceAsync(song);
-            await Task.Delay(300);
-        }
-    }
-
-    // 4. Delete Single Track
-    private async void OnDeleteSingleClicked(object sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.CommandParameter is SongModel song)
-        {
-            bool confirm = await DisplayAlert("Konfirmasi", $"Hapus {song.Title}?", "Ya", "Batal");
-            if (!confirm) return;
-
-            var res = await _httpClient.DeleteAsync($"{BACKEND_URL}/api/songs/{song.Id}");
-            if (res.IsSuccessStatusCode) await LoadLibraryAsync();
-        }
-    }
-
-    // 5. Delete Batch Tracks
-    private async void OnDeleteSelectedClicked(object sender, EventArgs e)
-    {
-        var selectedIds = DisplayedSongs.Where(s => s.IsSelected).Select(s => s.Id).ToArray();
-        if (selectedIds.Length == 0) return;
-
-        bool confirm = await DisplayAlert("Konfirmasi", $"Hapus {selectedIds.Length} lagu terpilih?", "Ya", "Batal");
-        if (!confirm) return;
-
-        var json = JsonSerializer.Serialize(new { ids = selectedIds });
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var res = await _httpClient.PostAsync($"{BACKEND_URL}/api/songs/delete-batch", content);
-
-        if (res.IsSuccessStatusCode) await LoadLibraryAsync();
-    }
-
-    // 6. Auto-Update Settings
+    // Auto-Update Settings (pembaruan aplikasi dari GitHub, bukan konten musik)
     private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e)
     {
         Preferences.Default.Set("AutoUpdateEnabled", e.Value);
@@ -181,10 +115,9 @@ public partial class MainPage : ContentPage
 
 public class SongModel
 {
-    [JsonPropertyName("id")] public int Id { get; set; }
-    [JsonPropertyName("title")] public string Title { get; set; } = "";
-    [JsonPropertyName("artist")] public string Artist { get; set; } = "";
-    [JsonPropertyName("cover")] public string Cover { get; set; } = "";
-    [JsonPropertyName("audioUrl")] public string AudioUrl { get; set; } = "";
-    public bool IsSelected { get; set; }
+    public long Id { get; set; }
+    public string Title { get; set; } = "";
+    public string Artist { get; set; } = "";
+    public string Cover { get; set; } = "";
+    public string AudioUrl { get; set; } = "";
 }

@@ -9,6 +9,11 @@
     <!-- Izin Instalasi Update APK (Android 8.0+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Izin Baca Musik Lokal (Android 13+ / API 33+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Izin Baca Musik Lokal (Android 12 ke bawah) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
     <application android:allowBackup="true" android:supportsRtl="true">
         <!-- Activity utama agar muncul di drawer -->
         <activity android:name=".MainActivity" android:exported="true">
