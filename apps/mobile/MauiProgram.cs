@@ -59,7 +59,7 @@ public static class MauiProgram
                       $"[StackTrace] :\n{ex.StackTrace}\n\n";
 
             var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-            
+
             // Menggunakan AppendAllText agar log tidak tertimpa setiap kali terjadi error
             File.AppendAllText(logPath, log);
         }
