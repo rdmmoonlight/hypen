@@ -3,14 +3,17 @@ name: Hypen Android CI/CD Pipeline
 on:
   push:
     branches: [ main ]
-    
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/**'
+
 concurrency:
   group: android-ci-cd-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   # ====================================================
-  # KOTAK DIAGRAM 1: PREPARE VERSION
+  # KOTAK 1: PREPARE VERSION
   # ====================================================
   prepare-version:
     name: 1. Prepare Version
@@ -34,15 +37,12 @@ jobs:
           
           echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
-          
-          echo "Generated Version Name : ${VERSION_NAME}"
-          echo "Generated Tag Name     : ${TAG_NAME}"
 
   # ====================================================
-  # KOTAK DIAGRAM 2: BUILD & VALIDATE APK
+  # KOTAK 2A: BUILD MAUI APK (Tugas Berat)
   # ====================================================
   build-apk:
-    name: 2. Build & Validate APK
+    name: 2a. Build MAUI APK
     needs: prepare-version
     runs-on: ubuntu-latest
     steps:
@@ -51,7 +51,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Java JDK
+      - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'microsoft'
@@ -82,13 +82,60 @@ jobs:
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
 
-      - name: Validate & Prepare APK
+      - name: Upload Raw APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-maui-apk
+          path: apps/mobile/bin/Release/net10.0-android/*.apk
+          retention-days: 1
+
+  # ====================================================
+  # KOTAK 2B: PREPARE RELEASE NOTES (Jalan Paralel dengan Build)
+  # ====================================================
+  prepare-release-notes:
+    name: 2b. Generate Release Notes
+    needs: prepare-version
+    runs-on: ubuntu-latest
+    outputs:
+      release_body: ${{ steps.notes.outputs.body }}
+    steps:
+      - name: Draft Release Changelog
+        id: notes
+        run: |
+          BODY=$(cat << 'EOF'
+          Automated Release for Hypen Vault Android.
+          
+          Features & Highlights:
+          - Offline Local Music Vault Player
+          - Personal Cloud Vault (Google Drive & TeraBox Integration)
+          - Integrated Last.fm Scrobbler
+          - AppShell Navigation Bar System
+          - Automatic In-App Updating
+          EOF
+          )
+          echo "body=$BODY" >> $GITHUB_OUTPUT
+
+  # ====================================================
+  # KOTAK 3: VALIDATE & SANITY CHECK APK
+  # ====================================================
+  validate-apk:
+    name: 3. Validate & Sanity Check APK
+    needs: [prepare-version, build-apk]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Raw APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-maui-apk
+          path: build-output
+
+      - name: Validate File Integrity & Size
         run: |
           mkdir -p release-assets
           
-          APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
+          APK_FILE=$(ls build-output/*-Signed.apk 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
+            APK_FILE=$(ls build-output/*.apk 2>/dev/null | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
@@ -97,6 +144,8 @@ jobs:
           fi
 
           FILE_SIZE=$(stat -c%s "$APK_FILE")
+          echo "APK Found: $APK_FILE ($FILE_SIZE bytes)"
+          
           if [ $FILE_SIZE -lt 10485760 ]; then
             echo "::error::Ukuran APK terlalu kecil ($FILE_SIZE bytes)!"
             exit 1
@@ -104,23 +153,23 @@ jobs:
 
           cp "$APK_FILE" "release-assets/HypenVault-${{ needs.prepare-version.outputs.tag_name }}.apk"
 
-      - name: Upload Artifact
+      - name: Upload Validated Final Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
   # ====================================================
-  # KOTAK DIAGRAM 3: PUBLISH RELEASE
+  # KOTAK 4: PUBLISH TO GITHUB RELEASES
   # ====================================================
   publish-release:
-    name: 3. Publish to GitHub Releases
-    needs: [prepare-version, build-apk]
+    name: 4. Publish to GitHub Releases
+    needs: [prepare-version, validate-apk, prepare-release-notes]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download APK Artifact
+      - name: Download Validated APK Artifact
         uses: actions/download-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
@@ -132,16 +181,10 @@ jobs:
           tag_name: ${{ needs.prepare-version.outputs.tag_name }}
           name: Hypen Vault ${{ needs.prepare-version.outputs.tag_name }}
           body: |
-            Automated Release for Hypen Vault Android.
             Version: ${{ needs.prepare-version.outputs.tag_name }}
             Build Number: ${{ github.run_number }}
             
-            Features:
-            - Offline Local Music Vault Player
-            - Personal Cloud Vault (Google Drive & TeraBox Integration)
-            - Integrated Last.fm Scrobbler
-            - AppShell Navigation Bar System
-            - Automatic In-App Updating
+            ${{ needs.prepare-release-notes.outputs.release_body }}
           files: release-assets/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
