@@ -40,13 +40,18 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # 3. RESTORE & BUILD WITH VERSION INJECTION
+      # 3. RESTORE & BUILD WITH VERSION & LAST.FM SECRETS INJECTION
       - name: Build MAUI Android App
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
         run: |
           dotnet restore apps/mobile/HypenMaui.csproj
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
-            -p:ApplicationVersion="${{ github.run_number }}"
+            -p:ApplicationVersion="${{ github.run_number }}" \
+            -p:LastFmApiKey="${LASTFM_API_KEY}" \
+            -p:LastFmApiSecret="${LASTFM_API_SECRET}"
 
       # 4. POST-BUILD STANDARDIZATION & VALIDATION CHECK
       - name: Validate & Prepare APK Artifact
@@ -74,8 +79,8 @@ jobs:
           fi
 
           # Copy dan rename APK ke folder release-assets
-          cp "$APK_FILE" "release-assets/Hypen-${{ env.TAG_NAME }}.apk"
-          echo "Sanity Check OK. APK siap dirilis: release-assets/Hypen-${{ env.TAG_NAME }}.apk"
+          cp "$APK_FILE" "release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
+          echo "Sanity Check OK. APK siap dirilis: release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
 
       # 5. ARTIFACT UPLOAD
       - name: Upload Artifact
@@ -89,11 +94,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Release ${{ env.TAG_NAME }}
+          name: Hypen Vault ${{ env.TAG_NAME }}
           body: |
-            Automated Release for Hypen Android.
+            Automated Release for Hypen Vault Android.
             Version: ${{ env.TAG_NAME }}
             Build Number: ${{ github.run_number }}
+            
+            Features:
+            - Offline Local Music Vault Player
+            - Integrated Last.fm Scrobbler
+            - Automatic In-App Updating
           files: release-assets/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
