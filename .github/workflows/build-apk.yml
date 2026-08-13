@@ -4,14 +4,32 @@ on:
   push:
     branches: [ "production" ]
 
+permissions:
+  contents: write
+
 jobs:
   build-maui-apk:
-    name: Build .NET MAUI Android APK
+    name: Build & Release .NET MAUI Android APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Generate Dynamic Version Number
+        id: versioning
+        run: |
+          YEAR=$(date +'%y')
+          MONTH=$(date +'%m')
+          BUILD_NUM=${{ github.run_number }}
+          
+          # Format versi: vYY.MM.BUILD (Contoh: v26.08.1)
+          VERSION_NAME="${YEAR}.${MONTH}.${BUILD_NUM}"
+          TAG_NAME="v${VERSION_NAME}"
+          
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "Generated Version: ${TAG_NAME}"
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
@@ -30,13 +48,13 @@ jobs:
           mkdir -p apps/mobile/Resources/Images
           mkdir -p apps/mobile/Platforms/Android
 
-          # 1. Generate AndroidManifest.xml (Bebas error xmlns dan EOF)
+          # 1. Generate AndroidManifest.xml
           if [ ! -f "apps/mobile/Platforms/Android/AndroidManifest.xml" ]; then
             echo "AndroidManifest.xml missing. Generating base manifest..."
             printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.companyname.hypenmaui">\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application android:allowBackup="true" android:supportsRtl="true">\n        <activity android:name=".MainActivity" android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n' > apps/mobile/Platforms/Android/AndroidManifest.xml
           fi
 
-          # 2. Generate AppIcon (Bebas EOF)
+          # 2. Generate AppIcon
           if [ ! -f "apps/mobile/Resources/AppIcon/appicon.svg" ]; then
             echo "appicon.svg missing. Generating placeholder icon..."
             printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#512BD4"/><text x="50" y="55" font-size="32" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">H</text></svg>\n' > apps/mobile/Resources/AppIcon/appicon.svg
@@ -48,7 +66,7 @@ jobs:
             cp apps/mobile/Resources/AppIcon/appicon.svg apps/mobile/Resources/Splash/splash.svg
           fi
 
-          # 4. Generate MainActivity.cs (Memperbaiki typo ScreenLayout)
+          # 4. Generate MainActivity.cs
           if [ ! -f "apps/mobile/Platforms/Android/MainActivity.cs" ]; then
             echo "MainActivity.cs missing. Generating base MainActivity..."
             printf 'using Android.App;\nusing Android.Content.PM;\nusing Microsoft.Maui;\n\nnamespace HypenMaui;\n\n[Activity(\n    Theme = "@style/Maui.SplashTheme",\n    MainLauncher = true,\n    LaunchMode = LaunchMode.SingleTop,\n    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]\npublic class MainActivity : MauiAppCompatActivity\n{\n}\n' > apps/mobile/Platforms/Android/MainActivity.cs
@@ -57,11 +75,29 @@ jobs:
       - name: Build MAUI Android App
         run: |
           dotnet restore apps/mobile/HypenMaui.csproj
-          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore
+          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
+            -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
+            -p:ApplicationVersion="${{ github.run_number }}"
 
-      - name: Upload APK Artifact
+      - name: Prepare APK Asset
+        run: |
+          mkdir -p release-assets
+          cp apps/mobile/bin/Release/net10.0-android/*-Signed.apk release-assets/Hypen-${{ env.TAG_NAME }}.apk || cp apps/mobile/bin/Release/net10.0-android/*.apk release-assets/Hypen-${{ env.TAG_NAME }}.apk
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
-          path: apps/mobile/bin/Release/net10.0-android/*-Signed.apk
-          
+          path: release-assets/*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: |
+            Automated Release for Hypen Android.
+            Version: ${{ env.TAG_NAME }}
+          files: release-assets/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
