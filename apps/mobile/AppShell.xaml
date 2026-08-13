@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="HypenMaui.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:home="clr-namespace:HypenMaui.Pages.Home"
+    Title="Hypen Vault"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.NavBarIsVisible="False"
+    Shell.TabBarBackgroundColor="#0F0D1B"
+    Shell.TabBarForegroundColor="#8A5CF5"
+    Shell.TabBarUnselectedColor="#6C6C80"
+    Shell.TabBarTitleColor="#8A5CF5">
+
+    <!-- BOTTOM BAR NAVIGATION FOR HYPEN VAULT -->
+    <TabBar>
+        <!-- Tab 1: Library & Music Player -->
+        <Tab Title="Vault" Icon="appicon.png">
+            <ShellContent 
+                Title="Vault Library"
+                ContentTemplate="{DataTemplate home:MainPage}" 
+                Route="MainPage" />
+        </Tab>
+
+        <!-- Tab 2: Settings & Auto-Update Control -->
+        <Tab Title="Settings" Icon="appicon.png">
+            <ShellContent 
+                Title="Settings"
+                ContentTemplate="{DataTemplate home:MainPage}" 
+                Route="SettingsPage" />
+        </Tab>
+    </TabBar>
+
+</Shell>
