@@ -18,7 +18,21 @@
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 
-		<!-- Target Android 9.0 (API 28) Minimum -->
+	</PropertyGroup>
+
+	<!--
+		Signing Release APK dengan keystore permanen.
+		Nilai AndroidSigningKeyStore/Alias/Pass diisi via -p: dari CI (GitHub Secrets)
+		atau dari file .csproj.user lokal. WAJIB konsisten di setiap build Release,
+		kalau tidak update APK akan gagal ("App not installed" - signature mismatch).
+	-->
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<AndroidKeyStore>true</AndroidKeyStore>
+		<AndroidSigningKeyStore Condition="'$(AndroidSigningKeyStore)'==''">hypen-release.keystore</AndroidSigningKeyStore>
+		<AndroidSigningKeyAlias Condition="'$(AndroidSigningKeyAlias)'==''">hypen-release-key</AndroidSigningKeyAlias>
+	</PropertyGroup>
+
+	<PropertyGroup>		<!-- Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
 		<!-- Injeksi Parameter Last.fm & Google Secrets dari GitHub Actions -->

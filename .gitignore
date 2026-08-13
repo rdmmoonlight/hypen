@@ -9,3 +9,8 @@
 # Operating System
 .DS_Store
 Thumbs.db
+
+# Keystore signing (jangan pernah commit)
+*.keystore
+*.jks
+apps/mobile/hypen-release.keystore
