@@ -17,7 +17,24 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        // Jalankan pengecekan update otomatis di background thread saat startup
+        // Membungkus MainPage ke dalam NavigationPage agar UI stack Android siap
+        var window = new Window(new NavigationPage(new MainPage()))
+        {
+            Title = "Hypen Vault Player"
+        };
+
+        // Jalankan pengecekan log crash & auto-update setelah window resmi dibuat
+        window.Created += (s, e) =>
+        {
+            CheckForCrashLogs(window);
+            StartBackgroundAutoUpdate();
+        };
+
+        return window;
+    }
+
+    private static void StartBackgroundAutoUpdate()
+    {
         Task.Run(async () =>
         {
             try
@@ -42,17 +59,6 @@ public partial class App : Application
                 System.Diagnostics.Debug.WriteLine($"[App AutoUpdate Exception] {ex.Message}");
             }
         });
-
-        // Standar baru .NET 9/10: Pass MainPage langsung ke instance Window
-        var window = new Window(new MainPage())
-        {
-            Title = "Hypen Vault Player"
-        };
-
-        // Cek log crash saat window selesai dibuat
-        window.Created += (s, e) => CheckForCrashLogs(window);
-
-        return window;
     }
 
     private async void CheckForCrashLogs(Window window)
