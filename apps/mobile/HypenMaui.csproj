@@ -14,6 +14,10 @@
 		<!-- App Identifier -->
 		<ApplicationId>com.hypen.vault</ApplicationId>
 
+		<!-- App Version (dipakai UpdateService untuk pembanding versi) -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
 		<!-- Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
@@ -23,8 +27,8 @@
 
 	<ItemGroup>
 		<!-- App Icon & Splash Screen Setup -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appicon.svg" Color="#512BD4" />
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiIcon Include="Resources\AppIcon\appicon.png" Color="#0b0914" />
+		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#000000" BaseSize="213,461" />
 
 		<!-- Custom Assets & Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />

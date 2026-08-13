@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HypenMaui.Services;
+using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Pages.Home;
 
@@ -16,6 +19,7 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
         SongsCollectionView.ItemsSource = DisplayedSongs;
+        AutoUpdateSwitch.IsToggled = Preferences.Default.Get("AutoUpdateEnabled", true);
         _ = LoadLibraryAsync();
     }
 
@@ -152,6 +156,26 @@ public partial class MainPage : ContentPage
         var res = await _httpClient.PostAsync($"{BACKEND_URL}/api/songs/delete-batch", content);
 
         if (res.IsSuccessStatusCode) await LoadLibraryAsync();
+    }
+
+    // 6. Auto-Update Settings
+    private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e)
+    {
+        Preferences.Default.Set("AutoUpdateEnabled", e.Value);
+    }
+
+    private async void OnCheckUpdateManualClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var updateService = new UpdateService();
+            await updateService.CheckAndInstallUpdateAsync("rdmmoonlight", "hypen", isSilent: false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Manual update check error: {ex}");
+            await DisplayAlert("Error", "Gagal memeriksa pembaruan.", "OK");
+        }
     }
 }
 

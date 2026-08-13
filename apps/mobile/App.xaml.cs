@@ -1,5 +1,9 @@
+using System;
 using System.IO;
+using System.Threading.Tasks;
 using HypenMaui.Pages.Home;
+using HypenMaui.Services;
+using Microsoft.Maui.Storage;
 
 namespace HypenMaui;
 
@@ -12,6 +16,32 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
+        // Jalankan pengecekan update otomatis di background thread saat startup
+        Task.Run(async () =>
+        {
+            try
+            {
+                // Cek status sakelar Auto-Update di Preferences (default: true)
+                bool isAutoUpdateEnabled = Preferences.Default.Get("AutoUpdateEnabled", true);
+
+                if (isAutoUpdateEnabled)
+                {
+                    var updateService = new UpdateService();
+
+                    // Memicu pencarian & instalasi otomatis (isSilent: true)
+                    await updateService.CheckAndInstallUpdateAsync(
+                        githubUser: "rdmmoonlight",
+                        githubRepo: "hypen",
+                        isSilent: true
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[App AutoUpdate Exception] {ex.Message}");
+            }
+        });
+
         // Standar baru .NET 9/10: Pass MainPage langsung ke instance Window
         var window = new Window(new MainPage())
         {
