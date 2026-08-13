@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using CommunityToolkit.Maui; // MediaElement ekstensi ada di sini jika package-nya terpasang
+using CommunityToolkit.Maui;
 using HypenMaui.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
@@ -22,7 +22,8 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseMauiCommunityToolkit()
-            .UseMauiCommunityToolkitMediaElement() // Panggilan ekstensi MediaElement
+            // Perbaikan CS7036: Tambahkan parameter `true` untuk mengaktifkan Android Foreground Service
+            .UseMauiCommunityToolkitMediaElement(true)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
