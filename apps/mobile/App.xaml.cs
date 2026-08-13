@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using HypenMaui.Pages.Home;
 using HypenMaui.Services;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 
 namespace HypenMaui;
@@ -61,24 +62,36 @@ public partial class App : Application
         if (File.Exists(logPath))
         {
             var crashLog = File.ReadAllText(logPath);
-            var rootPage = window.Page;
 
-            if (rootPage != null)
+            MainThread.BeginInvokeOnMainThread(async () =>
             {
-                bool copyToClipboard = await rootPage.DisplayAlert(
-                    "⚠️ Application Crashed",
-                    $"Detail Error:\n\n{crashLog}\n\nApakah Anda ingin menyalin log ini ke clipboard?",
-                    "Copy Log",
-                    "Tutup");
+                var rootPage = window.Page;
 
-                if (copyToClipboard)
+                if (rootPage != null)
                 {
-                    await Clipboard.Default.SetTextAsync(crashLog);
-                    await rootPage.DisplayAlert("Berhasil", "Log crash berhasil disalin ke Clipboard!", "OK");
-                }
-            }
+                    // Penggunaan DisplayAlertAsync untuk menggantikan DisplayAlert (mencegah CS0618)
+                    bool copyToClipboard = await rootPage.DisplayAlertAsync(
+                        "⚠️ Application Crashed",
+                        $"Detail Error:\n\n{crashLog}\n\nApakah Anda ingin menyalin log ini ke clipboard?",
+                        "Copy Log",
+                        "Tutup");
 
-            File.Delete(logPath);
+                    if (copyToClipboard)
+                    {
+                        await Clipboard.Default.SetTextAsync(crashLog);
+                        await rootPage.DisplayAlertAsync("Berhasil", "Log crash berhasil disalin ke Clipboard!", "OK");
+                    }
+                }
+
+                try
+                {
+                    File.Delete(logPath);
+                }
+                catch
+                {
+                    // Fail-safe jika file sedang dipakai
+                }
+            });
         }
     }
 }
