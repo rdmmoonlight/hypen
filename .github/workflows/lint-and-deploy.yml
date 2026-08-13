@@ -85,22 +85,21 @@ jobs:
 
       - name: Publish Blazor WebAssembly
         run: |
-          rm -rf _site
-          dotnet publish apps/web/Hypen.Web.csproj -c Release -o _site/wwwroot
-
-          if [ -f "_site/wwwroot/wwwroot/index.html" ]; then
-            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/index.html
-            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/404.html
-          elif [ -f "_site/wwwroot/index.html" ]; then
-            cp _site/wwwroot/index.html _site/wwwroot/404.html
+          rm -rf publish_output
+          dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output
+          
+          # Membuat file .nojekyll agar folder _framework tidak diabaikan oleh GitHub Pages
+          touch publish_output/wwwroot/.nojekyll
+          
+          # Duplikasi index.html ke 404.html untuk menangani Blazor WASM client-side routing
+          if [ -f "publish_output/wwwroot/index.html" ]; then
+            cp publish_output/wwwroot/index.html publish_output/wwwroot/404.html
           fi
-
-          touch _site/wwwroot/.nojekyll
 
       - name: Upload Artifact to Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '_site/wwwroot'
+          path: 'publish_output/wwwroot'
 
   # ----------------------------------------------------
   # CABANG 2: Build & Verify Backend (Paralel)
