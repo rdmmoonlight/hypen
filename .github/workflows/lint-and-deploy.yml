@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix (Root)
+  # STEP 1: Linting, Formatting, & Auto-Fix
   # ----------------------------------------------------
   lint-and-fix:
     name: C# Format & Quality Check
@@ -31,16 +31,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore Dependencies & Clean
+      - name: Restore Dependencies
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then 
-            dotnet restore apps/backend/Hypen.csproj
-            dotnet clean apps/backend/Hypen.csproj
-          fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then 
-            dotnet restore apps/web/Hypen.Web.csproj
-            dotnet clean apps/web/Hypen.Web.csproj
-          fi
+          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
 
       - name: Run Dotnet Format Fix
         continue-on-error: true
@@ -53,10 +47,6 @@ jobs:
             dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
             dotnet format style apps/web/Hypen.Web.csproj --no-restore --severity info
           fi
-
-      - name: Revert Generated Files
-        run: |
-          git checkout -- **/obj/** **/bin/** 2>/dev/null || true
 
       - name: Commit & Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
@@ -93,12 +83,12 @@ jobs:
         run: |
           rm -rf publish_output
           dotnet restore apps/web/Hypen.Web.csproj
-          dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output --no-restore
           
-          # Membuat file .nojekyll agar folder _framework tidak diabaikan oleh GitHub Pages
+          # Parameter /p:GenerateStaticWebAssetsDevelopmentManifest=false mematikan manifes dev ganda
+          dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output --no-restore /p:GenerateStaticWebAssetsDevelopmentManifest=false
+          
+          # Membuat file .nojekyll & routing 404
           touch publish_output/wwwroot/.nojekyll
-          
-          # Duplikasi index.html ke 404.html untuk menangani Blazor WASM client-side routing
           if [ -f "publish_output/wwwroot/index.html" ]; then
             cp publish_output/wwwroot/index.html publish_output/wwwroot/404.html
           fi
