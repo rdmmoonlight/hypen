@@ -57,7 +57,7 @@
 		-->
 		<MauiSplashScreen Include="Resources\Splash\splash.png" 
 						  Color="#0b0914" 
-						  BaseSize="128,128" 
+						  BaseSize="400,400" 
 						  Resize="true" />
 
 		<!-- Custom Assets & Fonts -->

@@ -9,8 +9,6 @@
         
         <!-- Header & Input Group -->
         <VerticalStackLayout Grid.Row="0" Padding="16" Spacing="12">
-            <Label Text="HYPEN VAULT" FontFamily="Orbitron" FontSize="22" FontAttributes="Bold" TextColor="#4cc9f0" HorizontalOptions="Center"/>
-            
             <!-- Search & Filter Bar -->
             <Entry x:Name="SearchInput" Placeholder="🔍 Cari lagu atau artis..." 
                    TextChanged="OnSearchTextChanged"
@@ -22,51 +20,6 @@
             </HorizontalStackLayout>
             
             <Label x:Name="StatusLabel" Text="" TextColor="#4cc9f0" HorizontalOptions="Center" FontSize="12"/>
-
-            <!-- SYSTEM UPDATES CARD -->
-            <Border BackgroundColor="#141226"
-                    Stroke="#2a274c"
-                    StrokeThickness="1"
-                    StrokeShape="RoundRectangle 16"
-                    Padding="16">
-                <Border.Shadow>
-                    <Shadow Brush="#000000" Offset="0,4" Radius="10" Opacity="0.2" />
-                </Border.Shadow>
-
-                <VerticalStackLayout Spacing="12">
-                    <Label Text="SYSTEM SETTINGS"
-                           TextColor="#a0a5c0"
-                           FontSize="11"
-                           FontAttributes="Bold"
-                           CharacterSpacing="0.8" />
-
-                    <Grid ColumnDefinitions="*, Auto" VerticalOptions="Center">
-                        <VerticalStackLayout Grid.Column="0" Spacing="2">
-                            <Label Text="Auto-Update from GitHub"
-                                   TextColor="White"
-                                   FontSize="13"
-                                   FontAttributes="Bold" />
-                            <Label Text="Perbarui aplikasi secara otomatis"
-                                   TextColor="#6c757d"
-                                   FontSize="10" />
-                        </VerticalStackLayout>
-                        <Switch x:Name="AutoUpdateSwitch"
-                                Grid.Column="1"
-                                OnColor="#4cc9f0"
-                                ThumbColor="White"
-                                Toggled="OnAutoUpdateToggled" />
-                    </Grid>
-
-                    <Button Text="Check for Updates"
-                            BackgroundColor="#2a274c"
-                            TextColor="#4cc9f0"
-                            FontAttributes="Bold"
-                            FontSize="12"
-                            CornerRadius="10"
-                            HeightRequest="40"
-                            Clicked="OnCheckUpdateManualClicked" />
-                </VerticalStackLayout>
-            </Border>
         </VerticalStackLayout>
 
         <Label Grid.Row="1" Text="Library Collection" FontSize="18" FontAttributes="Bold" TextColor="White" Margin="16,0,16,8"/>

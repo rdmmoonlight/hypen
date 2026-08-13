@@ -17,7 +17,6 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
         SongsCollectionView.ItemsSource = DisplayedSongs;
-        AutoUpdateSwitch.IsToggled = Preferences.Default.Get("AutoUpdateEnabled", true);
         _ = LoadLibraryAsync();
     }
 
@@ -112,26 +111,6 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // Auto-Update Settings
-    private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e)
-    {
-        Preferences.Default.Set("AutoUpdateEnabled", e.Value);
-    }
-
-    private async void OnCheckUpdateManualClicked(object? sender, EventArgs e)
-    {
-        try
-        {
-            var updateService = new UpdateService();
-            await updateService.CheckAndInstallUpdateAsync("rdmmoonlight", "hypen", isSilent: false);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Manual update check error: {ex}");
-            // Menggunakan DisplayAlertAsync untuk menghindari CS0618
-            await DisplayAlertAsync("Error", "Gagal memeriksa pembaruan.", "OK");
-        }
-    }
 }
 
 public class SongModel
