@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using HypenMaui.Pages.Home;
 using HypenMaui.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
@@ -17,10 +16,10 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        // Membungkus MainPage ke dalam NavigationPage agar UI stack Android siap
-        var window = new Window(new NavigationPage(new MainPage()))
+        // Ganti NavigationPage dengan AppShell agar Bottom Navigation Bar aktif
+        var window = new Window(new AppShell())
         {
-            Title = "Hypen Vault Player"
+            Title = "Hypen Vault"
         };
 
         // Jalankan pengecekan log crash & auto-update setelah window resmi dibuat
@@ -56,7 +55,7 @@ public partial class App : Application
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[App AutoUpdate Exception] {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Hypen Vault AutoUpdate Exception] {ex.Message}");
             }
         });
     }
@@ -75,9 +74,9 @@ public partial class App : Application
 
                 if (rootPage != null)
                 {
-                    // Penggunaan DisplayAlertAsync untuk menggantikan DisplayAlert (mencegah CS0618)
+                    // Menghindari CS0618 dengan DisplayAlertAsync
                     bool copyToClipboard = await rootPage.DisplayAlertAsync(
-                        "⚠️ Application Crashed",
+                        "⚠️ Hypen Vault Crashed",
                         $"Detail Error:\n\n{crashLog}\n\nApakah Anda ingin menyalin log ini ke clipboard?",
                         "Copy Log",
                         "Tutup");
