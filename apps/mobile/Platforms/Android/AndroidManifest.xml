@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.companyname.hypenmaui">
+    package="com.hypen.vault">
 
     <!-- Izin standar -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -11,19 +11,19 @@
 
     <!-- Izin Baca Musik Lokal (Android 13+ / API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <!-- Izin Baca Musik Lokal (Android 12 ke bawah) -->
+    
+    <!-- Izin Baca/Tulis Penyimpanan (Android 12 ke bawah) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
-    <application android:allowBackup="true" android:supportsRtl="true">
-        <!-- Activity utama agar muncul di drawer -->
-        <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+    <application 
+        android:allowBackup="true" 
+        android:supportsRtl="true"
+        android:icon="@mipmap/appicon"
+        android:roundIcon="@mipmap/appicon_round"
+        android:label="Hypen Vault">
 
-        <!-- FileProvider untuk berbagi APK ke Package Installer -->
+        <!-- FileProvider untuk Auto-Update / Berbagi APK ke Package Installer -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -33,5 +33,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
     </application>
 </manifest>
