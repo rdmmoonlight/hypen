@@ -1,8 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using CommunityToolkit.Maui;
-using CommunityToolkit.Maui.MediaElement;
+using CommunityToolkit.Maui; // MediaElement ekstensi ada di sini jika package-nya terpasang
 using HypenMaui.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
@@ -20,18 +19,17 @@ public static class MauiProgram
 
         var builder = MauiApp.CreateBuilder();
 
-        // Chain .UseMauiCommunityToolkit() dan .UseMauiCommunityToolkitMediaElement() langsung ke .UseMauiApp<App>()
         builder
             .UseMauiApp<App>()
             .UseMauiCommunityToolkit()
-            .UseMauiCommunityToolkitMediaElement()
+            .UseMauiCommunityToolkitMediaElement() // Panggilan ekstensi MediaElement
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // 2. Registrasi Services & Pages
+        // 2. Registrasi Services
         builder.Services.AddSingleton<UpdateService>();
 
 #if DEBUG
