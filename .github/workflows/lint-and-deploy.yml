@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix (Akar Workflow)
+  # STEP 1: Linting, Formatting, & Auto-Fix (Root)
   # ----------------------------------------------------
   lint-and-fix:
     name: C# Format & Quality Check
@@ -31,13 +31,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install .NET MAUI Workload
-        run: dotnet workload install maui-android
-
       - name: Restore Dependencies
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet restore apps/mobile/HypenMaui.csproj; fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
 
       - name: Run Dotnet Format Fix
@@ -46,10 +42,6 @@ jobs:
           if [ -f "apps/backend/Hypen.csproj" ]; then 
             dotnet format whitespace apps/backend/Hypen.csproj --no-restore
             dotnet format style apps/backend/Hypen.csproj --no-restore --severity info
-          fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then 
-            dotnet format whitespace apps/mobile/HypenMaui.csproj --no-restore
-            dotnet format style apps/mobile/HypenMaui.csproj --no-restore --severity info
           fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then 
             dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
@@ -71,10 +63,10 @@ jobs:
           internal_git_options: '-c rebase.autoStash=true'
 
   # ----------------------------------------------------
-  # CABANG 1: Build & Publish Artifact Blazor WASM
+  # CABANG 1: Build & Publish Blazor WASM
   # ----------------------------------------------------
-  build-blazor:
-    name: Build Blazor WASM Artifact
+  build-web:
+    name: Build Blazor WASM
     needs: lint-and-fix
     runs-on: ubuntu-latest
     permissions:
@@ -111,10 +103,10 @@ jobs:
           path: '_site/wwwroot'
 
   # ----------------------------------------------------
-  # CABANG 2: Mobile & Backend Validation Check (Paralel)
+  # CABANG 2: Build & Verify Backend (Paralel)
   # ----------------------------------------------------
-  verify-other-apps:
-    name: Verify MAUI & Backend Build
+  build-backend:
+    name: Verify Backend Build
     needs: lint-and-fix
     runs-on: ubuntu-latest
 
@@ -127,20 +119,18 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Install .NET MAUI Workload
-        run: dotnet workload install maui-android
-
-      - name: Build MAUI & Backend
+      - name: Build Backend App
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet build apps/backend/Hypen.csproj -c Release; fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet build apps/mobile/HypenMaui.csproj -c Release; fi
+          if [ -f "apps/backend/Hypen.csproj" ]; then 
+            dotnet build apps/backend/Hypen.csproj -c Release
+          fi
 
   # ----------------------------------------------------
   # STEP AKHIR: Deploy ke GitHub Pages
   # ----------------------------------------------------
   deploy:
     name: Deploy to GitHub Pages
-    needs: build-blazor
+    needs: build-web
     runs-on: ubuntu-latest
     permissions:
       pages: write
