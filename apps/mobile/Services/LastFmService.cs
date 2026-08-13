@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Maui.Storage;
 
@@ -12,10 +11,16 @@ namespace HypenMaui.Services;
 
 public class LastFmService
 {
-    private const string API_KEY = "YOUR_LASTFM_API_KEY"; // Ganti dengan API Key Last.fm kamu
-    private const string API_SECRET = "YOUR_LASTFM_API_SECRET"; // Ganti dengan Shared Secret Last.fm kamu
-    private const string API_URL = "https://ws.audioscrobbler.com/2.0/";
+    // Mengambil nilai variabel dari MSBuild Constants / Environment Variable
+#if LASTFM_KEY
+    private const string API_KEY = LASTFM_KEY;
+    private const string API_SECRET = LASTFM_SECRET;
+#else
+    private const string API_KEY = "LOCAL_DEV_KEY";
+    private const string API_SECRET = "LOCAL_DEV_SECRET";
+#endif
 
+    private const string API_URL = "https://ws.audioscrobbler.com/2.0/";
     private readonly HttpClient _httpClient = new();
 
     public string? SessionKey
@@ -26,7 +31,7 @@ public class LastFmService
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(SessionKey);
 
-    // 1. Mendapatkan Auth Token untuk Login
+    // 1. Mendapatkan Auth Token
     public async Task<string?> GetAuthTokenAsync()
     {
         try
@@ -41,7 +46,7 @@ public class LastFmService
         }
     }
 
-    // 2. Menukarkan Token menjadi Session Key (setelah user login via browser)
+    // 2. Menukarkan Token menjadi Session Key
     public async Task<bool> FetchSessionAsync(string token)
     {
         var sigParams = new SortedDictionary<string, string>
@@ -106,7 +111,7 @@ public class LastFmService
         await _httpClient.PostAsync(API_URL, content);
     }
 
-    // 4. Kirim Scrobble (Kirim riwayat pemutaran)
+    // 4. Kirim Scrobble
     public async Task ScrobbleTrackAsync(string artist, string track)
     {
         if (!IsAuthenticated) return;
@@ -140,7 +145,6 @@ public class LastFmService
         await _httpClient.PostAsync(API_URL, content);
     }
 
-    // Helper: Membuat Signature MD5 sesuai regulasi API Last.fm
     private static string GenerateApiSignature(SortedDictionary<string, string> parameters, string secret)
     {
         var sb = new StringBuilder();
