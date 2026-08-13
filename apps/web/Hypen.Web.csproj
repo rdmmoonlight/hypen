@@ -11,11 +11,4 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.0-*" PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- Memastikan file .nojekyll dari wwwroot lokal otomatis disalin saat publish -->
-  <ItemGroup>
-    <None Include="wwwroot\.nojekyll" Condition="Exists('wwwroot\.nojekyll')">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
