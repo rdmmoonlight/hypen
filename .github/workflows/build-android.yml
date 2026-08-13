@@ -67,10 +67,10 @@ jobs:
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
-            -p:LastFmApiKey="${LASTFM_API_KEY}" \
-            -p:LastFmApiSecret="${LASTFM_API_SECRET}" \
-            -p:GoogleClientId="${GOOGLE_CLIENT_ID}" \
-            -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET}"
+            -p:LastFmApiKey="${LASTFM_API_KEY:-dummy_key}" \
+            -p:LastFmApiSecret="${LASTFM_API_SECRET:-dummy_secret}" \
+            -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
+            -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
 
       # 4. POST-BUILD STANDARDIZATION & VALIDATION CHECK
       - name: Validate & Prepare APK Artifact
