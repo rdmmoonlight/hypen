@@ -1,0 +1,123 @@
+name: Linting & Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ----------------------------------------------------
+  # STEP 1: Linting, Formatting, & Auto-Fix (Wajib Jalan)
+  # ----------------------------------------------------
+  lint-and-fix:
+    name: Code Formatting & Quality Check
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Web & Backend Dependencies
+        run: |
+          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
+
+      - name: Run Dotnet Format Fix
+        continue-on-error: true
+        run: |
+          if [ -f "apps/backend/Hypen.csproj" ]; then 
+            dotnet format whitespace apps/backend/Hypen.csproj --no-restore
+            dotnet format style apps/backend/Hypen.csproj --no-restore --severity info
+          fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then 
+            dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
+            dotnet format style apps/web/Hypen.Web.csproj --no-restore --severity info
+          fi
+
+      - name: Revert Generated Files
+        run: |
+          git checkout -- **/obj/** **/bin/** 2>/dev/null || true
+
+      - name: Commit & Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style(ci): auto-fix code style and linting [skip ci]"
+          branch: main
+          file_pattern: 'apps/**/*.cs apps/**/*.razor'
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          internal_git_options: '-c rebase.autoStash=true'
+
+  # ----------------------------------------------------
+  # CABANG 1: Build Blazor WASM
+  # ----------------------------------------------------
+  build-web:
+    name: Build Blazor WebAssembly
+    needs: lint-and-fix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish Blazor WebAssembly
+        run: |
+          rm -rf _site
+          dotnet publish apps/web/Hypen.Web.csproj -c Release -o _site/wwwroot
+
+          if [ -f "_site/wwwroot/wwwroot/index.html" ]; then
+            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/index.html
+            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/404.html
+          elif [ -f "_site/wwwroot/index.html" ]; then
+            cp _site/wwwroot/index.html _site/wwwroot/404.html
+          fi
+
+          touch _site/wwwroot/.nojekyll
+
+      - name: Upload Artifact to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site/wwwroot'
+
+  # ----------------------------------------------------
+  # STEP AKHIR: Deploy Blazor WASM ke GitHub Pages
+  # ----------------------------------------------------
+  deploy:
+    name: Deploy Web to GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
