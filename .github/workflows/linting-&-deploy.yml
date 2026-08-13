@@ -19,12 +19,25 @@ jobs:
     permissions:
       contents: write
 
+    # Outputkan variabel agar bisa dibaca oleh job berikutnya
+    outputs:
+      should_build: ${{ steps.changes.outputs.non_mobile == 'true' }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+
+      # Pengecekan perubahan file
+      - name: Check Changed Files
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            non_mobile:
+              - '!apps/mobile/**'
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -68,6 +81,8 @@ jobs:
   build-web:
     name: Build Blazor WebAssembly
     needs: lint-and-fix
+    # Jalankan HANYA JIKA ada file di luar apps/mobile yang berubah
+    if: needs.lint-and-fix.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
