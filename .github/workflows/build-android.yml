@@ -3,6 +3,9 @@ name: Hypen Android CI/CD Pipeline
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/**'
 
 concurrency:
   group: android-ci-cd-${{ github.ref }}
@@ -36,10 +39,10 @@ jobs:
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
   # ====================================================
-  # CABANG PARALEL A: BUILD .NET MAUI APK
+  # CABANG PARALEL A: BUILD & VALIDATE APK (SATU ARTIFACT FOKUS)
   # ====================================================
-  build-maui-apk:
-    name: 2a. Build .NET MAUI APK
+  build-and-validate-apk:
+    name: 2a. Build & Validate APK
     needs: prepare-version
     runs-on: ubuntu-latest
     steps:
@@ -79,74 +82,13 @@ jobs:
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
 
-      - name: Upload Unvalidated Raw APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: raw-maui-apk
-          path: apps/mobile/bin/Release/net10.0-android/*.apk
-          retention-days: 1
-
-  # ====================================================
-  # CABANG PARALEL B: GENERATE CHANGELOG (FIX ERROR DI SINI)
-  # ====================================================
-  generate-release-notes:
-    name: 2b. Generate Changelog & Notes
-    needs: prepare-version
-    runs-on: ubuntu-latest
-    outputs:
-      release_body: ${{ steps.notes.outputs.body }}
-    steps:
-      - name: Draft Release Notes (Multiline Fix)
-        id: notes
-        run: |
-          {
-            echo "body<<EOF"
-            echo "### 🚀 Release Highlights"
-            echo "- Offline Local Music Vault Player"
-            echo "- Personal Cloud Vault (Google Drive & TeraBox Integration)"
-            echo "- Integrated Last.fm Scrobbler"
-            echo "- AppShell Navigation Bar System"
-            echo "- Automatic In-App Updating"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-  # ====================================================
-  # CABANG PARALEL C: BUILD SUMMARY & METRICS
-  # ====================================================
-  generate-build-summary:
-    name: 2c. Prepare Build Metadata
-    needs: prepare-version
-    runs-on: ubuntu-latest
-    outputs:
-      build_meta: ${{ steps.meta.outputs.meta }}
-    steps:
-      - name: Create Metadata String
-        id: meta
-        run: |
-          META_TEXT="Build ID: ${{ github.run_number }} | Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}"
-          echo "meta=${META_TEXT}" >> $GITHUB_OUTPUT
-
-  # ====================================================
-  # CABANG SEKUENSIAL: VALIDATE & SANITY CHECK APK
-  # ====================================================
-  validate-apk-integrity:
-    name: 3. Validate APK Integrity
-    needs: [prepare-version, build-maui-apk]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Raw APK Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: raw-maui-apk
-          path: build-output
-
-      - name: Run Size & Sanity Check
+      - name: Validate APK & Prepare Final Release Asset
         run: |
           mkdir -p release-assets
           
-          APK_FILE=$(ls build-output/*-Signed.apk 2>/dev/null | head -n 1)
+          APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(ls build-output/*.apk 2>/dev/null | head -n 1)
+            APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
@@ -164,18 +106,59 @@ jobs:
 
           cp "$APK_FILE" "release-assets/HypenVault-${{ needs.prepare-version.outputs.tag_name }}.apk"
 
-      - name: Upload Final Validated Artifact
+      # HANYA SATU ARTIFACT YANG DI-UPLOAD DI SINI:
+      - name: Upload Single Final APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
   # ====================================================
-  # KOTAK AKHIR (CONVERGENCE): PUBLISH RELEASE
+  # CABANG PARALEL B: GENERATE CHANGELOG
+  # ====================================================
+  generate-release-notes:
+    name: 2b. Generate Changelog & Notes
+    needs: prepare-version
+    runs-on: ubuntu-latest
+    outputs:
+      release_body: ${{ steps.notes.outputs.body }}
+    steps:
+      - name: Draft Release Notes
+        id: notes
+        run: |
+          {
+            echo "body<<EOF"
+            echo "### 🚀 Release Highlights"
+            echo "- Offline Local Music Vault Player"
+            echo "- Personal Cloud Vault (Google Drive & TeraBox Integration)"
+            echo "- Integrated Last.fm Scrobbler"
+            echo "- AppShell Navigation Bar System"
+            echo "- Automatic In-App Updating"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+  # ====================================================
+  # CABANG PARALEL C: BUILD METADATA
+  # ====================================================
+  generate-build-summary:
+    name: 2c. Prepare Build Metadata
+    needs: prepare-version
+    runs-on: ubuntu-latest
+    outputs:
+      build_meta: ${{ steps.meta.outputs.meta }}
+    steps:
+      - name: Create Metadata String
+        id: meta
+        run: |
+          META_TEXT="Build ID: ${{ github.run_number }} | Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}"
+          echo "meta=${META_TEXT}" >> $GITHUB_OUTPUT
+
+  # ====================================================
+  # KOTAK AKHIR (PUBLISH RELEASE)
   # ====================================================
   publish-github-release:
-    name: 4. Publish to GitHub Releases
-    needs: [prepare-version, validate-apk-integrity, generate-release-notes, generate-build-summary]
+    name: 3. Publish to GitHub Releases
+    needs: [prepare-version, build-and-validate-apk, generate-release-notes, generate-build-summary]
     runs-on: ubuntu-latest
     permissions:
       contents: write
