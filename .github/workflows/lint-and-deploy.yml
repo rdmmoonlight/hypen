@@ -10,6 +10,32 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
+  # STEP 0: Filter Perubahan File / Folder
+  # ----------------------------------------------------
+  check-changes:
+    name: Check File Changes
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      backend: ${{ steps.filter.outputs.backend }}
+      deploy_needed: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.backend == 'true' }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Filter Changed Paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+            backend:
+              - 'apps/backend/**'
+            mobile:
+              - 'apps/mobile/**'
+
+  # ----------------------------------------------------
   # STEP 1: Linting, Formatting, & Auto-Fix
   # ----------------------------------------------------
   lint-and-fix:
@@ -67,7 +93,8 @@ jobs:
   # ----------------------------------------------------
   build-web:
     name: Build Blazor WASM
-    needs: lint-and-fix
+    needs: [check-changes, lint-and-fix]
+    if: always() && needs.check-changes.outputs.web == 'true' && (needs.lint-and-fix.result == 'success' || needs.lint-and-fix.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -104,7 +131,8 @@ jobs:
   # ----------------------------------------------------
   build-backend:
     name: Verify Backend Build
-    needs: lint-and-fix
+    needs: [check-changes, lint-and-fix]
+    if: always() && needs.check-changes.outputs.backend == 'true' && (needs.lint-and-fix.result == 'success' || needs.lint-and-fix.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
@@ -128,7 +156,8 @@ jobs:
   # ----------------------------------------------------
   deploy:
     name: Deploy to GitHub Pages
-    needs: build-web
+    needs: [check-changes, build-web]
+    if: needs.check-changes.outputs.web == 'true' && needs.build-web.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       pages: write
