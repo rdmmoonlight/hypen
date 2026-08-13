@@ -10,6 +10,9 @@ public partial class MainPage : ContentPage
     private List<SongModel> _allSongs = [];
     public ObservableCollection<SongModel> DisplayedSongs { get; set; } = [];
 
+    // Injeksi Service Last.fm
+    private readonly LastFmService _lastFmService = new();
+
     public MainPage()
     {
         InitializeComponent();
@@ -78,10 +81,10 @@ public partial class MainPage : ContentPage
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => FilterAndRenderSongs();
     private async void OnRefreshTriggered(object sender, EventArgs e) => await LoadLibraryAsync();
 
-    // Rescan penuh library lokal (menggantikan tombol "Download Selected" lama)
+    // Rescan penuh library lokal
     private async void OnRescanClicked(object sender, EventArgs e) => await LoadLibraryAsync();
 
-    // Playback Audio Lokal
+    // Playback Audio Lokal + Auto Scrobble ke Last.fm
     private void OnPlaySingleClicked(object sender, EventArgs e)
     {
         if (sender is Button btn && btn.CommandParameter is SongModel song)
@@ -89,10 +92,27 @@ public partial class MainPage : ContentPage
             NowPlayingLabel.Text = $"PLAYING: {song.Title} - {song.Artist}";
             AudioPlayer.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(song.AudioUrl);
             AudioPlayer.Play();
+
+            // Eksekusi Last.fm Scrobbling secara asynchronous tanpa mengganggu UI
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // Update status "Now Playing" di akun Last.fm
+                    await _lastFmService.UpdateNowPlayingAsync(song.Artist, song.Title);
+
+                    // Kirim riwayat scrobble
+                    await _lastFmService.ScrobbleTrackAsync(song.Artist, song.Title);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Last.fm Scrobble Error] {ex.Message}");
+                }
+            });
         }
     }
 
-    // Auto-Update Settings (pembaruan aplikasi dari GitHub, bukan konten musik)
+    // Auto-Update Settings
     private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e)
     {
         Preferences.Default.Set("AutoUpdateEnabled", e.Value);
@@ -108,7 +128,8 @@ public partial class MainPage : ContentPage
         catch (Exception ex)
         {
             Debug.WriteLine($"Manual update check error: {ex}");
-            await DisplayAlert("Error", "Gagal memeriksa pembaruan.", "OK");
+            // Menggunakan DisplayAlertAsync untuk menghindari CS0618
+            await DisplayAlertAsync("Error", "Gagal memeriksa pembaruan.", "OK");
         }
     }
 }
