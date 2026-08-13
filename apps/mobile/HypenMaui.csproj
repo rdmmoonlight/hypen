@@ -21,6 +21,11 @@
 		<!-- Wajib Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
+		<!-- Injeksi Parameter Last.fm Secrets dari GitHub Actions ke C# Constants -->
+		<LastFmApiKey Condition="'$(LastFmApiKey)' == ''">LOCAL_DEV_KEY</LastFmApiKey>
+		<LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''">LOCAL_DEV_SECRET</LastFmApiSecret>
+		<DefineConstants>$(DefineConstants);LASTFM_KEY="$(LastFmApiKey)";LASTFM_SECRET="$(LastFmApiSecret)"</DefineConstants>
+
 		<!-- Abaikan error konflik batasan versi dependensi NuGet (Termasuk NU1605) -->
 		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
