@@ -40,41 +40,7 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # 3. PRE-BUILD CHECK & RESOURCE PREPARATION
-      - name: Ensure Android Resources & Configuration
-        run: |
-          echo "Checking and preparing MAUI Android resources..."
-          mkdir -p apps/mobile/Resources/AppIcon
-          mkdir -p apps/mobile/Resources/Splash
-          mkdir -p apps/mobile/Resources/Fonts
-          mkdir -p apps/mobile/Resources/Images
-          mkdir -p apps/mobile/Platforms/Android
-
-          # Generate AndroidManifest.xml jika belum ada
-          if [ ! -f "apps/mobile/Platforms/Android/AndroidManifest.xml" ]; then
-            echo "AndroidManifest.xml missing. Generating base manifest..."
-            printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.companyname.hypenmaui">\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application android:allowBackup="true" android:supportsRtl="true">\n        <activity android:name=".MainActivity" android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n' > apps/mobile/Platforms/Android/AndroidManifest.xml
-          fi
-
-          # Generate AppIcon placeholder jika belum ada
-          if [ ! -f "apps/mobile/Resources/AppIcon/appicon.svg" ]; then
-            echo "appicon.svg missing. Generating placeholder icon..."
-            printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#512BD4"/><text x="50" y="55" font-size="32" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">H</text></svg>\n' > apps/mobile/Resources/AppIcon/appicon.svg
-          fi
-
-          # Generate Splash Screen placeholder jika belum ada
-          if [ ! -f "apps/mobile/Resources/Splash/splash.svg" ]; then
-            echo "splash.svg missing. Copying placeholder..."
-            cp apps/mobile/Resources/AppIcon/appicon.svg apps/mobile/Resources/Splash/splash.svg
-          fi
-
-          # Generate MainActivity.cs jika belum ada
-          if [ ! -f "apps/mobile/Platforms/Android/MainActivity.cs" ]; then
-            echo "MainActivity.cs missing. Generating base MainActivity..."
-            printf 'using Android.App;\nusing Android.Content.PM;\nusing Microsoft.Maui;\n\nnamespace HypenMaui;\n\n[Activity(\n    Theme = "@style/Maui.SplashTheme",\n    MainLauncher = true,\n    LaunchMode = LaunchMode.SingleTop,\n    ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]\npublic class MainActivity : MauiAppCompatActivity\n{\n}\n' > apps/mobile/Platforms/Android/MainActivity.cs
-          fi
-
-      # 4. RESTORE & BUILD WITH VERSION INJECTION
+      # 3. RESTORE & BUILD WITH VERSION INJECTION
       - name: Build MAUI Android App
         run: |
           dotnet restore apps/mobile/HypenMaui.csproj
@@ -82,7 +48,7 @@ jobs:
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}"
 
-      # 5. POST-BUILD STANDARDIZATION & VALIDATION CHECK
+      # 4. POST-BUILD STANDARDIZATION & VALIDATION CHECK
       - name: Validate & Prepare APK Artifact
         run: |
           mkdir -p release-assets
@@ -99,7 +65,7 @@ jobs:
             exit 1
           fi
 
-          # Validasi ukuran file (misal minimal 10 MB = 10485760 bytes)
+          # Validasi ukuran file (minimal 10 MB = 10485760 bytes)
           FILE_SIZE=$(stat -c%s "$APK_FILE")
           echo "APK Found: $APK_FILE ($FILE_SIZE bytes)"
           if [ $FILE_SIZE -lt 10485760 ]; then
@@ -111,14 +77,14 @@ jobs:
           cp "$APK_FILE" "release-assets/Hypen-${{ env.TAG_NAME }}.apk"
           echo "Sanity Check OK. APK siap dirilis: release-assets/Hypen-${{ env.TAG_NAME }}.apk"
 
-      # 6. ARTIFACT UPLOAD
+      # 5. ARTIFACT UPLOAD
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
-      # 7. AUTOMATED GITHUB RELEASE
+      # 6. AUTOMATED GITHUB RELEASE
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
