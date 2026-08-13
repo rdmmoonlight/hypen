@@ -3,9 +3,6 @@ name: Hypen Android CI/CD Pipeline
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'apps/mobile/**'
-      - '.github/workflows/**'
 
 concurrency:
   group: android-ci-cd-${{ github.ref }}
@@ -13,10 +10,10 @@ concurrency:
 
 jobs:
   # ====================================================
-  # KOTAK 1: PREPARE VERSION
+  # CABANG UTAMA (ROOT): VERSION GENERATOR
   # ====================================================
   prepare-version:
-    name: 1. Prepare Version
+    name: 1. Generate App Version
     runs-on: ubuntu-latest
     outputs:
       version_name: ${{ steps.versioning.outputs.version_name }}
@@ -25,7 +22,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Generate Dynamic Version Number
+      - name: Calculate Version (vYY.MM.BUILD)
         id: versioning
         run: |
           YEAR=$(date +'%y')
@@ -39,10 +36,10 @@ jobs:
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
   # ====================================================
-  # KOTAK 2A: BUILD MAUI APK (Tugas Berat)
+  # CABANG PARALEL A: BUILD .NET MAUI APK
   # ====================================================
-  build-apk:
-    name: 2a. Build MAUI APK
+  build-maui-apk:
+    name: 2a. Build .NET MAUI APK
     needs: prepare-version
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +62,7 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      - name: Restore & Build MAUI Android App
+      - name: Compile Release APK
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
@@ -82,7 +79,7 @@ jobs:
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
 
-      - name: Upload Raw APK Artifact
+      - name: Upload Unvalidated Raw APK
         uses: actions/upload-artifact@v4
         with:
           name: raw-maui-apk
@@ -90,37 +87,51 @@ jobs:
           retention-days: 1
 
   # ====================================================
-  # KOTAK 2B: PREPARE RELEASE NOTES (Jalan Paralel dengan Build)
+  # CABANG PARALEL B: GENERATE CHANGELOG (FIX ERROR DI SINI)
   # ====================================================
-  prepare-release-notes:
-    name: 2b. Generate Release Notes
+  generate-release-notes:
+    name: 2b. Generate Changelog & Notes
     needs: prepare-version
     runs-on: ubuntu-latest
     outputs:
       release_body: ${{ steps.notes.outputs.body }}
     steps:
-      - name: Draft Release Changelog
+      - name: Draft Release Notes (Multiline Fix)
         id: notes
         run: |
-          BODY=$(cat << 'EOF'
-          Automated Release for Hypen Vault Android.
-          
-          Features & Highlights:
-          - Offline Local Music Vault Player
-          - Personal Cloud Vault (Google Drive & TeraBox Integration)
-          - Integrated Last.fm Scrobbler
-          - AppShell Navigation Bar System
-          - Automatic In-App Updating
-          EOF
-          )
-          echo "body=$BODY" >> $GITHUB_OUTPUT
+          {
+            echo "body<<EOF"
+            echo "### 🚀 Release Highlights"
+            echo "- Offline Local Music Vault Player"
+            echo "- Personal Cloud Vault (Google Drive & TeraBox Integration)"
+            echo "- Integrated Last.fm Scrobbler"
+            echo "- AppShell Navigation Bar System"
+            echo "- Automatic In-App Updating"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   # ====================================================
-  # KOTAK 3: VALIDATE & SANITY CHECK APK
+  # CABANG PARALEL C: BUILD SUMMARY & METRICS
   # ====================================================
-  validate-apk:
-    name: 3. Validate & Sanity Check APK
-    needs: [prepare-version, build-apk]
+  generate-build-summary:
+    name: 2c. Prepare Build Metadata
+    needs: prepare-version
+    runs-on: ubuntu-latest
+    outputs:
+      build_meta: ${{ steps.meta.outputs.meta }}
+    steps:
+      - name: Create Metadata String
+        id: meta
+        run: |
+          META_TEXT="Build ID: ${{ github.run_number }} | Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}"
+          echo "meta=${META_TEXT}" >> $GITHUB_OUTPUT
+
+  # ====================================================
+  # CABANG SEKUENSIAL: VALIDATE & SANITY CHECK APK
+  # ====================================================
+  validate-apk-integrity:
+    name: 3. Validate APK Integrity
+    needs: [prepare-version, build-maui-apk]
     runs-on: ubuntu-latest
     steps:
       - name: Download Raw APK Artifact
@@ -129,7 +140,7 @@ jobs:
           name: raw-maui-apk
           path: build-output
 
-      - name: Validate File Integrity & Size
+      - name: Run Size & Sanity Check
         run: |
           mkdir -p release-assets
           
@@ -153,38 +164,38 @@ jobs:
 
           cp "$APK_FILE" "release-assets/HypenVault-${{ needs.prepare-version.outputs.tag_name }}.apk"
 
-      - name: Upload Validated Final Artifact
+      - name: Upload Final Validated Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
   # ====================================================
-  # KOTAK 4: PUBLISH TO GITHUB RELEASES
+  # KOTAK AKHIR (CONVERGENCE): PUBLISH RELEASE
   # ====================================================
-  publish-release:
+  publish-github-release:
     name: 4. Publish to GitHub Releases
-    needs: [prepare-version, validate-apk, prepare-release-notes]
+    needs: [prepare-version, validate-apk-integrity, generate-release-notes, generate-build-summary]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download Validated APK Artifact
+      - name: Download Final APK Artifact
         uses: actions/download-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets
 
-      - name: Create GitHub Release
+      - name: Create Official GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-version.outputs.tag_name }}
           name: Hypen Vault ${{ needs.prepare-version.outputs.tag_name }}
           body: |
-            Version: ${{ needs.prepare-version.outputs.tag_name }}
-            Build Number: ${{ github.run_number }}
-            
-            ${{ needs.prepare-release-notes.outputs.release_body }}
+            **Version:** ${{ needs.prepare-version.outputs.tag_name }}
+            **Metadata:** ${{ needs.generate-build-summary.outputs.build_meta }}
+
+            ${{ needs.generate-release-notes.outputs.release_body }}
           files: release-assets/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
