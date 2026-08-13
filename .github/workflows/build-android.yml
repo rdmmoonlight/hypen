@@ -1,36 +1,28 @@
-name: Android CI/CD Pipeline
+name: Hypen Android CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'apps/mobile/**'
-      - '.github/workflows/**'
-
+    
 concurrency:
   group: android-ci-cd-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-maui-apk:
-    name: Build & Release .NET MAUI Android APK
+  # ====================================================
+  # KOTAK DIAGRAM 1: PREPARE VERSION
+  # ====================================================
+  prepare-version:
+    name: 1. Prepare Version
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    outputs:
+      version_name: ${{ steps.versioning.outputs.version_name }}
+      tag_name: ${{ steps.versioning.outputs.tag_name }}
     steps:
-      # ----------------------------------------------------
-      # STEP 1: CODE CHECKOUT
-      # ----------------------------------------------------
-      - name: 1. Checkout Repository Code
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # ----------------------------------------------------
-      # STEP 2: VERSIONING GENERATION
-      # ----------------------------------------------------
-      - name: 2. Generate Dynamic Version Number (vYY.MM.BUILD)
+      - name: Generate Dynamic Version Number
         id: versioning
         run: |
           YEAR=$(date +'%y')
@@ -40,103 +32,108 @@ jobs:
           VERSION_NAME="${YEAR}.${MONTH}.${BUILD_NUM}"
           TAG_NAME="v${VERSION_NAME}"
           
-          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
-          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           
-          echo "=========================================="
-          echo " Generated Version Name : ${VERSION_NAME}"
-          echo " Generated Tag Name     : ${TAG_NAME}"
-          echo "=========================================="
+          echo "Generated Version Name : ${VERSION_NAME}"
+          echo "Generated Tag Name     : ${TAG_NAME}"
 
-      # ----------------------------------------------------
-      # STEP 3: ENVIRONMENT PREPARATION
-      # ----------------------------------------------------
-      - name: 3a. Setup Java JDK 17
+  # ====================================================
+  # KOTAK DIAGRAM 2: BUILD & VALIDATE APK
+  # ====================================================
+  build-apk:
+    name: 2. Build & Validate APK
+    needs: prepare-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'microsoft'
           java-version: '17'
 
-      - name: 3b. Setup .NET 10 SDK
+      - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: 3c. Install .NET MAUI Workload
+      - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # ----------------------------------------------------
-      # STEP 4: RESTORE & BUILD APK
-      # ----------------------------------------------------
-      - name: 4a. Restore Project Dependencies
-        run: dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android
-
-      - name: 4b. Compile & Build MAUI Android Release APK
+      - name: Restore & Build MAUI Android App
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android
+          
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
-            -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
+            -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LastFmApiKey="${LASTFM_API_KEY:-dummy_key}" \
             -p:LastFmApiSecret="${LASTFM_API_SECRET:-dummy_secret}" \
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
 
-      # ----------------------------------------------------
-      # STEP 5: APK VALIDATION & PREPARATION
-      # ----------------------------------------------------
-      - name: 5. Validate Integrity & Prepare APK Release File
+      - name: Validate & Prepare APK
         run: |
           mkdir -p release-assets
           
-          # Cari file APK hasil build di folder output
           APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
             APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
           fi
 
-          # Validasi keberadaan file
           if [ -z "$APK_FILE" ]; then
-            echo "::error::File APK tidak ditemukan di folder output!"
+            echo "::error::File APK tidak ditemukan!"
             exit 1
           fi
 
-          # Validasi ukuran file (minimal 10 MB = 10485760 bytes)
           FILE_SIZE=$(stat -c%s "$APK_FILE")
-          echo "APK Located: $APK_FILE ($FILE_SIZE bytes)"
           if [ $FILE_SIZE -lt 10485760 ]; then
-            echo "::error::Ukuran APK terlalu kecil ($FILE_SIZE bytes), kemungkinan build corrupt!"
+            echo "::error::Ukuran APK terlalu kecil ($FILE_SIZE bytes)!"
             exit 1
           fi
 
-          # Copy & Rename
-          cp "$APK_FILE" "release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
-          echo "=========================================="
-          echo " Sanity Check Status : PASSED"
-          echo " Release Asset Path  : release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
-          echo "=========================================="
+          cp "$APK_FILE" "release-assets/HypenVault-${{ needs.prepare-version.outputs.tag_name }}.apk"
 
-      # ----------------------------------------------------
-      # STEP 6: ARTIFACT UPLOAD & PUBLISH RELEASE
-      # ----------------------------------------------------
-      - name: 6a. Upload Artifact to GitHub Actions
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
-      - name: 6b. Create Automated GitHub Release
+  # ====================================================
+  # KOTAK DIAGRAM 3: PUBLISH RELEASE
+  # ====================================================
+  publish-release:
+    name: 3. Publish to GitHub Releases
+    needs: [prepare-version, build-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Hypen-Vault-MAUI-APK
+          path: release-assets
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: Hypen Vault ${{ env.TAG_NAME }}
+          tag_name: ${{ needs.prepare-version.outputs.tag_name }}
+          name: Hypen Vault ${{ needs.prepare-version.outputs.tag_name }}
           body: |
             Automated Release for Hypen Vault Android.
-            Version: ${{ env.TAG_NAME }}
+            Version: ${{ needs.prepare-version.outputs.tag_name }}
             Build Number: ${{ github.run_number }}
             
             Features:
