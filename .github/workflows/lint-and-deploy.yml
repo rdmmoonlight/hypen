@@ -35,11 +35,11 @@ jobs:
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then 
             dotnet restore apps/backend/Hypen.csproj
-            dotnet clean apps/backend/Hypen.csproj --no-restore
+            dotnet clean apps/backend/Hypen.csproj
           fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then 
             dotnet restore apps/web/Hypen.Web.csproj
-            dotnet clean apps/web/Hypen.Web.csproj --no-restore
+            dotnet clean apps/web/Hypen.Web.csproj
           fi
 
       - name: Run Dotnet Format Fix
