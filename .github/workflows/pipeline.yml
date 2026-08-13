@@ -1,4 +1,4 @@
-name: Hypen CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      # Pengecekan perubahan direktori khusus mobile
+      # Deteksi perubahan khusus folder apps/mobile/
       - name: Detect Mobile Changes
         id: changes
         uses: dorny/paths-filter@v3
@@ -75,7 +75,7 @@ jobs:
           internal_git_options: '-c rebase.autoStash=true'
 
   # ----------------------------------------------------
-  # CABANG 1: Build Blazor WASM (Biarkan apa adanya)
+  # CABANG 1: Build Blazor WASM
   # ----------------------------------------------------
   build-web:
     name: Build Blazor WebAssembly
@@ -115,11 +115,11 @@ jobs:
           path: '_site/wwwroot'
 
   # ----------------------------------------------------
-  # CABANG 2: Build & Release MAUI APK
-  # (Hanya jika ada perubahan di apps/mobile/)
+  # CABANG 2: Build & Release MAUI Android APK (UTUH FULL)
+  # (Hanya dipicu setelah linting sukses DAN ada perubahan di apps/mobile/)
   # ----------------------------------------------------
   build-maui-apk:
-    name: Build & Release MAUI APK
+    name: Build & Release .NET MAUI Android APK
     needs: lint-and-fix
     if: needs.lint-and-fix.outputs.mobile_changed == 'true'
     runs-on: ubuntu-latest
@@ -132,6 +132,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 1. GENERATE DYNAMIC VERSIONING (vYY.MM.BUILD)
       - name: Generate Dynamic Version Number
         id: versioning
         run: |
@@ -146,6 +147,7 @@ jobs:
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
           echo "Generated Version: ${TAG_NAME}"
 
+      # 2. SETUP ENVIRONMENT & DEPENDENCIES
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -154,12 +156,7 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      - name: Restore & Format MAUI Project
-        run: |
-          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
-          dotnet format whitespace apps/mobile/HypenMaui.csproj --no-restore || true
-          dotnet format style apps/mobile/HypenMaui.csproj --no-restore --severity info || true
-
+      # 3. RESTORE & BUILD WITH SECRETS INJECTION
       - name: Build MAUI Android App
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -167,6 +164,9 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          # Restore dengan spesifikasi TargetFramework agar project.assets.json valid
+          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
+          
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
@@ -175,20 +175,24 @@ jobs:
             -p:GoogleClientId="${GOOGLE_CLIENT_ID}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET}"
 
+      # 4. POST-BUILD STANDARDIZATION & VALIDATION CHECK
       - name: Validate & Prepare APK Artifact
         run: |
           mkdir -p release-assets
           
+          # Cari file APK hasil build di folder net10.0-android
           APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
             APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
           fi
 
+          # Validasi keberadaan file APK
           if [ -z "$APK_FILE" ]; then
             echo "ERROR: File APK tidak ditemukan di folder output!"
             exit 1
           fi
 
+          # Validasi ukuran file (minimal 10 MB = 10485760 bytes)
           FILE_SIZE=$(stat -c%s "$APK_FILE")
           echo "APK Found: $APK_FILE ($FILE_SIZE bytes)"
           if [ $FILE_SIZE -lt 10485760 ]; then
@@ -196,15 +200,18 @@ jobs:
             exit 1
           fi
 
+          # Copy dan rename APK ke folder release-assets
           cp "$APK_FILE" "release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
           echo "Sanity Check OK. APK siap dirilis: release-assets/HypenVault-${{ env.TAG_NAME }}.apk"
 
+      # 5. ARTIFACT UPLOAD
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hypen-Vault-MAUI-APK
           path: release-assets/*.apk
 
+      # 6. AUTOMATED GITHUB RELEASE
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
