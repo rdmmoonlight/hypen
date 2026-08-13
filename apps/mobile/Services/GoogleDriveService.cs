@@ -12,7 +12,12 @@ namespace HypenMaui.Services;
 
 public class GoogleDriveService
 {
-    private const string CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; // Ganti dengan Client ID Google Cloud
+#if GOOGLE_CLIENT_ID
+    private const string CLIENT_ID = GOOGLE_CLIENT_ID;
+#else
+    private const string CLIENT_ID = "LOCAL_GOOGLE_CLIENT_ID";
+#endif
+
     private const string SCOPE = "https://www.googleapis.com/auth/drive.readonly";
     private readonly HttpClient _httpClient = new();
 
@@ -46,7 +51,7 @@ public class GoogleDriveService
         }
     }
 
-    // 2. Fetch Audio Files dari Google Drive
+    // 2. Fetch Audio Files dari Google Drive Vault
     public async Task<List<CloudSongModel>> FetchAudioFilesAsync()
     {
         var songs = new List<CloudSongModel>();
@@ -56,7 +61,6 @@ public class GoogleDriveService
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
             
-            // Query hanya untuk file audio (MP3, FLAC, WAV, M4A)
             string query = Uri.EscapeDataString("mimeType contains 'audio/' and trashed = false");
             string url = $"https://www.googleapis.com/drive/v3/files?q={query}&fields=files(id,name,mimeType,size)";
 
@@ -75,7 +79,6 @@ public class GoogleDriveService
                         Id = id,
                         Title = System.IO.Path.GetFileNameWithoutExtension(name),
                         Artist = "Google Drive Vault",
-                        // Direct Media Stream URL untuk MediaElement MAUI
                         StreamUrl = $"https://www.googleapis.com/drive/v3/files/{id}?alt=media&access_token={AccessToken}",
                         Provider = CloudProvider.GoogleDrive
                     });
