@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using HypenMaui.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
 
 namespace HypenMaui;
@@ -17,27 +18,42 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-
-        // Buka CrashLogPage DULU jika ada log error
-        if (File.Exists(logPath))
+        try
         {
-            string crashLog;
-            try
+            var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
+
+            if (File.Exists(logPath))
             {
-                crashLog = File.ReadAllText(logPath);
-            }
-            catch
-            {
-                crashLog = "Gagal membaca isi file log crash.";
+                string crashLog;
+                try 
+                { 
+                    crashLog = File.ReadAllText(logPath); 
+                }
+                catch 
+                { 
+                    crashLog = "Gagal membaca isi file log crash."; 
+                }
+
+                return new Window(new CrashLogPage(crashLog, logPath, OnCrashResolved));
             }
 
-            // Return Window berisi Error Page (Blocking Home/AppShell)
-            return new Window(new CrashLogPage(crashLog, logPath, OnCrashResolved));
+            return CreateMainWindow();
         }
-
-        // Jika tidak ada error, buka AppShell secara normal
-        return CreateMainWindow();
+        catch (Exception ex)
+        {
+            // Fallback agar tidak pure white screen
+            System.Diagnostics.Debug.WriteLine($"[CreateWindow FATAL] {ex}");
+            return new Window(new ContentPage
+            {
+                BackgroundColor = Colors.Black,
+                Content = new Label
+                {
+                    Text = $"Startup Error:\n{ex.Message}",
+                    TextColor = Colors.White,
+                    Margin = 20
+                }
+            });
+        }
     }
 
     private Window CreateMainWindow()
