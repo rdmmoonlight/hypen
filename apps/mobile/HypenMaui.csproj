@@ -14,15 +14,15 @@
 		<!-- App Identifier -->
 		<ApplicationId>com.hypen.vault</ApplicationId>
 
-		<!-- App Version (dipakai UpdateService untuk pembanding versi) -->
+		<!-- App Version (Di-override secara dinamis oleh GitHub Actions saat Release) -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 
-		<!-- Target Android 9.0 (API 28) Minimum -->
+		<!-- Wajib Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
-		<!-- Abaikan error konflik batasan versi dependensi .NET 9 vs .NET 10 -->
-		<NoWarn>$(NoWarn);NU1107;NU1608;NU1603;NU1701</NoWarn>
+		<!-- Abaikan error konflik batasan versi dependensi NuGet (Termasuk NU1605) -->
+		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -36,14 +36,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Paket Utama .NET 10 (Didaftarkan Eksplisit untuk Resolusi Konflik NU1107) -->
-		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
-		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.20" />
-		<PackageReference Include="Microsoft.Maui.Core" Version="10.0.20" />
-		<PackageReference Include="Microsoft.Maui.Essentials" Version="10.0.20" />
+		<!-- Paket Utama .NET MAUI -->
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.60" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.60" />
+		<PackageReference Include="Microsoft.Maui.Core" Version="10.0.60" />
+		<PackageReference Include="Microsoft.Maui.Essentials" Version="10.0.60" />
 
-		<!-- Community Toolkit -->
-		<PackageReference Include="CommunityToolkit.Maui" Version="11.1.0" />
+		<!-- Community Toolkit & MediaElement -->
+		<PackageReference Include="CommunityToolkit.Maui" Version="10.0.0" />
 		<PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="10.0.0" />
 	</ItemGroup>
 
