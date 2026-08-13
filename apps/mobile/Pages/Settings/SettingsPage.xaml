@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HypenMaui.Pages.Settings.SettingsPage"
+             Title="Settings"
+             BackgroundColor="#0B0914">
+
+    <ScrollView Padding="20">
+        <VerticalStackLayout Spacing="20">
+
+            <!-- HEADER TITLE -->
+            <Label Text="Pengaturan"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="White" />
+
+            <!-- SECTION 1: LAST.FM INTEGRATION -->
+            <Border BackgroundColor="#141226"
+                    Stroke="#282240"
+                    StrokeThickness="1"
+                    Padding="16"
+                    StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="🎵 Last.fm Scrobbler"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#8A5CF5" />
+
+                    <Label x:Name="LastFmStatusLabel"
+                           Text="Status: Belum Terhubung"
+                           FontSize="13"
+                           TextColor="#A0A0B0" />
+
+                    <Button x:Name="LastFmAuthButton"
+                            Text="Hubungkan Akun Last.fm"
+                            BackgroundColor="#8A5CF5"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            Clicked="OnLastFmAuthClicked" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- SECTION 2: AUTO UPDATE CONTROL -->
+            <Border BackgroundColor="#141226"
+                    Stroke="#282240"
+                    StrokeThickness="1"
+                    Padding="16"
+                    StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="🔄 Pembaruan Aplikasi"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#8A5CF5" />
+
+                    <Grid ColumnDefinitions="*, Auto" VerticalOptions="Center">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="Auto-Update Otomatis"
+                                   FontSize="14"
+                                   TextColor="White" />
+                            <Label Text="Cek & pasang pembaruan otomatis saat startup"
+                                   FontSize="11"
+                                   TextColor="#6C6C80" />
+                        </VerticalStackLayout>
+
+                        <Switch x:Name="AutoUpdateSwitch"
+                                Grid.Column="1"
+                                OnColor="#8A5CF5"
+                                Toggled="OnAutoUpdateToggled" />
+                    </Grid>
+
+                    <Button Text="Cek Pembaruan Manual"
+                            BackgroundColor="#282240"
+                            TextColor="White"
+                            Clicked="OnCheckUpdateManualClicked" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- SECTION 3: APP INFO -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4" Margin="0,20,0,0">
+                <Label Text="Hypen Vault"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#8A5CF5"
+                       HorizontalOptions="Center" />
+                <Label Text="v1.0.0 • Offline Local Music Player"
+                       FontSize="11"
+                       TextColor="#6C6C80"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
