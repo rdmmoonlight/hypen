@@ -40,18 +40,22 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # 3. RESTORE & BUILD WITH VERSION & LAST.FM SECRETS INJECTION
+      # 3. RESTORE & BUILD WITH SECRETS INJECTION (LAST.FM & GOOGLE DRIVE)
       - name: Build MAUI Android App
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           dotnet restore apps/mobile/HypenMaui.csproj
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LastFmApiKey="${LASTFM_API_KEY}" \
-            -p:LastFmApiSecret="${LASTFM_API_SECRET}"
+            -p:LastFmApiSecret="${LASTFM_API_SECRET}" \
+            -p:GoogleClientId="${GOOGLE_CLIENT_ID}" \
+            -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET}"
 
       # 4. POST-BUILD STANDARDIZATION & VALIDATION CHECK
       - name: Validate & Prepare APK Artifact
@@ -59,9 +63,9 @@ jobs:
           mkdir -p release-assets
           
           # Cari file APK hasil build
-          APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
+          APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/devnull | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
+            APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/devnull | head -n 1)
           fi
 
           # Validasi keberadaan file APK
@@ -102,7 +106,9 @@ jobs:
             
             Features:
             - Offline Local Music Vault Player
+            - Personal Cloud Vault (Google Drive & TeraBox Integration)
             - Integrated Last.fm Scrobbler
+            - AppShell Navigation Bar System
             - Automatic In-App Updating
           files: release-assets/*.apk
         env:
