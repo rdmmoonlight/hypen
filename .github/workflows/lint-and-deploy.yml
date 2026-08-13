@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # JOB 1: Linting, Formatting, & Auto-Fix
+  # STEP 1: Linting, Formatting, & Auto-Fix (Akar Workflow)
   # ----------------------------------------------------
   lint-and-fix:
     name: C# Format & Quality Check
@@ -71,20 +71,16 @@ jobs:
           internal_git_options: '-c rebase.autoStash=true'
 
   # ----------------------------------------------------
-  # JOB 2: Deploy Application (Blazor WASM)
+  # CABANG 1: Build & Publish Artifact Blazor WASM
   # ----------------------------------------------------
-  deploy:
-    name: Deploy to GitHub Pages
+  build-blazor:
+    name: Build Blazor WASM Artifact
     needs: lint-and-fix
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
       id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout Code
@@ -97,13 +93,9 @@ jobs:
 
       - name: Publish Blazor WebAssembly
         run: |
-          # 1. Bersihkan direktori output lama
           rm -rf _site
-
-          # 2. Publish Blazor WASM ke folder _site/wwwroot
           dotnet publish apps/web/Hypen.Web.csproj -c Release -o _site/wwwroot
 
-          # 3. SPA Fallback untuk GitHub Pages (Salin index.html ke 404.html)
           if [ -f "_site/wwwroot/wwwroot/index.html" ]; then
             cp _site/wwwroot/wwwroot/index.html _site/wwwroot/index.html
             cp _site/wwwroot/wwwroot/index.html _site/wwwroot/404.html
@@ -111,7 +103,6 @@ jobs:
             cp _site/wwwroot/index.html _site/wwwroot/404.html
           fi
 
-          # 4. Buat file .nojekyll agar GitHub Pages tidak memblokir folder _framework
           touch _site/wwwroot/.nojekyll
 
       - name: Upload Artifact to Pages
@@ -119,6 +110,47 @@ jobs:
         with:
           path: '_site/wwwroot'
 
+  # ----------------------------------------------------
+  # CABANG 2: Mobile & Backend Validation Check (Paralel)
+  # ----------------------------------------------------
+  verify-other-apps:
+    name: Verify MAUI & Backend Build
+    needs: lint-and-fix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install .NET MAUI Workload
+        run: dotnet workload install maui-android
+
+      - name: Build MAUI & Backend
+        run: |
+          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet build apps/backend/Hypen.csproj -c Release; fi
+          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet build apps/mobile/HypenMaui.csproj -c Release; fi
+
+  # ----------------------------------------------------
+  # STEP AKHIR: Deploy ke GitHub Pages
+  # ----------------------------------------------------
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build-blazor
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
