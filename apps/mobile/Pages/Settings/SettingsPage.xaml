@@ -14,7 +14,59 @@
                    FontAttributes="Bold"
                    TextColor="White" />
 
-            <!-- SECTION 1: LAST.FM INTEGRATION -->
+            <!-- SECTION 1: GOOGLE DRIVE VAULT -->
+            <Border BackgroundColor="#141226"
+                    Stroke="#282240"
+                    StrokeThickness="1"
+                    Padding="16"
+                    StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="📁 Google Drive Vault"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#4CC9F0" />
+
+                    <Label x:Name="GoogleDriveStatusLabel"
+                           Text="Status: Belum Terhubung"
+                           FontSize="13"
+                           TextColor="#A0A0B0" />
+
+                    <Button x:Name="GoogleDriveAuthButton"
+                            Text="Hubungkan Google Drive"
+                            BackgroundColor="#8A5CF5"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            Clicked="OnGoogleDriveAuthClicked" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- SECTION 2: TERABOX VAULT -->
+            <Border BackgroundColor="#141226"
+                    Stroke="#282240"
+                    StrokeThickness="1"
+                    Padding="16"
+                    StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="📦 TeraBox Vault"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#4CC9F0" />
+
+                    <Label x:Name="TeraBoxStatusLabel"
+                           Text="Status: Belum Terhubung"
+                           FontSize="13"
+                           TextColor="#A0A0B0" />
+
+                    <Button x:Name="TeraBoxAuthButton"
+                            Text="Hubungkan TeraBox Token"
+                            BackgroundColor="#8A5CF5"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            Clicked="OnTeraBoxAuthClicked" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- SECTION 3: LAST.FM INTEGRATION -->
             <Border BackgroundColor="#141226"
                     Stroke="#282240"
                     StrokeThickness="1"
@@ -40,7 +92,7 @@
                 </VerticalStackLayout>
             </Border>
 
-            <!-- SECTION 2: AUTO UPDATE CONTROL -->
+            <!-- SECTION 4: AUTO UPDATE CONTROL -->
             <Border BackgroundColor="#141226"
                     Stroke="#282240"
                     StrokeThickness="1"
@@ -75,14 +127,14 @@
                 </VerticalStackLayout>
             </Border>
 
-            <!-- SECTION 3: APP INFO -->
+            <!-- SECTION 5: APP INFO -->
             <VerticalStackLayout HorizontalOptions="Center" Spacing="4" Margin="0,20,0,0">
                 <Label Text="Hypen Vault"
                        FontSize="14"
                        FontAttributes="Bold"
                        TextColor="#8A5CF5"
                        HorizontalOptions="Center" />
-                <Label Text="v1.0.0 • Offline Local Music Player"
+                <Label Text="v1.0.0 • Personal Cloud &amp; Local Music Player"
                        FontSize="11"
                        TextColor="#6C6C80"
                        HorizontalOptions="Center" />
