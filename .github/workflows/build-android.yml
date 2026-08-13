@@ -1,16 +1,22 @@
-name: Build Android APK (.NET MAUI)
+name: Hypen Android CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/**'
 
-permissions:
-  contents: write
+concurrency:
+  group: android-ci-cd-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-maui-apk:
     name: Build & Release .NET MAUI Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code
@@ -34,6 +40,12 @@ jobs:
           echo "Generated Version: ${TAG_NAME}"
 
       # 2. SETUP ENVIRONMENT & DEPENDENCIES
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'microsoft'
+          java-version: '17'
+
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -50,8 +62,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          # Restore dengan spesifikasi TargetFramework agar project.assets.json valid
-          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
+          dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android
           
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
