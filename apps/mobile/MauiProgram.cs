@@ -1,11 +1,11 @@
-using CommunityToolkit.Maui;
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using HypenMaui.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Storage;
-using System;
-using System.IO;
-using System.Threading.Tasks;
 
 namespace HypenMaui;
 
@@ -13,34 +13,21 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        // 1. Inisialisasi Handler Crash Global
+        RegisterGlobalExceptionHandlers();
+
         var builder = MauiApp.CreateBuilder();
+
         builder
             .UseMauiApp<App>()
-            .UseMauiCommunityToolkit()
-            // Perbaikan CS7036: Menambahkan parameter wajib isAndroidForegroundServiceEnabled.
-            // Gunakan `false` jika tidak membutuhkan media tetap berjalan sebagai Foreground Service Android.
-            .UseMauiCommunityToolkitMediaElement(isAndroidForegroundServiceEnabled: false)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // 1. Global Exception Handler (AppDomain)
-        AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
-        {
-            if (e.ExceptionObject is Exception ex)
-            {
-                SaveCrashLog(ex, "AppDomain UnhandledException");
-            }
-        };
-
-        // 2. Unobserved Task Exception Handler (Async Tasks)
-        TaskScheduler.UnobservedTaskException += (sender, e) =>
-        {
-            SaveCrashLog(e.Exception, "TaskScheduler UnobservedTaskException");
-            e.SetObserved(); // Mencegah crash fatal akibat unobserved task
-        };
+        // 2. Registrasi Services & Pages untuk Dependency Injection (DI)
+        builder.Services.AddSingleton<UpdateService>();
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -49,24 +36,49 @@ public static class MauiProgram
         return builder.Build();
     }
 
-    private static void SaveCrashLog(Exception ex, string source)
+    /// <summary>
+    /// Memasang listener global untuk mencatat seluruh unhandled exception ke crash_log.txt
+    /// </summary>
+    private static void RegisterGlobalExceptionHandlers()
+    {
+        // A. Tangkap error fatal dari non-UI / AppDomain Thread
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                LogCrashToFile(ex, "AppDomain Unhandled Exception (Fatal)");
+            }
+        };
+
+        // B. Tangkap error dari Unobserved Task (Background Async / Unawaited Task)
+        TaskScheduler.UnobservedTaskException += (sender, args) =>
+        {
+            LogCrashToFile(args.Exception, "TaskScheduler Unobserved Exception");
+            args.SetObserved(); // Mencegah proses mati mendadak jika memungkinkan
+        };
+    }
+
+    /// <summary>
+    /// Helper internal untuk menulis log crash langsung ke AppDataDirectory
+    /// </summary>
+    private static void LogCrashToFile(Exception ex, string context)
     {
         try
         {
-            var log = $"========================================\n" +
-                      $"[Crash Time] : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                      $"[Source]     : {source}\n" +
-                      $"[Message]    : {ex.Message}\n" +
-                      $"[StackTrace] :\n{ex.StackTrace}\n\n";
-
             var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
 
-            // Menggunakan AppendAllText agar log tidak tertimpa setiap kali terjadi error
-            File.AppendAllText(logPath, log);
+            var logContent = $"========================================\n" +
+                             $"[TIMESTAMP] : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                             $"[CONTEXT]   : {context}\n" +
+                             $"[MESSAGE]   : {ex.Message}\n" +
+                             $"[STACKTRACE]:\n{ex.StackTrace}\n" +
+                             $"========================================\n\n";
+
+            File.AppendAllText(logPath, logContent);
         }
-        catch
+        catch (Exception writeEx)
         {
-            // Fail-safe: Abaikan jika gagal menulis log ke disk
+            System.Diagnostics.Debug.WriteLine($"[HypenMaui] Gagal menulis crash log: {writeEx.Message}");
         }
     }
 }
