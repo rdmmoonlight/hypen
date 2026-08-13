@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:home="clr-namespace:HypenMaui.Pages.Home"
+    xmlns:settings="clr-namespace:HypenMaui.Pages.Settings"
     Title="Hypen Vault"
     Shell.FlyoutBehavior="Disabled"
     Shell.NavBarIsVisible="False"
@@ -26,7 +27,7 @@
         <Tab Title="Settings" Icon="appicon.png">
             <ShellContent 
                 Title="Settings"
-                ContentTemplate="{DataTemplate home:MainPage}" 
+                ContentTemplate="{DataTemplate settings:SettingsPage}" 
                 Route="SettingsPage" />
         </Tab>
     </TabBar>
