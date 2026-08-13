@@ -18,8 +18,7 @@
 
             <!-- Action Bar -->
             <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                <Button Text="📥 Download Selected" Clicked="OnDownloadSelectedClicked" BackgroundColor="#4cc9f0" TextColor="#0b0914" FontAttributes="Bold"/>
-                <Button Text="🗑️ Delete Selected" Clicked="OnDeleteSelectedClicked" BackgroundColor="#dc3545" TextColor="White" FontAttributes="Bold"/>
+                <Button Text="🔄 Scan Ulang Library" Clicked="OnRescanClicked" BackgroundColor="#4cc9f0" TextColor="#0b0914" FontAttributes="Bold"/>
             </HorizontalStackLayout>
             
             <Label x:Name="StatusLabel" Text="" TextColor="#4cc9f0" HorizontalOptions="Center" FontSize="12"/>
@@ -78,25 +77,18 @@
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
                         <Frame BackgroundColor="#141226" BorderColor="#2a274c" CornerRadius="8" Margin="16,4" Padding="10">
-                            <Grid ColumnDefinitions="Auto, Auto, *, Auto">
-                                <!-- Checkbox Multi-Select -->
-                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" VerticalOptions="Center"/>
-                                
-                                <!-- Cover Thumbnail -->
-                                <Image Grid.Column="1" Source="{Binding Cover}" WidthRequest="50" HeightRequest="50" Aspect="AspectFill" Margin="8,0"/>
-                                
+                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                <!-- Cover Thumbnail (Album Art Lokal) -->
+                                <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="50" HeightRequest="50" Aspect="AspectFill" Margin="0,0,8,0"/>
+
                                 <!-- Info Lagu -->
-                                <VerticalStackLayout Grid.Column="2" VerticalOptions="Center">
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                     <Label Text="{Binding Title}" TextColor="White" FontAttributes="Bold" LineBreakMode="TailTruncation"/>
                                     <Label Text="{Binding Artist}" TextColor="#a0a5c0" FontSize="12" LineBreakMode="TailTruncation"/>
                                 </VerticalStackLayout>
-                                
-                                <!-- Tombol Aksi Single -->
-                                <HorizontalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
-                                    <Button Text="▶" Clicked="OnPlaySingleClicked" CommandParameter="{Binding .}" BackgroundColor="#4cc9f0" TextColor="#0b0914" HeightRequest="36" WidthRequest="36" Padding="0"/>
-                                    <Button Text="📥" Clicked="OnDownloadSingleClicked" CommandParameter="{Binding .}" BackgroundColor="#2a274c" TextColor="White" HeightRequest="36" WidthRequest="36" Padding="0"/>
-                                    <Button Text="🗑️" Clicked="OnDeleteSingleClicked" CommandParameter="{Binding .}" BackgroundColor="#4a0000" TextColor="White" HeightRequest="36" WidthRequest="36" Padding="0"/>
-                                </HorizontalStackLayout>
+
+                                <!-- Tombol Play -->
+                                <Button Grid.Column="2" Text="▶" Clicked="OnPlaySingleClicked" CommandParameter="{Binding .}" BackgroundColor="#4cc9f0" TextColor="#0b0914" HeightRequest="36" WidthRequest="36" Padding="0"/>
                             </Grid>
                         </Frame>
                     </DataTemplate>
