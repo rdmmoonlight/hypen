@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 0: Filter Perubahan File / Folder
+  # STEP 0: Cek Folder yang Berubah
   # ----------------------------------------------------
   check-changes:
     name: Check File Changes
@@ -18,7 +18,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       backend: ${{ steps.filter.outputs.backend }}
-      deploy_needed: ${{ steps.filter.outputs.web == 'true' || steps.filter.outputs.backend == 'true' }}
+      mobile_only: ${{ steps.filter.outputs.mobile == 'true' && steps.filter.outputs.web == 'false' && steps.filter.outputs.backend == 'false' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
               - 'apps/mobile/**'
 
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix
+  # STEP 1: Linting, Formatting, & Auto-Fix (Selalu Jalan)
   # ----------------------------------------------------
   lint-and-fix:
     name: C# Format & Quality Check
@@ -94,7 +94,8 @@ jobs:
   build-web:
     name: Build Blazor WASM
     needs: [check-changes, lint-and-fix]
-    if: always() && needs.check-changes.outputs.web == 'true' && (needs.lint-and-fix.result == 'success' || needs.lint-and-fix.result == 'skipped')
+    # Skip total kalau perubahan HANYA di apps/mobile
+    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -132,7 +133,8 @@ jobs:
   build-backend:
     name: Verify Backend Build
     needs: [check-changes, lint-and-fix]
-    if: always() && needs.check-changes.outputs.backend == 'true' && (needs.lint-and-fix.result == 'success' || needs.lint-and-fix.result == 'skipped')
+    # Skip total kalau perubahan HANYA di apps/mobile
+    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -157,7 +159,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: [check-changes, build-web]
-    if: needs.check-changes.outputs.web == 'true' && needs.build-web.result == 'success'
+    if: needs.check-changes.outputs.mobile_only != 'true' && needs.check-changes.outputs.web == 'true' && needs.build-web.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       pages: write
