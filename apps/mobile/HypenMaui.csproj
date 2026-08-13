@@ -14,19 +14,22 @@
 		<!-- App Identifier -->
 		<ApplicationId>com.hypen.vault</ApplicationId>
 
-		<!-- App Version (Di-override secara dinamis oleh GitHub Actions saat Release) -->
+		<!-- App Version -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 
-		<!-- Wajib Target Android 9.0 (API 28) Minimum -->
+		<!-- Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
-		<!-- Injeksi Parameter Last.fm Secrets dari GitHub Actions ke C# Constants -->
+		<!-- Injeksi Parameter Last.fm & Google Secrets dari GitHub Actions -->
 		<LastFmApiKey Condition="'$(LastFmApiKey)' == ''">LOCAL_DEV_KEY</LastFmApiKey>
 		<LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''">LOCAL_DEV_SECRET</LastFmApiSecret>
-		<DefineConstants>$(DefineConstants);LASTFM_KEY="$(LastFmApiKey)";LASTFM_SECRET="$(LastFmApiSecret)"</DefineConstants>
+		<GoogleClientId Condition="'$(GoogleClientId)' == ''">LOCAL_GOOGLE_CLIENT_ID</GoogleClientId>
+		<GoogleClientSecret Condition="'$(GoogleClientSecret)' == ''">LOCAL_GOOGLE_CLIENT_SECRET</GoogleClientSecret>
 
-		<!-- Abaikan error konflik batasan versi dependensi NuGet (Termasuk NU1605) -->
+		<DefineConstants>$(DefineConstants);LASTFM_KEY="$(LastFmApiKey)";LASTFM_SECRET="$(LastFmApiSecret)";GOOGLE_CLIENT_ID="$(GoogleClientId)";GOOGLE_CLIENT_SECRET="$(GoogleClientSecret)"</DefineConstants>
+
+		<!-- Abaikan error konflik batasan versi dependensi NuGet -->
 		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
 
