@@ -57,7 +57,7 @@
                             <Label Text="Auto-Update Otomatis"
                                    FontSize="14"
                                    TextColor="White" />
-                            <Label Text="Cek & pasang pembaruan otomatis saat startup"
+                            <Label Text="Cek &amp; pasang pembaruan otomatis saat startup"
                                    FontSize="11"
                                    TextColor="#6C6C80" />
                         </VerticalStackLayout>
