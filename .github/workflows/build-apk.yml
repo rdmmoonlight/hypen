@@ -32,15 +32,15 @@ jobs:
           echo "Generated Version: ${TAG_NAME}"
 
       # 2. SETUP ENVIRONMENT & DEPENDENCIES
-      - name: Setup .NET SDK
+      - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      # 3. RESTORE & BUILD WITH SECRETS INJECTION (LAST.FM & GOOGLE DRIVE)
+      # 3. RESTORE & BUILD WITH SECRETS INJECTION
       - name: Build MAUI Android App
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -48,8 +48,10 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          dotnet restore apps/mobile/HypenMaui.csproj
-          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net9.0-android --no-restore \
+          # Restore dengan spesifikasi TargetFramework agar project.assets.json valid
+          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
+          
+          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LastFmApiKey="${LASTFM_API_KEY}" \
@@ -62,10 +64,10 @@ jobs:
         run: |
           mkdir -p release-assets
           
-          # Cari file APK hasil build (Perbaikan typo /dev/null di baris ini)
-          APK_FILE=$(ls apps/mobile/bin/Release/net9.0-android/*-Signed.apk 2>/dev/null | head -n 1)
+          # Cari file APK hasil build di folder net10.0-android
+          APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*-Signed.apk 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(ls apps/mobile/bin/Release/net9.0-android/*.apk 2>/devnull | head -n 1)
+            APK_FILE=$(ls apps/mobile/bin/Release/net10.0-android/*.apk 2>/dev/null | head -n 1)
           fi
 
           # Validasi keberadaan file APK
