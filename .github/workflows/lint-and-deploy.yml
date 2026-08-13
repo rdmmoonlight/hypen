@@ -31,10 +31,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore Dependencies
+      - name: Clean & Restore Dependencies
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
+          if [ -f "apps/backend/Hypen.csproj" ]; then 
+            dotnet clean apps/backend/Hypen.csproj
+            dotnet restore apps/backend/Hypen.csproj
+          fi
+          if [ -f "apps/web/Hypen.Web.csproj" ]; then 
+            dotnet clean apps/web/Hypen.Web.csproj
+            dotnet restore apps/web/Hypen.Web.csproj
+          fi
 
       - name: Run Dotnet Format Fix
         continue-on-error: true
@@ -85,7 +91,11 @@ jobs:
 
       - name: Publish Blazor WebAssembly
         run: |
+          # Bersihkan cache build lama untuk mencegah duplikasi StaticWebAssets Manifest
+          dotnet clean apps/web/Hypen.Web.csproj
           rm -rf publish_output
+          
+          # Publish ulang ke folder output
           dotnet publish apps/web/Hypen.Web.csproj -c Release -o publish_output
           
           # Membuat file .nojekyll agar folder _framework tidak diabaikan oleh GitHub Pages
@@ -121,6 +131,7 @@ jobs:
       - name: Build Backend App
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then 
+            dotnet clean apps/backend/Hypen.csproj
             dotnet build apps/backend/Hypen.csproj -c Release
           fi
 
