@@ -16,8 +16,10 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseMauiCommunityToolkit()              // Toolkit Utama
-            .UseMauiCommunityToolkitMediaElement()  // Wajib pasang NuGet CommunityToolkit.Maui.MediaElement
+            .UseMauiCommunityToolkit()
+            // Perbaikan CS7036: Menambahkan parameter wajib isAndroidForegroundServiceEnabled.
+            // Gunakan `false` jika tidak membutuhkan media tetap berjalan sebagai Foreground Service Android.
+            .UseMauiCommunityToolkitMediaElement(isAndroidForegroundServiceEnabled: false)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
