@@ -31,7 +31,7 @@
 		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
 
-	<!-- Injeksi Secret ke Assembly Metadata (Menggantikan DefineConstants agar tidak memicu MSB3052) -->
+	<!-- Injeksi Secret ke Assembly Metadata -->
 	<ItemGroup>
 		<AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
 		<AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
@@ -40,9 +40,25 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- App Icon & Splash Screen Setup -->
-		<MauiIcon Include="Resources\AppIcon\appicon.png" Color="#0b0914" />
-		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#000000" BaseSize="213,461" />
+		<!-- 
+		  APP ICON SETUP (Optimasi Launcher ColorOS Oppo)
+		  - ForegroundScale="0.65": Memberikan safe-zone 65% agar logo di dalam ikon 
+		    tidak terpotong oleh shape masking (squircle/lingkaran) bawaan Oppo.
+		-->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" 
+				  Color="#0b0914" 
+				  ForegroundScale="0.65" />
+
+		<!-- 
+		  SPLASH SCREEN SETUP (Optimasi Layar HD+ 720x1520 Oppo A12)
+		  - Color="#0b0914": Disamakan dengan warna ikon agar tidak flicker/blink warna saat app dibuka.
+		  - BaseSize="128,128": Ukuran dp ideal agar logo berada tepat di tengah & proporsional.
+		  - Resize="true": Scaling otomatis antar tingkat kerapatan layar (DPI).
+		-->
+		<MauiSplashScreen Include="Resources\Splash\splash.png" 
+						  Color="#0b0914" 
+						  BaseSize="128,128" 
+						  Resize="true" />
 
 		<!-- Custom Assets & Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
