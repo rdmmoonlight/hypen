@@ -3,6 +3,7 @@ using CommunityToolkit.Maui.MediaElement;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Storage;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -16,26 +17,28 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseMauiCommunityToolkit()              // Direct chaining wajib
-            .UseMauiCommunityToolkitMediaElement()  // Direct chaining wajib
+            .UseMauiCommunityToolkit()              // Toolkit Utama
+            .UseMauiCommunityToolkitMediaElement()  // Wajib pasang NuGet CommunityToolkit.Maui.MediaElement
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Global Exception Handler
+        // 1. Global Exception Handler (AppDomain)
         AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
         {
             if (e.ExceptionObject is Exception ex)
             {
-                SaveCrashLog(ex);
+                SaveCrashLog(ex, "AppDomain UnhandledException");
             }
         };
 
+        // 2. Unobserved Task Exception Handler (Async Tasks)
         TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
-            SaveCrashLog(e.Exception);
+            SaveCrashLog(e.Exception, "TaskScheduler UnobservedTaskException");
+            e.SetObserved(); // Mencegah crash fatal akibat unobserved task
         };
 
 #if DEBUG
@@ -45,20 +48,24 @@ public static class MauiProgram
         return builder.Build();
     }
 
-    private static void SaveCrashLog(Exception ex)
+    private static void SaveCrashLog(Exception ex, string source)
     {
         try
         {
-            var log = $"[Crash Time]: {DateTime.Now}\n" +
-                      $"[Message]: {ex.Message}\n\n" +
-                      $"[Stack Trace]:\n{ex.StackTrace}";
+            var log = $"========================================\n" +
+                      $"[Crash Time] : {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                      $"[Source]     : {source}\n" +
+                      $"[Message]    : {ex.Message}\n" +
+                      $"[StackTrace] :\n{ex.StackTrace}\n\n";
 
             var logPath = Path.Combine(FileSystem.AppDataDirectory, "crash_log.txt");
-            File.WriteAllText(logPath, log);
+            
+            // Menggunakan AppendAllText agar log tidak tertimpa setiap kali terjadi error
+            File.AppendAllText(logPath, log);
         }
         catch
         {
-            // Abaikan jika penulisan log gagal
+            // Fail-safe: Abaikan jika gagal menulis log ke disk
         }
     }
 }
