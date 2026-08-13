@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using CommunityToolkit.Maui;
+using CommunityToolkit.Maui.MediaElement;
 using HypenMaui.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
@@ -18,15 +20,18 @@ public static class MauiProgram
 
         var builder = MauiApp.CreateBuilder();
 
+        // Chain .UseMauiCommunityToolkit() dan .UseMauiCommunityToolkitMediaElement() langsung ke .UseMauiApp<App>()
         builder
             .UseMauiApp<App>()
+            .UseMauiCommunityToolkit()
+            .UseMauiCommunityToolkitMediaElement()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // 2. Registrasi Services & Pages untuk Dependency Injection (DI)
+        // 2. Registrasi Services & Pages
         builder.Services.AddSingleton<UpdateService>();
 
 #if DEBUG
@@ -36,12 +41,8 @@ public static class MauiProgram
         return builder.Build();
     }
 
-    /// <summary>
-    /// Memasang listener global untuk mencatat seluruh unhandled exception ke crash_log.txt
-    /// </summary>
     private static void RegisterGlobalExceptionHandlers()
     {
-        // A. Tangkap error fatal dari non-UI / AppDomain Thread
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
         {
             if (args.ExceptionObject is Exception ex)
@@ -50,17 +51,13 @@ public static class MauiProgram
             }
         };
 
-        // B. Tangkap error dari Unobserved Task (Background Async / Unawaited Task)
         TaskScheduler.UnobservedTaskException += (sender, args) =>
         {
             LogCrashToFile(args.Exception, "TaskScheduler Unobserved Exception");
-            args.SetObserved(); // Mencegah proses mati mendadak jika memungkinkan
+            args.SetObserved();
         };
     }
 
-    /// <summary>
-    /// Helper internal untuk menulis log crash langsung ke AppDataDirectory
-    /// </summary>
     private static void LogCrashToFile(Exception ex, string context)
     {
         try
