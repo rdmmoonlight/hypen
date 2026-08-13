@@ -1,21 +1,21 @@
 {
   "format": 1,
   "restore": {
-    "/home/runner/work/hypen/hypen/apps/mobile/HypenMaui.csproj": {}
+    "/workspaces/hypen/apps/mobile/HypenMaui.csproj": {}
   },
   "projects": {
-    "/home/runner/work/hypen/hypen/apps/mobile/HypenMaui.csproj": {
+    "/workspaces/hypen/apps/mobile/HypenMaui.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/runner/work/hypen/hypen/apps/mobile/HypenMaui.csproj",
+        "projectUniqueName": "/workspaces/hypen/apps/mobile/HypenMaui.csproj",
         "projectName": "HypenMaui",
-        "projectPath": "/home/runner/work/hypen/hypen/apps/mobile/HypenMaui.csproj",
-        "packagesPath": "/home/runner/.nuget/packages/",
-        "outputPath": "/home/runner/work/hypen/hypen/apps/mobile/obj/",
+        "projectPath": "/workspaces/hypen/apps/mobile/HypenMaui.csproj",
+        "packagesPath": "/home/codespace/.nuget/packages/",
+        "outputPath": "/workspaces/hypen/apps/mobile/obj/",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "configFilePaths": [
-          "/home/runner/.nuget/NuGet/NuGet.Config"
+          "/home/codespace/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0-android"
@@ -25,13 +25,18 @@
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net10.0-android": {
-            "framework": "net10.0-android36.0",
+          "net10.0-android36.0": {
             "targetAlias": "net10.0-android",
             "projectReferences": {}
           }
         },
         "warningProperties": {
+          "noWarn": [
+            "NU1107",
+            "NU1603",
+            "NU1608",
+            "NU1701"
+          ],
           "warnAsError": [
             "NU1605"
           ]
@@ -41,29 +46,40 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.400"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
-        "net10.0-android": {
-          "framework": "net10.0-android36.0",
+        "net10.0-android36.0": {
           "targetAlias": "net10.0-android",
           "dependencies": {
             "CommunityToolkit.Maui": {
               "target": "Package",
-              "version": "[9.0.0, )"
+              "version": "[11.1.0, )"
             },
             "CommunityToolkit.Maui.MediaElement": {
               "target": "Package",
-              "version": "[4.0.0, )"
+              "version": "[10.0.0, )"
             },
             "Microsoft.Maui.Controls": {
               "target": "Package",
-              "version": "[10.0.0-preview.1.25121.1, )"
+              "version": "[10.0.20, )"
+            },
+            "Microsoft.Maui.Controls.Compatibility": {
+              "target": "Package",
+              "version": "[10.0.20, )"
+            },
+            "Microsoft.Maui.Core": {
+              "target": "Package",
+              "version": "[10.0.20, )"
+            },
+            "Microsoft.Maui.Essentials": {
+              "target": "Package",
+              "version": "[10.0.20, )"
             },
             "Microsoft.NET.ILLink.Tasks": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[10.0.11, )",
+              "version": "[10.0.4, )",
               "autoReferenced": true
             }
           },
@@ -78,6 +94,12 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[10.0.8, 10.0.8]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.Android": {
               "privateAssets": "all"
@@ -89,7 +111,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.200/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
