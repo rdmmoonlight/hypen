@@ -10,10 +10,11 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix (Root)
+  # STEP 1: Fast Linting, Formatting, & Auto-Fix (Root)
+  # (Tanpa instalasi Workload MAUI agar eksekusi cepat)
   # ----------------------------------------------------
   lint-and-fix:
-    name: C# Format & Quality Check
+    name: Code Formatting & Quality Check
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     permissions:
@@ -31,11 +32,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore Dependencies
+      - name: Restore Web & Backend Dependencies
         run: |
           if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
           if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then dotnet restore apps/mobile/HypenMaui.csproj; fi
 
       - name: Run Dotnet Format Fix
         continue-on-error: true
@@ -47,10 +47,6 @@ jobs:
           if [ -f "apps/web/Hypen.Web.csproj" ]; then 
             dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
             dotnet format style apps/web/Hypen.Web.csproj --no-restore --severity info
-          fi
-          if [ -f "apps/mobile/HypenMaui.csproj" ]; then 
-            dotnet format whitespace apps/mobile/HypenMaui.csproj --no-restore
-            dotnet format style apps/mobile/HypenMaui.csproj --no-restore --severity info
           fi
 
       - name: Revert Generated Files
@@ -71,7 +67,7 @@ jobs:
   # CABANG 1: Build Blazor WASM Web App
   # ----------------------------------------------------
   build-web:
-    name: Build Blazor WASM
+    name: Build Blazor WebAssembly
     needs: lint-and-fix
     runs-on: ubuntu-latest
     permissions:
@@ -108,11 +104,10 @@ jobs:
           path: '_site/wwwroot'
 
   # ----------------------------------------------------
-  # CABANG 2: Build & Release MAUI Android APK
-  # (Jalan jika ada perubahan di folder apps/mobile)
+  # CABANG 2: Lint, Build & Release MAUI Android APK
   # ----------------------------------------------------
   build-maui-apk:
-    name: Build & Release MAUI Android APK
+    name: Build & Release MAUI APK
     needs: lint-and-fix
     runs-on: ubuntu-latest
     permissions:
@@ -124,11 +119,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Check apakah ada perubahan di apps/mobile
       - name: Check Mobile Changes
         id: filter
         run: |
-          # Periksa perubahan berkas terhadap commit sebelumnya
           if git diff --name-only HEAD~1 HEAD | grep -q '^apps/mobile/'; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
@@ -160,6 +153,14 @@ jobs:
         if: steps.filter.outputs.changed == 'true'
         run: dotnet workload install maui-android
 
+      # Restore & Lint khusus MAUI sebelum Build
+      - name: Restore & Format MAUI Project
+        if: steps.filter.outputs.changed == 'true'
+        run: |
+          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
+          dotnet format whitespace apps/mobile/HypenMaui.csproj --no-restore || true
+          dotnet format style apps/mobile/HypenMaui.csproj --no-restore --severity info || true
+
       - name: Build MAUI Android App
         if: steps.filter.outputs.changed == 'true'
         env:
@@ -168,8 +169,6 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          dotnet restore apps/mobile/HypenMaui.csproj -f net10.0-android
-          
           dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
             -p:ApplicationDisplayVersion="${{ env.VERSION_NAME }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
