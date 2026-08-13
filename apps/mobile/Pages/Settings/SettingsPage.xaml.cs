@@ -3,6 +3,7 @@ using System.Diagnostics;
 using HypenMaui.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Pages.Settings;
@@ -23,16 +24,16 @@ public partial class SettingsPage : ContentPage
         if (_lastFmService.IsAuthenticated)
         {
             LastFmStatusLabel.Text = "Status: Terhubung ke Last.fm ✅";
-            LastFmStatusLabel.TextColor = Microsoft.Maui.Graphics.Color.Parse("#4CC9F0");
+            LastFmStatusLabel.TextColor = Color.Parse("#4CC9F0");
             LastFmAuthButton.Text = "Putuskan Koneksi Last.fm";
-            LastFmAuthButton.BackgroundColor = Microsoft.Maui.Graphics.Color.Parse("#F72585");
+            LastFmAuthButton.BackgroundColor = Color.Parse("#F72585");
         }
         else
         {
             LastFmStatusLabel.Text = "Status: Belum Terhubung";
-            LastFmStatusLabel.TextColor = Microsoft.Maui.Graphics.Color.Parse("#A0A0B0");
+            LastFmStatusLabel.TextColor = Color.Parse("#A0A0B0");
             LastFmAuthButton.Text = "Hubungkan Akun Last.fm";
-            LastFmAuthButton.BackgroundColor = Microsoft.Maui.Graphics.Color.Parse("#8A5CF5");
+            LastFmAuthButton.BackgroundColor = Color.Parse("#8A5CF5");
         }
     }
 
