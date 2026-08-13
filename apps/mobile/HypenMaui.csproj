@@ -27,11 +27,17 @@
 		<GoogleClientId Condition="'$(GoogleClientId)' == ''">LOCAL_GOOGLE_CLIENT_ID</GoogleClientId>
 		<GoogleClientSecret Condition="'$(GoogleClientSecret)' == ''">LOCAL_GOOGLE_CLIENT_SECRET</GoogleClientSecret>
 
-		<DefineConstants>$(DefineConstants);LASTFM_KEY="$(LastFmApiKey)";LASTFM_SECRET="$(LastFmApiSecret)";GOOGLE_CLIENT_ID="$(GoogleClientId)";GOOGLE_CLIENT_SECRET="$(GoogleClientSecret)"</DefineConstants>
-
-		<!-- Abaikan error konflik batasan versi dependensi NuGet -->
+		<!-- Abaikan warning/error konflik batasan versi dependensi NuGet -->
 		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
+
+	<!-- Injeksi Secret ke Assembly Metadata (Menggantikan DefineConstants agar tidak memicu MSB3052) -->
+	<ItemGroup>
+		<AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
+		<AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
+		<AssemblyMetadata Include="GoogleClientId" Value="$(GoogleClientId)" />
+		<AssemblyMetadata Include="GoogleClientSecret" Value="$(GoogleClientSecret)" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<!-- App Icon & Splash Screen Setup -->
