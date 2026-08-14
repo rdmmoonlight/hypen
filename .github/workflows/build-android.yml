@@ -65,6 +65,12 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
+      - name: Clean Build Artifacts
+        run: |
+          dotnet clean apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --verbosity minimal || true
+          rm -rf apps/mobile/bin/Release/net10.0-android
+          rm -rf apps/mobile/obj/Release/net10.0-android
+
       - name: Decode Release Keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
