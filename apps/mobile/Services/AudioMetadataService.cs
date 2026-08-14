@@ -7,7 +7,7 @@ namespace HypenMaui.Services;
 public record AudioTechnicalInfo(string Format, int BitrateKbps);
 
 /// <summary>
-/// Membaca metadata teknis (format & bitrate) dari file audio lokal lewat
+/// Membaca metadata teknis (format dan bitrate) dari file audio lokal lewat
 /// MediaMetadataRetriever. Sengaja TIDAK dipanggil saat scan library (mahal untuk
 /// ratusan/ribuan file) — hanya dipanggil sekali per lagu, saat lagu itu mulai diputar,
 /// lalu hasilnya di-cache di SongModel.

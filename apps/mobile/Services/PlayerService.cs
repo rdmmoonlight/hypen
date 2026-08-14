@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using CommunityToolkit.Maui.Core.Primitives;
 using CommunityToolkit.Maui.Views;
 using HypenMaui.Models;
 using Microsoft.Maui.Storage;
@@ -147,8 +146,12 @@ public class PlayerService : INotifyPropertyChanged
         _element.PositionChanged += (_, e) => Position = e.Position;
         _element.MediaOpened += (_, _) => Duration = _element.Duration;
         _element.MediaEnded += (_, _) => OnMediaEnded();
+        // Dibandingkan lewat ToString() (bukan referensi langsung ke enum MediaElementState)
+        // supaya tidak bergantung pada resolusi namespace CommunityToolkit.Maui.Core.Primitives
+        // yang pada beberapa kombinasi versi paket/TFM gagal ditemukan compiler meski package
+        // sudah direferensikan — tipe e.NewState tetap terinferensi otomatis dari event itu sendiri.
         _element.StateChanged += (_, e) =>
-            IsPlaying = e.NewState == MediaElementState.Playing;
+            IsPlaying = e.NewState.ToString() == "Playing";
     }
 
     // --- Kontrol antrian ---
