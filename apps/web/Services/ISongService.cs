@@ -4,7 +4,7 @@ namespace Hypen.Web.Services;
 
 public interface ISongService
 {
-    Task<List<SongModel>> GetSongsAsync();
+    Task<List<CloudSongModel>> GetSongsAsync();
     Task<ConvertResponse?> ConvertVideoAsync(string youtubeUrl);
     Task<PlaylistResponse?> ConvertPlaylistAsync(string playlistUrl);
     Task<bool> DeleteSongAsync(int id);
