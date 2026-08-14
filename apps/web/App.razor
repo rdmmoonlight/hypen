@@ -1,14 +1,49 @@
 @using Hypen.Web.Layout
 
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Type="@typeof(MainLayout)">
-            <p role="alert">Maaf, halaman tidak ditemukan.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    
+    <!-- CSS Utama Application & Theme -->
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="Hypen.Web.styles.css" />
+    
+    <HeadOutlet />
+</head>
+
+<body>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Type="@typeof(MainLayout)">
+                <p role="alert" style="padding: 20px; color: var(--text-secondary);">Maaf, halaman tidak ditemukan.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+
+    <!-- Script Blazor Web Engine (Wajib untuk .NET 8/9/10) -->
+    <script src="_framework/blazor.web.js"></script>
+    
+    <!-- Script JS Interop Download (jika ada) -->
+    <script>
+        window.triggerFileDownload = (url, fileName) => {
+            const anchorElement = document.createElement('a');
+            anchorElement.href = url;
+            anchorElement.download = fileName || '';
+            anchorElement.target = '_blank';
+            document.body.appendChild(anchorElement);
+            anchorElement.click();
+            document.body.removeChild(anchorElement);
+        }
+    </script>
+</body>
+
+</html>
