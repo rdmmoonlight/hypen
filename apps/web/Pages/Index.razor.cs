@@ -26,25 +26,26 @@ public partial class Index
     protected bool isError;
     protected bool isLoading;
 
-    // ------------------------------------------------------------
-    // SELECT ALL
-    // ------------------------------------------------------------
+    private bool selectAllChecked;
 
-    protected bool IsSelectAllChecked =>
-        FilteredSongs.Any() &&
-        FilteredSongs.All(song => song.IsSelected);
+    protected bool IsSelectAllChecked
+    {
+        get => selectAllChecked;
 
-    // ------------------------------------------------------------
-    // PROGRESS STATE
-    // ------------------------------------------------------------
+        set
+        {
+            selectAllChecked = value;
+
+            foreach (var song in FilteredSongs)
+            {
+                song.IsSelected = value;
+            }
+        }
+    }
 
     protected int totalQueueCount = 0;
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
-
-    // ------------------------------------------------------------
-    // FILTER
-    // ------------------------------------------------------------
 
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
@@ -60,18 +61,10 @@ public partial class Index
                 )
             );
 
-    // ------------------------------------------------------------
-    // INITIALIZATION
-    // ------------------------------------------------------------
-
     protected override async Task OnInitializedAsync()
     {
         await LoadLibrary();
     }
-
-    // ------------------------------------------------------------
-    // LOAD LIBRARY
-    // ------------------------------------------------------------
 
     protected async Task LoadLibrary()
     {
@@ -81,6 +74,8 @@ public partial class Index
             SetStatus("Memuat library...");
 
             songs = await SongService.GetSongsAsync();
+
+            selectAllChecked = false;
 
             SetStatus("");
         }
@@ -97,24 +92,6 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // SELECT ALL
-    // ------------------------------------------------------------
-
-    protected void ToggleSelectAll(ChangeEventArgs e)
-    {
-        bool isChecked = Convert.ToBoolean(e.Value);
-
-        foreach (var song in FilteredSongs)
-        {
-            song.IsSelected = isChecked;
-        }
-    }
-
-    // ------------------------------------------------------------
-    // DOWNLOAD SELECTED
-    // ------------------------------------------------------------
-
     protected async Task DownloadSelected()
     {
         var selected = songs
@@ -123,7 +100,11 @@ public partial class Index
 
         if (selected.Count == 0)
         {
-            SetStatus("Tidak ada lagu yang dipilih.", true);
+            SetStatus(
+                "Tidak ada lagu yang dipilih.",
+                true
+            );
+
             return;
         }
 
@@ -203,10 +184,6 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // CONVERT SINGLE VIDEO
-    // ------------------------------------------------------------
-
     protected async Task ConvertVideo()
     {
         if (string.IsNullOrWhiteSpace(ytUrl))
@@ -220,7 +197,8 @@ public partial class Index
                 "Mengekstrak & menyimpan track ke library..."
             );
 
-            var result = await SongService.ConvertVideoAsync(ytUrl);
+            var result =
+                await SongService.ConvertVideoAsync(ytUrl);
 
             if (result != null)
             {
@@ -252,10 +230,6 @@ public partial class Index
             isLoading = false;
         }
     }
-
-    // ------------------------------------------------------------
-    // CONVERT PLAYLIST
-    // ------------------------------------------------------------
 
     protected async Task ConvertPlaylist()
     {
@@ -304,10 +278,6 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // DOWNLOAD SINGLE
-    // ------------------------------------------------------------
-
     protected async Task DownloadSingle(CloudSongModel song)
     {
         try
@@ -332,10 +302,6 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // DELETE SINGLE
-    // ------------------------------------------------------------
-
     protected async Task DeleteSingle(int id)
     {
         bool confirmed =
@@ -352,10 +318,6 @@ public partial class Index
             await LoadLibrary();
         }
     }
-
-    // ------------------------------------------------------------
-    // DELETE SELECTED
-    // ------------------------------------------------------------
 
     protected async Task DeleteSelected()
     {
@@ -388,10 +350,6 @@ public partial class Index
             await LoadLibrary();
         }
     }
-
-    // ------------------------------------------------------------
-    // STATUS
-    // ------------------------------------------------------------
 
     private void SetStatus(
         string msg,
