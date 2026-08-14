@@ -8,8 +8,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     
-    <!-- CSS Utama Application & Theme -->
-    <link rel="stylesheet" href="css/app.css" />
+    <title>Hypen Vault Downloader</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- CSS Utama Application & Theme (Mengarah ke wwwroot/theme.css) -->
+    <link rel="stylesheet" href="/theme.css?v=9.0" />
     <link rel="stylesheet" href="Hypen.Web.styles.css" />
     
     <HeadOutlet />
@@ -32,7 +42,7 @@
     <!-- Script Blazor Web Engine (Wajib untuk .NET 8/9/10) -->
     <script src="_framework/blazor.web.js"></script>
     
-    <!-- Script JS Interop Download (jika ada) -->
+    <!-- Script JS Interop Download -->
     <script>
         window.triggerFileDownload = (url, fileName) => {
             const anchorElement = document.createElement('a');
