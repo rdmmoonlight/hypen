@@ -33,7 +33,7 @@
             <CollectionView x:Name="SongsCollectionView" SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Border BackgroundColor="#141226" Stroke="#2a274c" StrokeShape="RoundRectangle8" Margin="16,4" Padding="10">
+                        <Border BackgroundColor="#141226" Stroke="#2a274c" StrokeShape="RoundRectangle 8" Margin="16,4" Padding="10">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <!-- Cover Thumbnail (Album Art Lokal) -->
                                 <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="50" HeightRequest="50" Aspect="AspectFill" Margin="0,0,8,0"/>
@@ -55,7 +55,11 @@
 
         <!-- Mini Player Bar: ringkasan elegan, tap untuk buka Now Playing Page -->
         <Border x:Name="MiniPlayerBar" Grid.Row="3" IsVisible="False" BackgroundColor="#141226" Stroke="#2a274c"
-               Padding="10,8" StrokeShape="RoundRectangle0" HasShadow="True">
+                Padding="10,8" StrokeShape="RoundRectangle 0">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,-2" Radius="8" Opacity="0.4" />
+            </Border.Shadow>
+            
             <Grid ColumnDefinitions="Auto, *, Auto, Auto">
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnMiniBarTapped" />
@@ -64,7 +68,7 @@
                 <Image Grid.Column="0" x:Name="MiniCover" WidthRequest="42" HeightRequest="42"
                        Aspect="AspectFill" Margin="0,0,10,0">
                     <Image.Clip>
-                        <RoundRectangleGeometry StrokeShape="RoundRectangle6" Rect="0,0,42,42" />
+                        <RoundRectangleGeometry CornerRadius="6" Rect="0,0,42,42" />
                     </Image.Clip>
                 </Image>
 
