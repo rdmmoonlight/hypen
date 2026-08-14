@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Services;
 
@@ -14,17 +13,15 @@ public record LastFmTrackInfo(string Album, string? CoverUrl, long DurationMs);
 
 public class LastFmService
 {
-    // Mengambil nilai variabel dari MSBuild Constants / Environment Variable
-#if LASTFM_KEY
-    private const string API_KEY = LASTFM_KEY;
-    private const string API_SECRET = LASTFM_SECRET;
-#else
-    private const string API_KEY = "LOCAL_DEV_KEY";
-    private const string API_SECRET = "LOCAL_DEV_SECRET";
-#endif
+    // Mengambil nilai key dari Environment Variable (GitHub Env/System)
+    private static readonly string API_KEY = 
+        Environment.GetEnvironmentVariable("LASTFM_KEY") ?? "LOCAL_DEV_KEY";
+
+    private static readonly string API_SECRET = 
+        Environment.GetEnvironmentVariable("LASTFM_SECRET") ?? "LOCAL_DEV_SECRET";
 
     private const string API_URL = "https://ws.audioscrobbler.com/2.0/";
-    private readonly HttpClient _httpClient = new();
+    private readonly HttpClient _httpClient;
 
     private const string SessionKeyStoreKey = "LastFmSessionKey";
     private string? _sessionKeyCache;
@@ -32,7 +29,14 @@ public class LastFmService
     /// <summary>API key publik Last.fm — aman ditampilkan (bukan secret), dipakai untuk build auth URL.</summary>
     public string PublicApiKey => API_KEY;
 
-    // Session key sekarang lewat SecureStorage (Android Keystore), bukan Preferences plaintext.
+    public LastFmService()
+    {
+        _httpClient = new HttpClient();
+        // Wajib set User-Agent agar request tidak diblokir (403 Forbidden) oleh Last.fm
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "HypenMauiApp/1.0");
+    }
+
+    // Session key disimpan lewat SecureStorage (Android Keystore)
     public async Task<string?> GetSessionKeyAsync()
     {
         if (_sessionKeyCache != null) return _sessionKeyCache;
@@ -173,7 +177,7 @@ public class LastFmService
         await _httpClient.PostAsync(API_URL, content);
     }
 
-    // 5. track.getInfo — dipakai MetadataEnrichmentService sebagai sumber #1 (album, cover, durasi)
+    // 5. track.getInfo — dipakai MetadataEnrichmentService
     public async Task<LastFmTrackInfo?> GetTrackInfoAsync(string artist, string track)
     {
         try
@@ -196,7 +200,6 @@ public class LastFmService
 
                 if (albumEl.TryGetProperty("image", out var imagesEl) && imagesEl.ValueKind == JsonValueKind.Array)
                 {
-                    // Last.fm mengembalikan beberapa ukuran; ambil yang terbesar ("extralarge"/"mega") di urutan terakhir.
                     string? best = null;
                     foreach (var img in imagesEl.EnumerateArray())
                     {
@@ -207,11 +210,18 @@ public class LastFmService
                 }
             }
 
+            // Safe duration parsing (menangani baik tipe JSON Number maupun String)
             long durationMs = 0;
-            if (trackEl.TryGetProperty("duration", out var durEl) && durEl.ValueKind == JsonValueKind.String
-                && long.TryParse(durEl.GetString(), out var durSec))
+            if (trackEl.TryGetProperty("duration", out var durEl))
             {
-                durationMs = durSec * 1000;
+                if (durEl.ValueKind == JsonValueKind.Number && durEl.TryGetInt64(out var durNum))
+                {
+                    durationMs = durNum;
+                }
+                else if (durEl.ValueKind == JsonValueKind.String && long.TryParse(durEl.GetString(), out var durParsed))
+                {
+                    durationMs = durParsed;
+                }
             }
 
             return new LastFmTrackInfo(album, coverUrl, durationMs);
