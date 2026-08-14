@@ -33,7 +33,7 @@
             <CollectionView x:Name="SongsCollectionView" SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame BackgroundColor="#141226" BorderColor="#2a274c" CornerRadius="8" Margin="16,4" Padding="10">
+                        <Frame BackgroundColor="#141226" Stroke="#2a274c" StrokeShape="RoundRectangle8" Margin="16,4" Padding="10">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <!-- Cover Thumbnail (Album Art Lokal) -->
                                 <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="50" HeightRequest="50" Aspect="AspectFill" Margin="0,0,8,0"/>
@@ -47,15 +47,15 @@
                                 <!-- Tombol Play -->
                                 <Button Grid.Column="2" Text="▶" Clicked="OnPlaySingleClicked" CommandParameter="{Binding .}" BackgroundColor="#4cc9f0" TextColor="#0b0914" HeightRequest="36" WidthRequest="36" Padding="0"/>
                             </Grid>
-                        </Frame>
+                        </Border>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
         </RefreshView>
 
         <!-- Mini Player Bar: ringkasan elegan, tap untuk buka Now Playing Page -->
-        <Frame x:Name="MiniPlayerBar" Grid.Row="3" IsVisible="False" BackgroundColor="#141226" BorderColor="#2a274c"
-               Padding="10,8" CornerRadius="0" HasShadow="True">
+        <Frame x:Name="MiniPlayerBar" Grid.Row="3" IsVisible="False" BackgroundColor="#141226" Stroke="#2a274c"
+               Padding="10,8" StrokeShape="RoundRectangle0" HasShadow="True">
             <Grid ColumnDefinitions="Auto, *, Auto, Auto">
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnMiniBarTapped" />
@@ -64,7 +64,7 @@
                 <Image Grid.Column="0" x:Name="MiniCover" WidthRequest="42" HeightRequest="42"
                        Aspect="AspectFill" Margin="0,0,10,0">
                     <Image.Clip>
-                        <RoundRectangleGeometry CornerRadius="6" Rect="0,0,42,42" />
+                        <RoundRectangleGeometry StrokeShape="RoundRectangle6" Rect="0,0,42,42" />
                     </Image.Clip>
                 </Image>
 
@@ -80,6 +80,6 @@
                 <Button Grid.Column="3" Text="⏭" Clicked="OnMiniNextClicked"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" FontSize="18" WidthRequest="38" Padding="0"/>
             </Grid>
-        </Frame>
+        </Border>
     </Grid>
 </ContentPage>

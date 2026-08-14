@@ -48,10 +48,10 @@
                     <SwipeGestureRecognizer Direction="Right" Swiped="OnSwipePrevious" />
                 </Grid.GestureRecognizers>
 
-                <Frame x:Name="CoverFrame" Padding="0" CornerRadius="18" HasShadow="True" BorderColor="Transparent"
+                <Frame x:Name="CoverFrame" Padding="0" StrokeShape="RoundRectangle18" HasShadow="True" Stroke="Transparent"
                        BackgroundColor="#141226" HorizontalOptions="Center" WidthRequest="300" HeightRequest="300">
                     <Image x:Name="CoverImage" Aspect="AspectFill" />
-                </Frame>
+                </Border>
             </Grid>
 
             <!-- Metadata -->
@@ -83,7 +83,7 @@
                 <Button Grid.Column="1" Text="⏮" FontSize="26" BackgroundColor="Transparent" TextColor="White"
                         Clicked="OnPreviousClicked" />
                 <Button Grid.Column="2" x:Name="PlayPauseButton" Text="▶" FontSize="30" BackgroundColor="#4cc9f0"
-                        TextColor="#0b0914" CornerRadius="36" WidthRequest="72" HeightRequest="72"
+                        TextColor="#0b0914" StrokeShape="RoundRectangle36" WidthRequest="72" HeightRequest="72"
                         Clicked="OnPlayPauseClicked" />
                 <Button Grid.Column="3" Text="⏭" FontSize="26" BackgroundColor="Transparent" TextColor="White"
                         Clicked="OnNextClicked" />
@@ -112,7 +112,7 @@
         </Grid>
 
         <!-- Panel Up Next (queue) — overlay, disembunyikan default -->
-        <Frame x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" CornerRadius="20"
+        <Frame x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
                Padding="16" VerticalOptions="End" HeightRequest="380">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
@@ -138,10 +138,10 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </Grid>
-        </Frame>
+        </Border>
 
         <!-- Panel Lirik — overlay, disembunyikan default -->
-        <Frame x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" CornerRadius="20"
+        <Frame x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
                Padding="16" VerticalOptions="End" HeightRequest="380">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
@@ -161,6 +161,6 @@
                         VerticalOptions="End" BackgroundColor="#8A5CF5" TextColor="White"
                         Clicked="OnOpenGeniusClicked" />
             </Grid>
-        </Frame>
+        </Border>
     </Grid>
 </ContentPage>
