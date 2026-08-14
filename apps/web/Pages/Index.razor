@@ -16,208 +16,80 @@
 
         @if (!string.IsNullOrEmpty(statusMsg))
         {
-            <p style="
-                color: @(isError ? "#f72585" : "#4cc9f0");
-                font-weight: 500;
-                font-size: 0.75rem;
-                margin-bottom: 6px;">
+            <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; font-size: 0.75rem; margin-bottom: 6px;">
                 @statusMsg
             </p>
         }
 
         @if (isLoading && totalQueueCount > 0)
         {
-            <div style="
-                background: rgba(255, 255, 255, 0.08);
-                border-radius: 4px;
-                padding: 2px;
-                margin-bottom: 10px;">
-
-                <div style="
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 3px;
-                    overflow: hidden;
-                    height: 6px;">
-
-                    <div style="
-                        width: @(progressPercentage)%;
-                        background: linear-gradient(90deg, #4cc9f0, #7209b7);
-                        height: 100%;
-                        transition: width 0.3s ease;">
-                    </div>
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 2px; margin-bottom: 10px;">
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; height: 6px;">
+                    <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
                 </div>
-
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 0.7rem;
-                    color: #c5c6c7;
-                    margin-top: 2px;">
-
-                    <span>
-                        Progres: @currentProcessedCount / @totalQueueCount Lagu
-                    </span>
-
-                    <span>
-                        @progressPercentage%
-                    </span>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #c5c6c7; margin-top: 2px;">
+                    <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
+                    <span>@progressPercentage%</span>
                 </div>
             </div>
         }
 
         <!-- CONTROLS -->
-        <div style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            gap: 8px;
-            flex-wrap: wrap;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; flex-wrap: wrap;">
+            <input type="text"
+                   @bind="searchQuery"
+                   @bind:event="oninput"
+                   placeholder="Cari judul lagu atau artis..."
+                   style="padding: 3px 8px; width: 220px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 3px; font-size: 0.75rem;" />
 
-            <input
-                type="text"
-                @bind="searchQuery"
-                @bind:event="oninput"
-                placeholder="Cari judul lagu atau artis..."
-                style="
-                    padding: 3px 8px;
-                    width: 220px;
-                    background: #1f2833;
-                    border: 1px solid #45a29e;
-                    color: #fff;
-                    border-radius: 3px;
-                    font-size: 0.75rem;" />
-
-            <div style="
-                display: flex;
-                gap: 6px;
-                align-items: center;">
-
-                <!-- SELECT ALL UTAMA (EKSPLISIT EVENT HANDLER) -->
-                <label style="
-                    font-size: 0.75rem;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    color: #fff;
-                    user-select: none;">
-
-                    <input
-                        type="checkbox"
-                        checked="@isSelectAllChecked"
-                        @onchange="ToggleSelectAll" />
-
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <!-- CHECKBOX SELECT ALL UTAMA -->
+                <label style="font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: #fff; user-select: none;">
+                    <input type="checkbox"
+                           checked="@isSelectAllChecked"
+                           @onchange="ToggleSelectAll" />
                     Pilih Semua
                 </label>
 
-                <button
-                    class="btn-nebula btn-secondary"
-                    style="
-                        padding: 3px 8px;
-                        font-size: 0.72rem;"
-                    @onclick="DownloadSelected"
-                    disabled="@isLoading">
-
+                <button class="btn-nebula btn-secondary" style="padding: 3px 8px; font-size: 0.72rem;" @onclick="DownloadSelected" disabled="@isLoading">
                     Download Selected
                 </button>
-
-                <button
-                    class="btn-nebula btn-danger"
-                    style="
-                        padding: 3px 8px;
-                        font-size: 0.72rem;"
-                    @onclick="DeleteSelected"
-                    disabled="@isLoading">
-
+                <button class="btn-nebula btn-danger" style="padding: 3px 8px; font-size: 0.72rem;" @onclick="DeleteSelected" disabled="@isLoading">
                     Hapus Selected
                 </button>
-
             </div>
         </div>
 
         <!-- TABLE -->
-        <div style="
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            overflow: hidden;">
-
-            <table style="
-                width: 100%;
-                border-collapse: collapse;
-                text-align: left;
-                font-size: 0.75rem;
-                line-height: 1.1;">
-
+        <div style="background: rgba(255, 255, 255, 0.02); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem; line-height: 1.1;">
                 <thead>
-                    <tr style="
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                        background: rgba(255, 255, 255, 0.04);
-                        font-size: 0.72rem;
-                        text-transform: uppercase;">
-
-                        <!-- SELECT ALL TABLE HEADER -->
-                        <th style="
-                            padding: 4px 6px;
-                            width: 30px;
-                            text-align: center;">
-
-                            <input
-                                type="checkbox"
-                                checked="@isSelectAllChecked"
-                                @onchange="ToggleSelectAll" />
-
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); font-size: 0.72rem; text-transform: uppercase;">
+                        <!-- CHECKBOX SELECT ALL TABLE HEADER -->
+                        <th style="padding: 4px 6px; width: 30px; text-align: center;">
+                            <input type="checkbox"
+                                   checked="@isSelectAllChecked"
+                                   @onchange="ToggleSelectAll" />
                         </th>
-
-                        <th style="padding: 4px 6px;">
-                            Judul Lagu
-                        </th>
-
-                        <th style="padding: 4px 6px;">
-                            Artis / Uploader
-                        </th>
-
-                        <th style="
-                            padding: 4px 6px;
-                            width: 110px;
-                            text-align: center;">
-
-                            Aksi
-
-                        </th>
+                        <th style="padding: 4px 6px;">Judul Lagu</th>
+                        <th style="padding: 4px 6px;">Artis / Uploader</th>
+                        <th style="padding: 4px 6px; width: 110px; text-align: center;">Aksi</th>
                     </tr>
                 </thead>
-
                 <tbody>
-
                     @if (songs.Count == 0 && isLoading)
                     {
                         <tr>
-                            <td
-                                colspan="4"
-                                style="
-                                    padding: 10px;
-                                    text-align: center;
-                                    color: #66fcf1;">
-
+                            <td colspan="4" style="padding: 10px; text-align: center; color: #66fcf1;">
                                 Memuat library...
-
                             </td>
                         </tr>
                     }
                     else if (!FilteredSongs.Any())
                     {
                         <tr>
-                            <td
-                                colspan="4"
-                                style="
-                                    padding: 10px;
-                                    text-align: center;
-                                    color: #c5c6c7;">
-
+                            <td colspan="4" style="padding: 10px; text-align: center; color: #c5c6c7;">
                                 Tidak ada lagu ditemukan.
-
                             </td>
                         </tr>
                     }
@@ -225,79 +97,30 @@
                     {
                         @foreach (var song in FilteredSongs)
                         {
-                            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
-
-                                <!-- CHECKBOX ITEM INDIVIDUAL -->
-                                <td style="
-                                    padding: 2px 6px;
-                                    text-align: center;">
-
-                                    <input
-                                        type="checkbox"
-                                        checked="@song.IsSelected"
-                                        @onchange="(e) => OnSongSelectChanged(song, e)" />
-
+                            <!-- 🔴 WAJIB: @key memicu Re-render DOM secara instan -->
+                            <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
+                                <td style="padding: 2px 6px; text-align: center;">
+                                    <input type="checkbox"
+                                           checked="@song.IsSelected"
+                                           @onchange="(e) => OnSongSelectChanged(song, e)" />
                                 </td>
-
-                                <td style="
-                                    padding: 2px 6px;
-                                    font-weight: 500;
-                                    color: #fff;
-                                    white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
-                                    max-width: 300px;">
-
+                                <td style="padding: 2px 6px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;">
                                     @song.Title
-
                                 </td>
-
-                                <td style="
-                                    padding: 2px 6px;
-                                    color: #a0a5aa;
-                                    white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
-                                    max-width: 200px;">
-
+                                <td style="padding: 2px 6px; color: #a0a5aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">
                                     @song.Artist
-
                                 </td>
-
-                                <td style="
-                                    padding: 2px 6px;
-                                    text-align: center;">
-
-                                    <button
-                                        class="btn-nebula btn-secondary"
-                                        style="
-                                            padding: 1px 6px;
-                                            font-size: 0.68rem;
-                                            margin-right: 2px;"
-                                        @onclick="() => DownloadSingle(song)"
-                                        disabled="@isLoading">
-
+                                <td style="padding: 2px 6px; text-align: center;">
+                                    <button class="btn-nebula btn-secondary" style="padding: 1px 6px; font-size: 0.68rem; margin-right: 2px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">
                                         Unduh
-
                                     </button>
-
-                                    <button
-                                        class="btn-nebula btn-danger"
-                                        style="
-                                            padding: 1px 6px;
-                                            font-size: 0.68rem;"
-                                        @onclick="() => DeleteSingle(song.Id)"
-                                        disabled="@isLoading">
-
+                                    <button class="btn-nebula btn-danger" style="padding: 1px 6px; font-size: 0.68rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">
                                         Hapus
-
                                     </button>
-
                                 </td>
                             </tr>
                         }
                     }
-
                 </tbody>
             </table>
         </div>
