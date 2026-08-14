@@ -33,7 +33,7 @@
             <CollectionView x:Name="SongsCollectionView" SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame BackgroundColor="#141226" Stroke="#2a274c" StrokeShape="RoundRectangle8" Margin="16,4" Padding="10">
+                        <Border BackgroundColor="#141226" Stroke="#2a274c" StrokeShape="RoundRectangle8" Margin="16,4" Padding="10">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <!-- Cover Thumbnail (Album Art Lokal) -->
                                 <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="50" HeightRequest="50" Aspect="AspectFill" Margin="0,0,8,0"/>
