@@ -106,13 +106,16 @@ jobs:
           # Fresh restore
           dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android36.1
           
-          # Build + publish dalam satu invocation MSBuild.
-          # CATATAN: sebelumnya "dotnet build" lalu "dotnet publish --no-build" dijalankan
-          # terpisah. Pada .NET 10 MAUI, target publish Android tetap memicu ulang XAML
-          # source-generator meski --no-build, sehingga field/atribut yang sudah di-generate
-          # oleh "dotnet build" digandakan lagi oleh "dotnet publish" -> error CS0102/CS0579/
-          # CS0111/CS0229 (duplicate definition). Solusinya: publish langsung tanpa build terpisah.
+          # Build + publish dalam satu invocation MSBuild, dikunci ke SATU RID (arm64).
+          # CATATAN: publish Release Android default membangun untuk banyak arsitektur CPU
+          # sekaligus (multi-RID: arm, arm64, x86, x64). Setiap RID memicu ulang XAML
+          # source-generator ke file .sg.cs yang sama di obj/, sehingga field/atribut yang
+          # sudah digenerate untuk RID pertama digandakan lagi oleh RID berikutnya ->
+          # error CS0102/CS0579/CS0111/CS0229 (duplicate definition). Karena target minimum
+          # adalah Android 9 (API 28) dan perangkat modern nyaris semua arm64, publish
+          # dikunci ke android-arm64 saja untuk menghindari duplikasi source-gen ini.
           dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore \
+            -p:RuntimeIdentifier=android-arm64 \
             -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LASTFM_KEY="${LASTFM_API_KEY:-dummy_key}" \
