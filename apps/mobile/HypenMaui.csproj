@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Target Framework sesuai standar .NET 10 (diperlukan untuk kompilasi) -->
+		<!-- Target Framework sesuai standar .NET 10 (diperlukan untuk kompilasi SDK) -->
 		<TargetFrameworks>net10.0-android36.1</TargetFrameworks>
 		<OutputType>Exe</OutputType>
 		<RootNamespace>HypenMaui</RootNamespace>
@@ -10,7 +10,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 
-		<!-- Identity & Metadata App -->
+		<!-- Metadata & Identitas Aplikasi -->
 		<ApplicationTitle>Hypen Vault</ApplicationTitle>
 		<ApplicationId>com.hypen.vault</ApplicationId>
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
