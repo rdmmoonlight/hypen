@@ -7,17 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Packages Backend / API -->
+    <!-- Backend / Application -->
     <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="YoutubeExplode" Version="6.3.16" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
     <PackageReference Include="AngleSharp" Version="1.2.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
-
-    <!-- Packages Blazor WebAssembly -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0-*" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0-*" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.0-*" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
