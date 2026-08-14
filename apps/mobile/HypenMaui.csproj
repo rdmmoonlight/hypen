@@ -18,6 +18,11 @@
 		<!-- App Version -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
+
+		<!-- XAML Compilation Fix -->
+		<EnableMauiXamlCompilation>true</EnableMauiXamlCompilation>
+		<MauiEnableSingleProjectBuild>true</MauiEnableSingleProjectBuild>
+		<SkipValidateMauiManifest>true</SkipValidateMauiManifest>
 	</PropertyGroup>
 
 	<!-- ==================================================== -->
