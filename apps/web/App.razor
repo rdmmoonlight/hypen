@@ -1,3 +1,4 @@
+@using Microsoft.AspNetCore.Components.Web
 @using Hypen.Web.Layout
 
 <!DOCTYPE html>
@@ -27,42 +28,14 @@
     <!-- Theme -->
     <link rel="stylesheet" href="/theme.css?v=9.0" />
 
+    <!-- Blazor Head -->
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
 
-    <Router
-        AppAssembly="@typeof(App).Assembly"
-        @rendermode="InteractiveServer">
-
-        <Found Context="routeData">
-
-            <RouteView
-                RouteData="@routeData"
-                DefaultLayout="@typeof(MainLayout)" />
-
-            <FocusOnNavigate
-                RouteData="@routeData"
-                Selector="h1" />
-
-        </Found>
-
-        <NotFound>
-
-            <PageTitle>Not found</PageTitle>
-
-            <LayoutView Type="@typeof(MainLayout)">
-                <p
-                    role="alert"
-                    style="padding: 20px; color: var(--text-secondary);">
-                    Maaf, halaman tidak ditemukan.
-                </p>
-            </LayoutView>
-
-        </NotFound>
-
-    </Router>
+    <!-- Blazor Routes -->
+    <Routes @rendermode="InteractiveServer" />
 
     <!-- Blazor Web -->
     <script src="_framework/blazor.web.js"></script>
