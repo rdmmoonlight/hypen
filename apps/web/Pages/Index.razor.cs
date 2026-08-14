@@ -12,7 +12,7 @@ public partial class Index
     [Inject] protected IJSRuntime JS { get; set; } = default!;
     [Inject] protected NavigationManager Navigation { get; set; } = default!;
 
-    protected List<SongModel> songs = [];
+    protected List<CloudSongModel> songs = [];
     protected string ytUrl = "";
     protected string playlistUrl = "";
     protected string searchQuery = "";
@@ -20,7 +20,7 @@ public partial class Index
     protected bool isError;
     protected bool isLoading;
 
-    protected IEnumerable<SongModel> FilteredSongs =>
+    protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
             : songs.Where(s => s.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
@@ -49,10 +49,6 @@ public partial class Index
             isLoading = false;
         }
     }
-
-    // ------------------------------------------------------------
-    // CONVERTER & EXTRACTOR METHODS
-    // ------------------------------------------------------------
 
     protected async Task ConvertVideo()
     {
@@ -116,11 +112,7 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // DOWNLOADER METHODS
-    // ------------------------------------------------------------
-
-    protected async Task DownloadSingle(SongModel song)
+    protected async Task DownloadSingle(CloudSongModel song)
     {
         try
         {
@@ -144,15 +136,11 @@ public partial class Index
             var song = selected[i];
             SetStatus($"Mengunduh ({i + 1}/{selected.Count}): {song.Title}...");
             await DownloadSingle(song);
-            await Task.Delay(500); // Mencegah pemblokiran unduhan browser bersamaan
+            await Task.Delay(500);
         }
 
         SetStatus($"Selesai mengunduh {selected.Count} lagu!");
     }
-
-    // ------------------------------------------------------------
-    // MANAGEMENT / MAINTENANCE METHODS
-    // ------------------------------------------------------------
 
     protected async Task DeleteSingle(int id)
     {
