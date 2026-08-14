@@ -9,6 +9,8 @@ public class LocalSong
     public long Id { get; set; }
     public string Title { get; set; } = "";
     public string Artist { get; set; } = "";
+    public string Album { get; set; } = "";
+    public string Year { get; set; } = "";
     public string AlbumArtUri { get; set; } = "";
     public string ContentUri { get; set; } = "";
     public long DurationMs { get; set; }
@@ -31,7 +33,9 @@ public static class LocalMusicService
             MediaStore.Audio.Media.InterfaceConsts.Id,
             MediaStore.Audio.Media.InterfaceConsts.Title,
             MediaStore.Audio.Media.InterfaceConsts.Artist,
+            MediaStore.Audio.Media.InterfaceConsts.Album,
             MediaStore.Audio.Media.InterfaceConsts.AlbumId,
+            MediaStore.Audio.Media.InterfaceConsts.Year,
             MediaStore.Audio.Media.InterfaceConsts.Duration
         };
 
@@ -44,7 +48,9 @@ public static class LocalMusicService
         int idCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Id);
         int titleCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Title);
         int artistCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Artist);
+        int albumCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Album);
         int albumIdCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.AlbumId);
+        int yearCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Year);
         int durationCol = cursor.GetColumnIndexOrThrow(MediaStore.Audio.Media.InterfaceConsts.Duration);
 
         while (cursor.MoveToNext())
@@ -52,7 +58,9 @@ public static class LocalMusicService
             long id = cursor.GetLong(idCol);
             string title = cursor.GetString(titleCol) ?? "Unknown Title";
             string artist = cursor.GetString(artistCol) ?? "Unknown Artist";
+            string album = cursor.GetString(albumCol) ?? "";
             long albumId = cursor.GetLong(albumIdCol);
+            int year = cursor.GetInt(yearCol);
             long duration = cursor.GetLong(durationCol);
 
             var contentUri = AndroidUri.WithAppendedPath(collection, id.ToString());
@@ -64,6 +72,8 @@ public static class LocalMusicService
                 Id = id,
                 Title = title,
                 Artist = artist,
+                Album = album,
+                Year = year > 0 ? year.ToString() : "",
                 ContentUri = contentUri?.ToString() ?? "",
                 AlbumArtUri = albumArtUri?.ToString() ?? "",
                 DurationMs = duration

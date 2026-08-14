@@ -12,25 +12,38 @@ public class TeraBoxService
 {
     private readonly HttpClient _httpClient = new();
 
-    public string? Nduid
+    private const string NduidStoreKey = "TeraBoxNduid";
+    private string? _nduidCache;
+
+    // Cookie sesi TeraBox sekarang lewat SecureStorage (Android Keystore), bukan Preferences plaintext.
+    public async Task<string?> GetNduidAsync()
     {
-        get => Preferences.Default.Get<string?>("TeraBoxNduid", null);
-        set => Preferences.Default.Set("TeraBoxNduid", value);
+        if (_nduidCache != null) return _nduidCache;
+        _nduidCache = await SecureTokenStore.GetAsync(NduidStoreKey);
+        return _nduidCache;
     }
 
-    public bool IsAuthenticated => !string.IsNullOrEmpty(Nduid);
+    public async Task<bool> IsAuthenticatedAsync() => !string.IsNullOrEmpty(await GetNduidAsync());
+
+    public void ForgetSession()
+    {
+        _nduidCache = null;
+        SecureTokenStore.Remove(NduidStoreKey);
+    }
 
     // 1. Simpan Token/Cookie TeraBox dari Input Pengguna
-    public void SaveSessionToken(string nduid)
+    public async Task SaveSessionTokenAsync(string nduid)
     {
-        Nduid = nduid;
+        _nduidCache = nduid;
+        await SecureTokenStore.SetAsync(NduidStoreKey, nduid);
     }
 
     // 2. Fetch Audio Files dari TeraBox Vault
     public async Task<List<CloudSongModel>> FetchAudioFilesAsync()
     {
         var songs = new List<CloudSongModel>();
-        if (!IsAuthenticated) return songs;
+        var nduid = await GetNduidAsync();
+        if (string.IsNullOrEmpty(nduid)) return songs;
 
         try
         {
@@ -38,7 +51,7 @@ public class TeraBoxService
             string url = $"https://www.terabox.com/api/list?dir=/&jsToken=FETCH&app_id=250528&web=1";
             
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Cookie", $"ndus={Nduid}"); // Inject Session Token TeraBox
+            request.Headers.Add("Cookie", $"ndus={nduid}"); // Inject Session Token TeraBox
 
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode) return songs;

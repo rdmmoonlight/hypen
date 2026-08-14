@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HypenMaui.Pages.NowPlaying.NowPlayingPage"
+             Shell.NavBarIsVisible="False"
+             Shell.PresentationMode="ModalAnimated"
+             BackgroundColor="#0b0914">
+
+    <Grid>
+
+        <!-- Blurred-style immersive background: cover art di-stretch penuh, diredupkan +
+             gradient gelap di atasnya. (Bukan gaussian blur asli — supaya tidak menambah
+             dependency native tambahan — tapi efek "premium/immersive"-nya setara.) -->
+        <Image x:Name="BackgroundCover" Aspect="AspectFill" Opacity="0.30" />
+        <BoxView BackgroundColor="#0b0914" Opacity="0.55" />
+        <Grid>
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#000000" Offset="0.0" />
+                    <GradientStop Color="Transparent" Offset="0.35" />
+                    <GradientStop Color="Transparent" Offset="0.75" />
+                    <GradientStop Color="#0b0914" Offset="1.0" />
+                </LinearGradientBrush>
+            </Grid.Background>
+        </Grid>
+
+        <!-- Konten utama -->
+        <Grid RowDefinitions="Auto, *, Auto, Auto, Auto, Auto, Auto" Padding="20,16,20,24" RowSpacing="16">
+
+            <Grid.GestureRecognizers>
+                <SwipeGestureRecognizer Direction="Down" Swiped="OnSwipeDownMinimize" />
+            </Grid.GestureRecognizers>
+
+            <!-- Top bar: minimize + judul kecil + tombol Up Next -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Text="⌄" FontSize="26" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnMinimizeClicked" WidthRequest="44" />
+                <Label Grid.Column="1" Text="MEMUTAR DARI LIBRARY" TextColor="#8A5CF5" FontSize="11"
+                       FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" />
+                <Button Grid.Column="2" Text="☰" FontSize="20" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnQueueToggleClicked" WidthRequest="44" />
+            </Grid>
+
+            <!-- Album art besar + gestur swipe kiri/kanan untuk next/prev -->
+            <Grid Grid.Row="1" VerticalOptions="Center">
+                <Grid.GestureRecognizers>
+                    <SwipeGestureRecognizer Direction="Left" Swiped="OnSwipeNext" />
+                    <SwipeGestureRecognizer Direction="Right" Swiped="OnSwipePrevious" />
+                </Grid.GestureRecognizers>
+
+                <Frame x:Name="CoverFrame" Padding="0" CornerRadius="18" HasShadow="True" BorderColor="Transparent"
+                       BackgroundColor="#141226" HorizontalOptions="Center" WidthRequest="300" HeightRequest="300">
+                    <Image x:Name="CoverImage" Aspect="AspectFill" />
+                </Frame>
+            </Grid>
+
+            <!-- Metadata -->
+            <VerticalStackLayout Grid.Row="2" Spacing="4">
+                <Label x:Name="TitleLabel" Text="No track selected" TextColor="White" FontSize="22"
+                       FontAttributes="Bold" HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                <Label x:Name="ArtistLabel" Text="" TextColor="#c7c9db" FontSize="15"
+                       HorizontalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                <Label x:Name="TechnicalLabel" Text="" TextColor="#6c6c80" FontSize="12"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <!-- Progress bar custom + waktu -->
+            <VerticalStackLayout Grid.Row="3" Spacing="2">
+                <Slider x:Name="ProgressSlider" Minimum="0" Maximum="1" ValueChanged="OnProgressDragging"
+                        DragStarted="OnProgressDragStarted" DragCompleted="OnProgressDragCompleted"
+                        MinimumTrackColor="#4cc9f0" MaximumTrackColor="#2a274c" ThumbColor="#4cc9f0" />
+                <Grid ColumnDefinitions="*,*">
+                    <Label Grid.Column="0" x:Name="PositionLabel" Text="0:00" TextColor="#a0a5c0" FontSize="11" />
+                    <Label Grid.Column="1" x:Name="DurationLabel" Text="0:00" TextColor="#a0a5c0" FontSize="11"
+                           HorizontalTextAlignment="End" />
+                </Grid>
+            </VerticalStackLayout>
+
+            <!-- Kontrol utama: shuffle - prev - play/pause - next - repeat -->
+            <Grid Grid.Row="4" ColumnDefinitions="*,*,Auto,*,*" VerticalOptions="Center">
+                <Button Grid.Column="0" x:Name="ShuffleButton" Text="🔀" FontSize="18" BackgroundColor="Transparent"
+                        TextColor="#6c6c80" Clicked="OnShuffleClicked" />
+                <Button Grid.Column="1" Text="⏮" FontSize="26" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnPreviousClicked" />
+                <Button Grid.Column="2" x:Name="PlayPauseButton" Text="▶" FontSize="30" BackgroundColor="#4cc9f0"
+                        TextColor="#0b0914" CornerRadius="36" WidthRequest="72" HeightRequest="72"
+                        Clicked="OnPlayPauseClicked" />
+                <Button Grid.Column="3" Text="⏭" FontSize="26" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnNextClicked" />
+                <Button Grid.Column="4" x:Name="RepeatButton" Text="🔁" FontSize="18" BackgroundColor="Transparent"
+                        TextColor="#6c6c80" Clicked="OnRepeatClicked" />
+            </Grid>
+
+            <!-- Volume -->
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Label Grid.Column="0" Text="🔈" TextColor="#6c6c80" FontSize="14" VerticalOptions="Center" />
+                <Slider Grid.Column="1" x:Name="VolumeSlider" Minimum="0" Maximum="1" Value="1"
+                        ValueChanged="OnVolumeChanged" MinimumTrackColor="#8A5CF5" MaximumTrackColor="#2a274c"
+                        ThumbColor="#8A5CF5" />
+                <Label Grid.Column="2" Text="🔊" TextColor="#6c6c80" FontSize="14" VerticalOptions="Center" />
+            </Grid>
+
+            <!-- Baris sekunder: favorit, lirik, sleep timer -->
+            <Grid Grid.Row="6" ColumnDefinitions="*,*,*">
+                <Button Grid.Column="0" x:Name="FavoriteButton" Text="♡ Favorit" FontSize="13"
+                        BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnFavoriteClicked" />
+                <Button Grid.Column="1" x:Name="LyricsButton" Text="Lirik" FontSize="13"
+                        BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnLyricsToggleClicked" />
+                <Button Grid.Column="2" x:Name="SleepTimerButton" Text="⏰ Sleep" FontSize="13"
+                        BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnSleepTimerClicked" />
+            </Grid>
+        </Grid>
+
+        <!-- Panel Up Next (queue) — overlay, disembunyikan default -->
+        <Frame x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" CornerRadius="20"
+               Padding="16" VerticalOptions="End" HeightRequest="380">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                    <Label Grid.Column="0" Text="Up Next" TextColor="White" FontAttributes="Bold" FontSize="16" />
+                    <Button Grid.Column="1" Text="✕" BackgroundColor="Transparent" TextColor="#a0a5c0"
+                            Clicked="OnQueueToggleClicked" WidthRequest="36" />
+                </Grid>
+                <CollectionView Grid.Row="1" x:Name="QueueCollectionView" SelectionMode="None" Margin="0,8,0,0">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*" Padding="0,6">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnQueueItemTapped" CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="38" HeightRequest="38"
+                                       Aspect="AspectFill" Margin="0,0,10,0" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" TextColor="White" FontSize="13" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Artist}" TextColor="#a0a5c0" FontSize="11" LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Frame>
+
+        <!-- Panel Lirik — overlay, disembunyikan default -->
+        <Frame x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" CornerRadius="20"
+               Padding="16" VerticalOptions="End" HeightRequest="380">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                    <Label Grid.Column="0" Text="Lirik" TextColor="White" FontAttributes="Bold" FontSize="16" />
+                    <Button Grid.Column="1" Text="✕" BackgroundColor="Transparent" TextColor="#a0a5c0"
+                            Clicked="OnLyricsToggleClicked" WidthRequest="36" />
+                </Grid>
+                <CollectionView Grid.Row="1" x:Name="LyricsCollectionView" SelectionMode="None" Margin="0,8,0,0">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Label Text="{Binding Text}" TextColor="{Binding LineColor}" FontSize="15"
+                                   Padding="0,6" HorizontalTextAlignment="Center" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Button Grid.Row="1" x:Name="OpenGeniusButton" IsVisible="False" Text="Buka lirik lengkap di Genius"
+                        VerticalOptions="End" BackgroundColor="#8A5CF5" TextColor="White"
+                        Clicked="OnOpenGeniusClicked" />
+            </Grid>
+        </Frame>
+    </Grid>
+</ContentPage>

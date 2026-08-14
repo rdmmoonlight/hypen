@@ -18,20 +18,20 @@ public partial class SettingsPage : ContentPage
     {
         InitializeComponent();
         AutoUpdateSwitch.IsToggled = Preferences.Default.Get("AutoUpdateEnabled", true);
-        UpdateAllStatusUI();
+        _ = UpdateAllStatusUIAsync();
     }
 
-    private void UpdateAllStatusUI()
+    private async Task UpdateAllStatusUIAsync()
     {
-        UpdateLastFmStatusUI();
-        UpdateGoogleDriveStatusUI();
-        UpdateTeraBoxStatusUI();
+        await UpdateLastFmStatusUIAsync();
+        await UpdateGoogleDriveStatusUIAsync();
+        await UpdateTeraBoxStatusUIAsync();
     }
 
     // --- LAST.FM LOGIC ---
-    private void UpdateLastFmStatusUI()
+    private async Task UpdateLastFmStatusUIAsync()
     {
-        if (_lastFmService.IsAuthenticated)
+        if (await _lastFmService.IsAuthenticatedAsync())
         {
             LastFmStatusLabel.Text = "Status: Terhubung ke Last.fm ✅";
             LastFmStatusLabel.TextColor = Color.Parse("#4CC9F0");
@@ -51,10 +51,10 @@ public partial class SettingsPage : ContentPage
     {
         try
         {
-            if (_lastFmService.IsAuthenticated)
+            if (await _lastFmService.IsAuthenticatedAsync())
             {
-                Preferences.Default.Remove("LastFmSessionKey");
-                UpdateLastFmStatusUI();
+                _lastFmService.ForgetSession();
+                await UpdateLastFmStatusUIAsync();
                 await DisplayAlertAsync("Info", "Koneksi Last.fm berhasil diputuskan.", "OK");
                 return;
             }
@@ -65,11 +65,11 @@ public partial class SettingsPage : ContentPage
             if (string.IsNullOrEmpty(token))
             {
                 await DisplayAlertAsync("Error", "Gagal menghubungi server Last.fm.", "OK");
-                UpdateLastFmStatusUI();
+                await UpdateLastFmStatusUIAsync();
                 return;
             }
 
-            string authUrl = $"https://www.last.fm/api/auth/?api_key={Preferences.Default.Get("LastFmApiKey", "")}&token={token}";
+            string authUrl = $"https://www.last.fm/api/auth/?api_key={_lastFmService.PublicApiKey}&token={token}";
             await Launcher.Default.OpenAsync(new Uri(authUrl));
 
             bool confirm = await DisplayAlertAsync("Konfirmasi Otorisasi", 
@@ -95,14 +95,14 @@ public partial class SettingsPage : ContentPage
         }
         finally
         {
-            UpdateLastFmStatusUI();
+            await UpdateLastFmStatusUIAsync();
         }
     }
 
     // --- GOOGLE DRIVE LOGIC ---
-    private void UpdateGoogleDriveStatusUI()
+    private async Task UpdateGoogleDriveStatusUIAsync()
     {
-        if (_gDriveService.IsAuthenticated)
+        if (await _gDriveService.IsAuthenticatedAsync())
         {
             GoogleDriveStatusLabel.Text = "Status: Terhubung ke Google Drive Vault ✅";
             GoogleDriveStatusLabel.TextColor = Color.Parse("#4CC9F0");
@@ -122,10 +122,10 @@ public partial class SettingsPage : ContentPage
     {
         try
         {
-            if (_gDriveService.IsAuthenticated)
+            if (await _gDriveService.IsAuthenticatedAsync())
             {
-                Preferences.Default.Remove("GDriveAccessToken");
-                UpdateGoogleDriveStatusUI();
+                _gDriveService.ForgetSession();
+                await UpdateGoogleDriveStatusUIAsync();
                 await DisplayAlertAsync("Info", "Koneksi Google Drive berhasil diputuskan.", "OK");
                 return;
             }
@@ -147,14 +147,14 @@ public partial class SettingsPage : ContentPage
         }
         finally
         {
-            UpdateGoogleDriveStatusUI();
+            await UpdateGoogleDriveStatusUIAsync();
         }
     }
 
     // --- TERABOX LOGIC ---
-    private void UpdateTeraBoxStatusUI()
+    private async Task UpdateTeraBoxStatusUIAsync()
     {
-        if (_teraBoxService.IsAuthenticated)
+        if (await _teraBoxService.IsAuthenticatedAsync())
         {
             TeraBoxStatusLabel.Text = "Status: Terhubung ke TeraBox Vault ✅";
             TeraBoxStatusLabel.TextColor = Color.Parse("#4CC9F0");
@@ -174,10 +174,10 @@ public partial class SettingsPage : ContentPage
     {
         try
         {
-            if (_teraBoxService.IsAuthenticated)
+            if (await _teraBoxService.IsAuthenticatedAsync())
             {
-                Preferences.Default.Remove("TeraBoxNduid");
-                UpdateTeraBoxStatusUI();
+                _teraBoxService.ForgetSession();
+                await UpdateTeraBoxStatusUIAsync();
                 await DisplayAlertAsync("Info", "Koneksi TeraBox berhasil diputuskan.", "OK");
                 return;
             }
@@ -187,7 +187,7 @@ public partial class SettingsPage : ContentPage
 
             if (!string.IsNullOrWhiteSpace(token))
             {
-                _teraBoxService.SaveSessionToken(token.Trim());
+                await _teraBoxService.SaveSessionTokenAsync(token.Trim());
                 await DisplayAlertAsync("Sukses", "Token TeraBox Vault berhasil disimpan!", "OK");
             }
         }
@@ -198,7 +198,7 @@ public partial class SettingsPage : ContentPage
         }
         finally
         {
-            UpdateTeraBoxStatusUI();
+            await UpdateTeraBoxStatusUIAsync();
         }
     }
 

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
+using HypenMaui.Models;
+using HypenMaui.Pages.NowPlaying;
 using HypenMaui.Services;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Pages.Home;
@@ -10,14 +12,59 @@ public partial class MainPage : ContentPage
     private List<SongModel> _allSongs = [];
     public ObservableCollection<SongModel> DisplayedSongs { get; set; } = [];
 
-    // Injeksi Service Last.fm
-    private readonly LastFmService _lastFmService = new();
+    private readonly PlayerService _player = PlayerService.Current;
 
     public MainPage()
     {
         InitializeComponent();
         SongsCollectionView.ItemsSource = DisplayedSongs;
+
+        // MediaElement fisik hidup di halaman ini (tab default, persisten selama app hidup)
+        // dan ditempel sekali ke PlayerService singleton.
+        _player.AttachPlayer(AudioPlayer);
+        _player.PropertyChanged += OnPlayerStateChanged;
+        RefreshMiniBar();
+
         _ = LoadLibraryAsync();
+    }
+
+    private void OnPlayerStateChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PlayerService.CurrentSong) or nameof(PlayerService.IsPlaying))
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshMiniBar);
+        }
+    }
+
+    private void RefreshMiniBar()
+    {
+        var song = _player.CurrentSong;
+        if (song == null)
+        {
+            MiniPlayerBar.IsVisible = false;
+            return;
+        }
+
+        MiniPlayerBar.IsVisible = true;
+        MiniTitle.Text = song.Title;
+        MiniArtist.Text = song.Artist;
+
+        string? coverSource = !string.IsNullOrWhiteSpace(song.EnrichedCoverPath) ? song.EnrichedCoverPath
+                             : !string.IsNullOrWhiteSpace(song.Cover) ? song.Cover
+                             : null;
+
+        if (coverSource != null)
+        {
+            MiniCover.Source = coverSource;
+            MiniCover.BackgroundColor = Colors.Transparent;
+        }
+        else
+        {
+            MiniCover.Source = null;
+            MiniCover.BackgroundColor = PlaceholderArt.ColorFor(song.Artist, song.Title);
+        }
+
+        MiniPlayPauseButton.Text = _player.IsPlaying ? "⏸" : "▶";
     }
 
     // Memindai file musik yang sudah ada di penyimpanan perangkat (offline, tanpa backend)
@@ -44,8 +91,12 @@ public partial class MainPage : ContentPage
                 Id = s.Id,
                 Title = s.Title,
                 Artist = s.Artist,
+                Album = s.Album,
+                Year = s.Year,
                 Cover = s.AlbumArtUri,
-                AudioUrl = s.ContentUri
+                AudioUrl = s.ContentUri,
+                DurationMs = s.DurationMs,
+                IsFavorite = _player.IsFavorite(s.Id)
             }).ToList();
 
             FilterAndRenderSongs();
@@ -83,41 +134,19 @@ public partial class MainPage : ContentPage
     // Rescan penuh library lokal
     private async void OnRescanClicked(object sender, EventArgs e) => await LoadLibraryAsync();
 
-    // Playback Audio Lokal + Auto Scrobble ke Last.fm
-    private void OnPlaySingleClicked(object sender, EventArgs e)
+    // Play lagu yang di-tap -> queue-nya adalah seluruh list yang sedang ditampilkan
+    // (hasil pencarian ikut jadi antrian, sesuai konteks yang dilihat pengguna).
+    private async void OnPlaySingleClicked(object sender, EventArgs e)
     {
         if (sender is Button btn && btn.CommandParameter is SongModel song)
         {
-            NowPlayingLabel.Text = $"PLAYING: {song.Title} - {song.Artist}";
-            AudioPlayer.Source = CommunityToolkit.Maui.Views.MediaSource.FromUri(song.AudioUrl);
-            AudioPlayer.Play();
-
-            // Eksekusi Last.fm Scrobbling secara asynchronous tanpa mengganggu UI
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    // Update status "Now Playing" di akun Last.fm
-                    await _lastFmService.UpdateNowPlayingAsync(song.Artist, song.Title);
-
-                    // Kirim riwayat scrobble
-                    await _lastFmService.ScrobbleTrackAsync(song.Artist, song.Title);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Last.fm Scrobble Error] {ex.Message}");
-                }
-            });
+            var startIndex = DisplayedSongs.IndexOf(song);
+            _player.SetQueueAndPlay(DisplayedSongs, startIndex < 0 ? 0 : startIndex);
+            await Shell.Current.GoToAsync(nameof(NowPlayingPage));
         }
     }
 
-}
-
-public class SongModel
-{
-    public long Id { get; set; }
-    public string Title { get; set; } = "";
-    public string Artist { get; set; } = "";
-    public string Cover { get; set; } = "";
-    public string AudioUrl { get; set; } = "";
+    private async void OnMiniBarTapped(object sender, TappedEventArgs e) => await Shell.Current.GoToAsync(nameof(NowPlayingPage));
+    private void OnMiniPlayPauseClicked(object sender, EventArgs e) => _player.TogglePlayPause();
+    private void OnMiniNextClicked(object sender, EventArgs e) => _player.Next();
 }

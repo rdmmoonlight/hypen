@@ -9,6 +9,9 @@ using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Services;
 
+/// <summary>Hasil ringkas dari Last.fm track.getInfo — dipakai oleh MetadataEnrichmentService.</summary>
+public record LastFmTrackInfo(string Album, string? CoverUrl, long DurationMs);
+
 public class LastFmService
 {
     // Mengambil nilai variabel dari MSBuild Constants / Environment Variable
@@ -23,13 +26,36 @@ public class LastFmService
     private const string API_URL = "https://ws.audioscrobbler.com/2.0/";
     private readonly HttpClient _httpClient = new();
 
-    public string? SessionKey
+    private const string SessionKeyStoreKey = "LastFmSessionKey";
+    private string? _sessionKeyCache;
+
+    /// <summary>API key publik Last.fm — aman ditampilkan (bukan secret), dipakai untuk build auth URL.</summary>
+    public string PublicApiKey => API_KEY;
+
+    // Session key sekarang lewat SecureStorage (Android Keystore), bukan Preferences plaintext.
+    public async Task<string?> GetSessionKeyAsync()
     {
-        get => Preferences.Default.Get<string?>("LastFmSessionKey", null);
-        private set => Preferences.Default.Set("LastFmSessionKey", value);
+        if (_sessionKeyCache != null) return _sessionKeyCache;
+        _sessionKeyCache = await SecureTokenStore.GetAsync(SessionKeyStoreKey);
+        return _sessionKeyCache;
     }
 
-    public bool IsAuthenticated => !string.IsNullOrEmpty(SessionKey);
+    private async Task SetSessionKeyAsync(string? value)
+    {
+        _sessionKeyCache = value;
+        if (string.IsNullOrEmpty(value))
+            SecureTokenStore.Remove(SessionKeyStoreKey);
+        else
+            await SecureTokenStore.SetAsync(SessionKeyStoreKey, value);
+    }
+
+    public void ForgetSession()
+    {
+        _sessionKeyCache = null;
+        SecureTokenStore.Remove(SessionKeyStoreKey);
+    }
+
+    public async Task<bool> IsAuthenticatedAsync() => !string.IsNullOrEmpty(await GetSessionKeyAsync());
 
     // 1. Mendapatkan Auth Token
     public async Task<string?> GetAuthTokenAsync()
@@ -74,7 +100,7 @@ public class LastFmService
         using var doc = JsonDocument.Parse(json);
         if (doc.RootElement.TryGetProperty("session", out var session) && session.TryGetProperty("key", out var key))
         {
-            SessionKey = key.GetString();
+            await SetSessionKeyAsync(key.GetString());
             return true;
         }
 
@@ -84,14 +110,15 @@ public class LastFmService
     // 3. Update Status "Now Playing"
     public async Task UpdateNowPlayingAsync(string artist, string track)
     {
-        if (!IsAuthenticated) return;
+        var sessionKey = await GetSessionKeyAsync();
+        if (string.IsNullOrEmpty(sessionKey)) return;
 
         var sigParams = new SortedDictionary<string, string>
         {
             { "api_key", API_KEY },
             { "artist", artist },
             { "method", "track.updateNowPlaying" },
-            { "sk", SessionKey! },
+            { "sk", sessionKey },
             { "track", track }
         };
 
@@ -104,7 +131,7 @@ public class LastFmService
             new KeyValuePair<string, string>("track", track),
             new KeyValuePair<string, string>("api_key", API_KEY),
             new KeyValuePair<string, string>("api_sig", apiSig),
-            new KeyValuePair<string, string>("sk", SessionKey!),
+            new KeyValuePair<string, string>("sk", sessionKey),
             new KeyValuePair<string, string>("format", "json")
         });
 
@@ -114,7 +141,8 @@ public class LastFmService
     // 4. Kirim Scrobble
     public async Task ScrobbleTrackAsync(string artist, string track)
     {
-        if (!IsAuthenticated) return;
+        var sessionKey = await GetSessionKeyAsync();
+        if (string.IsNullOrEmpty(sessionKey)) return;
 
         string timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
 
@@ -123,7 +151,7 @@ public class LastFmService
             { "api_key", API_KEY },
             { "artist", artist },
             { "method", "track.scrobble" },
-            { "sk", SessionKey! },
+            { "sk", sessionKey },
             { "timestamp", timestamp },
             { "track", track }
         };
@@ -138,11 +166,60 @@ public class LastFmService
             new KeyValuePair<string, string>("timestamp", timestamp),
             new KeyValuePair<string, string>("api_key", API_KEY),
             new KeyValuePair<string, string>("api_sig", apiSig),
-            new KeyValuePair<string, string>("sk", SessionKey!),
+            new KeyValuePair<string, string>("sk", sessionKey),
             new KeyValuePair<string, string>("format", "json")
         });
 
         await _httpClient.PostAsync(API_URL, content);
+    }
+
+    // 5. track.getInfo — dipakai MetadataEnrichmentService sebagai sumber #1 (album, cover, durasi)
+    public async Task<LastFmTrackInfo?> GetTrackInfoAsync(string artist, string track)
+    {
+        try
+        {
+            string url = $"{API_URL}?method=track.getInfo&api_key={API_KEY}" +
+                         $"&artist={Uri.EscapeDataString(artist)}&track={Uri.EscapeDataString(track)}" +
+                         "&autocorrect=1&format=json";
+
+            var res = await _httpClient.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(res);
+
+            if (!doc.RootElement.TryGetProperty("track", out var trackEl)) return null;
+
+            string album = "";
+            string? coverUrl = null;
+
+            if (trackEl.TryGetProperty("album", out var albumEl))
+            {
+                album = albumEl.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? "" : "";
+
+                if (albumEl.TryGetProperty("image", out var imagesEl) && imagesEl.ValueKind == JsonValueKind.Array)
+                {
+                    // Last.fm mengembalikan beberapa ukuran; ambil yang terbesar ("extralarge"/"mega") di urutan terakhir.
+                    string? best = null;
+                    foreach (var img in imagesEl.EnumerateArray())
+                    {
+                        var text = img.TryGetProperty("#text", out var t) ? t.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(text)) best = text;
+                    }
+                    coverUrl = best;
+                }
+            }
+
+            long durationMs = 0;
+            if (trackEl.TryGetProperty("duration", out var durEl) && durEl.ValueKind == JsonValueKind.String
+                && long.TryParse(durEl.GetString(), out var durSec))
+            {
+                durationMs = durSec * 1000;
+            }
+
+            return new LastFmTrackInfo(album, coverUrl, durationMs);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string GenerateApiSignature(SortedDictionary<string, string> parameters, string secret)

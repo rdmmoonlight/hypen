@@ -21,13 +21,33 @@ public class GoogleDriveService
     private const string SCOPE = "https://www.googleapis.com/auth/drive.readonly";
     private readonly HttpClient _httpClient = new();
 
-    public string? AccessToken
+    private const string AccessTokenStoreKey = "GDriveAccessToken";
+    private string? _accessTokenCache;
+
+    // Access token sekarang lewat SecureStorage (Android Keystore), bukan Preferences plaintext.
+    public async Task<string?> GetAccessTokenAsync()
     {
-        get => Preferences.Default.Get<string?>("GDriveAccessToken", null);
-        private set => Preferences.Default.Set("GDriveAccessToken", value);
+        if (_accessTokenCache != null) return _accessTokenCache;
+        _accessTokenCache = await SecureTokenStore.GetAsync(AccessTokenStoreKey);
+        return _accessTokenCache;
     }
 
-    public bool IsAuthenticated => !string.IsNullOrEmpty(AccessToken);
+    private async Task SetAccessTokenAsync(string? value)
+    {
+        _accessTokenCache = value;
+        if (string.IsNullOrEmpty(value))
+            SecureTokenStore.Remove(AccessTokenStoreKey);
+        else
+            await SecureTokenStore.SetAsync(AccessTokenStoreKey, value);
+    }
+
+    public void ForgetSession()
+    {
+        _accessTokenCache = null;
+        SecureTokenStore.Remove(AccessTokenStoreKey);
+    }
+
+    public async Task<bool> IsAuthenticatedAsync() => !string.IsNullOrEmpty(await GetAccessTokenAsync());
 
     // 1. Authenticate / Login OAuth2
     public async Task<bool> AuthenticateAsync()
@@ -40,7 +60,7 @@ public class GoogleDriveService
             var result = await WebAuthenticator.Default.AuthenticateAsync(authUrl, callbackUrl);
             if (result.Properties.TryGetValue("access_token", out var token))
             {
-                AccessToken = token;
+                await SetAccessTokenAsync(token);
                 return true;
             }
             return false;
@@ -55,11 +75,12 @@ public class GoogleDriveService
     public async Task<List<CloudSongModel>> FetchAudioFilesAsync()
     {
         var songs = new List<CloudSongModel>();
-        if (!IsAuthenticated) return songs;
+        var accessToken = await GetAccessTokenAsync();
+        if (string.IsNullOrEmpty(accessToken)) return songs;
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             
             string query = Uri.EscapeDataString("mimeType contains 'audio/' and trashed = false");
             string url = $"https://www.googleapis.com/drive/v3/files?q={query}&fields=files(id,name,mimeType,size)";
@@ -79,7 +100,7 @@ public class GoogleDriveService
                         Id = id,
                         Title = System.IO.Path.GetFileNameWithoutExtension(name),
                         Artist = "Google Drive Vault",
-                        StreamUrl = $"https://www.googleapis.com/drive/v3/files/{id}?alt=media&access_token={AccessToken}",
+                        StreamUrl = $"https://www.googleapis.com/drive/v3/files/{id}?alt=media&access_token={accessToken}",
                         Provider = CloudProvider.GoogleDrive
                     });
                 }

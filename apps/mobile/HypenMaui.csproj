@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net10.0-android</TargetFrameworks>
+		<!-- targetSdkVersion dipatok eksplisit ke 35 (dalam rentang aman 33-35 yang disarankan Play Store) -->
+		<TargetFrameworks>net10.0-android35.0</TargetFrameworks>
 		<OutputType>Exe</OutputType>
 		<RootNamespace>HypenMaui</RootNamespace>
 		<UseMaui>true</UseMaui>
@@ -35,23 +36,20 @@
 	<PropertyGroup>		<!-- Target Android 9.0 (API 28) Minimum -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">28.0</SupportedOSPlatformVersion>
 
-		<!-- Injeksi Parameter Last.fm & Google Secrets dari GitHub Actions -->
-		<LastFmApiKey Condition="'$(LastFmApiKey)' == ''">LOCAL_DEV_KEY</LastFmApiKey>
-		<LastFmApiSecret Condition="'$(LastFmApiSecret)' == ''">LOCAL_DEV_SECRET</LastFmApiSecret>
-		<GoogleClientId Condition="'$(GoogleClientId)' == ''">LOCAL_GOOGLE_CLIENT_ID</GoogleClientId>
-		<GoogleClientSecret Condition="'$(GoogleClientSecret)' == ''">LOCAL_GOOGLE_CLIENT_SECRET</GoogleClientSecret>
+		<!--
+			CATATAN KEAMANAN: Last.fm API Key/Secret dan Google Client Id/Secret TIDAK LAGI
+			diinjeksikan sebagai AssemblyMetadata. AssemblyMetadata tersimpan sebagai string
+			plaintext di dalam DLL hasil build dan bisa diekstrak langsung dari APK release
+			(ildasm/strings/apktool) tanpa perlu root. Nilai compile-time (LASTFM_KEY,
+			GOOGLE_CLIENT_ID) tetap disuntik CI lewat DefineConstants seperti sebelumnya untuk
+			kebutuhan compile-time constant di service masing-masing; SEMUA token sesi milik
+			pengguna (session key, access token, cookie) sekarang wajib lewat SecureStorage
+			(lihat Services/SecureTokenStore.cs), bukan Preferences/AssemblyMetadata.
+		-->
 
 		<!-- Abaikan warning/error konflik batasan versi dependensi NuGet -->
 		<NoWarn>$(NoWarn);NU1605;NU1107;NU1608;NU1603;NU1701</NoWarn>
 	</PropertyGroup>
-
-	<!-- Injeksi Secret ke Assembly Metadata -->
-	<ItemGroup>
-		<AssemblyMetadata Include="LastFmApiKey" Value="$(LastFmApiKey)" />
-		<AssemblyMetadata Include="LastFmApiSecret" Value="$(LastFmApiSecret)" />
-		<AssemblyMetadata Include="GoogleClientId" Value="$(GoogleClientId)" />
-		<AssemblyMetadata Include="GoogleClientSecret" Value="$(GoogleClientSecret)" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<!-- 
