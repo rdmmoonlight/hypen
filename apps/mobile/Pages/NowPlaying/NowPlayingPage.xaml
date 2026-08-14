@@ -87,7 +87,7 @@
                         Clicked="OnPreviousClicked" HeightRequest="52" WidthRequest="52" />
                 
                 <Button Grid.Column="2" x:Name="PlayPauseButton" Text="󰐊" FontSize="30" BackgroundColor="#4cc9f0"
-                        TextColor="#0b0914" StrokeShape="RoundRectangle 36" WidthRequest="72" HeightRequest="72"
+                        TextColor="#0b0914" CornerRadius="36" WidthRequest="72" HeightRequest="72"
                         Clicked="OnPlayPauseClicked">
                     <Button.Shadow>
                         <Shadow Brush="#4cc9f0" Offset="0,4" Radius="12" Opacity="0.35" />
@@ -112,11 +112,11 @@
 
             <!-- Baris sekunder: favorit, lirik, sleep timer -->
             <Grid Grid.Row="6" ColumnDefinitions="*,*,*">
-                <Button Grid.Column="0" x:Name="FavoriteButton" Text="♡  Favorit" FontSize="13"
+                <Button Grid.Column="0" x:Name="FavoriteButton" Text="♡ Favorit" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnFavoriteClicked" />
-                <Button Grid.Column="1" x:Name="LyricsButton" Text="💬  Lirik" FontSize="13"
+                <Button Grid.Column="1" x:Name="LyricsButton" Text="💬 Lirik" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnLyricsToggleClicked" />
-                <Button Grid.Column="2" x:Name="SleepTimerButton" Text="󰔛  Sleep" FontSize="13"
+                <Button Grid.Column="2" x:Name="SleepTimerButton" Text="󰔛 Sleep" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnSleepTimerClicked" />
             </Grid>
         </Grid>
