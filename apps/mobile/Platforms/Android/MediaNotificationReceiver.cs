@@ -12,7 +12,7 @@ public class MediaNotificationReceiver : BroadcastReceiver
     {
         if (intent?.Action == "ACTION_FORCE_CLOSE")
         {
-            // 1. Hentikan pemutaran lagu
+            // 1. Hentikan pemutaran musik
             PlayerService.Current.Pause();
 
             // 2. Bersihkan notifikasi
@@ -21,7 +21,7 @@ public class MediaNotificationReceiver : BroadcastReceiver
                 manager.CancelAll();
             }
 
-            // 3. Force close / matikan proses aplikasi
+            // 3. Force Close / Matikan Proses Aplikasi
             System.Diagnostics.Process.GetCurrentProcess().Kill();
         }
     }
