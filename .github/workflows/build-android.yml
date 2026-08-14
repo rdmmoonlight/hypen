@@ -94,16 +94,24 @@ jobs:
             -p:LastFmApiSecret="${LASTFM_API_SECRET:-dummy_secret}" \
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}" \
-            -p:AndroidKeyStore="hypen-release.keystore" \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="apps/mobile/hypen-release.keystore" \
             -p:AndroidSigningKeyAlias="${ANDROID_KEY_ALIAS}" \
             -p:AndroidSigningStorePass="${ANDROID_KEYSTORE_PASSWORD}" \
             -p:AndroidSigningKeyPass="${ANDROID_KEY_PASSWORD}"
+
+      - name: Clean Up Keystore File
+        if: always()
+        run: |
+          if [ -f "apps/mobile/hypen-release.keystore" ]; then
+            rm -f apps/mobile/hypen-release.keystore
+          fi
 
       - name: Validate APK & Prepare Final Release Asset
         run: |
           mkdir -p release-assets
           
-          # Cari APK hasil build/publish dengan aman tanpa syntax error /dev/null
+          # Cari APK hasil build/publish dengan aman
           APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
             APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/dev/null | head -n 1)
