@@ -48,7 +48,7 @@
                     <SwipeGestureRecognizer Direction="Right" Swiped="OnSwipePrevious" />
                 </Grid.GestureRecognizers>
 
-                <Frame x:Name="CoverFrame" Padding="0" StrokeShape="RoundRectangle18" HasShadow="True" Stroke="Transparent"
+                <Border x:Name="CoverFrame" Padding="0" StrokeShape="RoundRectangle18" HasShadow="True" Stroke="Transparent"
                        BackgroundColor="#141226" HorizontalOptions="Center" WidthRequest="300" HeightRequest="300">
                     <Image x:Name="CoverImage" Aspect="AspectFill" />
                 </Border>
