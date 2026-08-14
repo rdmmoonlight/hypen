@@ -1,5 +1,4 @@
 @using Hypen.Web.Layout
-@using Microsoft.AspNetCore.Components.Web
 
 <!DOCTYPE html>
 <html lang="id">
@@ -25,7 +24,7 @@
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
         rel="stylesheet" />
 
-    <!-- Application Theme -->
+    <!-- Theme -->
     <link rel="stylesheet" href="/theme.css?v=9.0" />
     <link rel="stylesheet" href="Hypen.Web.styles.css" />
 
@@ -40,8 +39,7 @@
 
             <RouteView
                 RouteData="@routeData"
-                DefaultLayout="@typeof(MainLayout)"
-                @rendermode="RenderMode.InteractiveWebAssembly" />
+                DefaultLayout="@typeof(MainLayout)" />
 
             <FocusOnNavigate
                 RouteData="@routeData"
