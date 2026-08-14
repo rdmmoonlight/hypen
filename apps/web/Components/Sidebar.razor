@@ -1,0 +1,79 @@
+@namespace Hypen.Web.Components
+
+<aside style="width: 300px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+        <!-- Brand Title -->
+        <div style="margin-bottom: 25px;">
+            <h3 class="nebula-title" style="font-size: 1.4rem; color: #4cc9f0; margin-bottom: 4px;">Hypen Vault</h3>
+            <span style="font-size: 0.8rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Downloader Portal</span>
+        </div>
+
+        <!-- Single Video Convert Section -->
+        <div style="margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
+                Import Single Track
+            </label>
+            <input type="text" 
+                   value="@YtUrl" 
+                   @oninput="OnYtUrlChanged" 
+                   placeholder="Link video YouTube..." 
+                   disabled="@IsLoading" 
+                   style="width: 100%; padding: 8px 10px; margin-bottom: 10px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.85rem;" />
+            <button class="btn-nebula" 
+                    @onclick="OnConvertVideo" 
+                    disabled="@IsLoading" 
+                    style="width: 100%; padding: 8px;">
+                @(IsLoading ? "Memproses..." : "+ Extract Audio")
+            </button>
+        </div>
+
+        <!-- Playlist Convert Section -->
+        <div style="margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
+                Import YouTube Playlist
+            </label>
+            <input type="text" 
+                   value="@PlaylistUrl" 
+                   @oninput="OnPlaylistUrlChanged" 
+                   placeholder="Link playlist YouTube..." 
+                   disabled="@IsLoading" 
+                   style="width: 100%; padding: 8px 10px; margin-bottom: 10px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.85rem;" />
+            <button class="btn-nebula btn-secondary" 
+                    @onclick="OnConvertPlaylist" 
+                    disabled="@IsLoading" 
+                    style="width: 100%; padding: 8px;">
+                @(IsLoading ? "Memproses..." : "+ Import Playlist")
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Footer -->
+    <div style="padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <p style="font-size: 0.78rem; color: #c5c6c7; line-height: 1.4; margin: 0;">
+            💡 Audio yang diekstrak tersimpan di database Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
+        </p>
+    </div>
+</aside>
+
+@code {
+    [Parameter] public string YtUrl { get; set; } = "";
+    [Parameter] public EventCallback<string> YtUrlChanged { get; set; }
+
+    [Parameter] public string PlaylistUrl { get; set; } = "";
+    [Parameter] public EventCallback<string> PlaylistUrlChanged { get; set; }
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public EventCallback OnConvertVideo { get; set; }
+    [Parameter] public EventCallback OnConvertPlaylist { get; set; }
+
+    private async Task OnYtUrlChanged(ChangeEventArgs e)
+    {
+        await YtUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    }
+
+    private async Task OnPlaylistUrlChanged(ChangeEventArgs e)
+    {
+        await PlaylistUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    }
+}
