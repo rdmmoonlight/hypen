@@ -61,7 +61,13 @@ else
 }
 
 app.UseHttpsRedirection();
+
+// ------------------------------------------------------------
+// MIDDLEWARE FILE STATIS (Memastikan CSS theme.css terlayani)
+// ------------------------------------------------------------
 app.UseStaticFiles();
+app.MapStaticAssets(); // Optimalisasi pengiriman statis .NET 9/10
+
 app.UseAntiforgery();
 
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
@@ -176,7 +182,31 @@ app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req)
 });
 
 // ------------------------------------------------------------
-// 4.2 ENDPOINT CONVERT: SINGLE CONVERT (TIDAK DIUBAH / TERJAGA)
+// 4.2 ENDPOINT PROXY DOWNLOAD (SUPORT FOR SONGSERVICE)
+// ------------------------------------------------------------
+app.MapGet("/api/download", async (string url, HttpContext context) =>
+{
+    if (string.IsNullOrWhiteSpace(url)) return Results.BadRequest("URL parameter is required.");
+
+    try
+    {
+        var ytdlpResult = await ExtractWithYtDlpAsync(url, logger);
+        if (string.IsNullOrWhiteSpace(ytdlpResult.AudioUrl))
+        {
+            return Results.Problem("Gagal mengekstrak stream URL.", statusCode: 500);
+        }
+
+        return Results.Redirect(ytdlpResult.AudioUrl);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[DOWNLOAD PROXY] Failed to redirect stream");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// ------------------------------------------------------------
+// 4.3 ENDPOINT CONVERT: SINGLE CONVERT (TERJAGA)
 // ------------------------------------------------------------
 app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 {
@@ -244,7 +274,7 @@ app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 });
 
 // ------------------------------------------------------------
-// 4.3 ENDPOINT CONVERT: BATCH / MASS CONVERT (OPSIONAL)
+// 4.4 ENDPOINT CONVERT: BATCH / MASS CONVERT
 // ------------------------------------------------------------
 app.MapPost("/api/convert-ytdlp/batch", async ([FromBody] BatchConvertYtDlpRequest req) =>
 {
