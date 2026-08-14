@@ -43,9 +43,9 @@
 				  Color="#0b0914" 
 				  ForegroundScale="0.65" />
 		<MauiSplashScreen Include="Resources\Splash\splash.png" 
-					Color="#0b0914" 
-					BaseSize="512,512" 
-					Resize="true" />
+                  Color="#000000" 
+                  BaseSize="128,128" 
+                  Resize="true" />
 
 		<!-- Custom Assets & Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
