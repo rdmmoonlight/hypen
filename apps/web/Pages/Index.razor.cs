@@ -56,8 +56,22 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // TRIK ANTREAN UNTUH MASS DOWNLOAD (PER 10 LAGU)
+    // SELECT ALL FIX & MASS DOWNLOAD QUEUE (PER 10 LAGU)
     // ------------------------------------------------------------
+
+    protected void ToggleSelectAll(ChangeEventArgs e)
+    {
+        bool isChecked = (bool)(e.Value ?? false);
+        
+        // Centang lagu yang sedang tampil sesuai filter pencarian
+        foreach (var song in FilteredSongs)
+        {
+            song.IsSelected = isChecked;
+        }
+
+        // Paksa Blazor me-render ulang UI secara instan
+        StateHasChanged();
+    }
 
     protected async Task DownloadSelected()
     {
@@ -69,27 +83,25 @@ public partial class Index
         currentProcessedCount = 0;
         progressPercentage = 0;
 
-        const int chunkSize = 10; // Ukuran batch per 10 lagu
+        const int chunkSize = 10; // Batch per 10 lagu
         var chunks = selected.Chunk(chunkSize).ToList();
 
         for (int i = 0; i < chunks.Count; i++)
         {
             var currentBatch = chunks[i];
 
-            // Unduh item dalam batch saat ini satu per satu dengan jeda halus
             foreach (var song in currentBatch)
             {
                 currentProcessedCount++;
                 progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
 
                 SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
-                StateHasChanged(); // Update progress bar di UI
+                StateHasChanged();
 
                 await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                await Task.Delay(600); // Jeda antar lagu agar browser tidak memblokir download
+                await Task.Delay(600); // Jeda aman antar file
             }
 
-            // Jeda istirahat antar-batch per 10 lagu untuk memberi napas pada browser/server
             if (i < chunks.Count - 1)
             {
                 SetStatus($"Mengistirahatkan antrean batch ({i + 1}/{chunks.Count})... Istirahat 2 detik.");
@@ -204,12 +216,6 @@ public partial class Index
         {
             await LoadLibrary();
         }
-    }
-
-    protected void ToggleSelectAll(ChangeEventArgs e)
-    {
-        bool isChecked = (bool)(e.Value ?? false);
-        foreach (var song in songs) song.IsSelected = isChecked;
     }
 
     private void SetStatus(string msg, bool error = false)
