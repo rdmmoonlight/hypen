@@ -7,53 +7,80 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    
+
     <title>Hypen Vault Downloader</title>
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
+    <link
+        rel="icon"
+        type="image/png"
+        href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
+        rel="stylesheet">
 
-    <!-- CSS Utama Application & Theme (Mengarah ke wwwroot/theme.css) -->
+    <!-- Application Theme -->
     <link rel="stylesheet" href="/theme.css?v=9.0" />
     <link rel="stylesheet" href="Hypen.Web.styles.css" />
-    
+
     <HeadOutlet />
 </head>
 
 <body>
+
     <Router AppAssembly="@typeof(App).Assembly">
+
         <Found Context="routeData">
-            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+
+            <RouteView
+                RouteData="@routeData"
+                DefaultLayout="@typeof(MainLayout)"
+                @rendermode="InteractiveWebAssembly" />
+
+            <FocusOnNavigate
+                RouteData="@routeData"
+                Selector="h1" />
+
         </Found>
+
         <NotFound>
+
             <PageTitle>Not found</PageTitle>
+
             <LayoutView Type="@typeof(MainLayout)">
-                <p role="alert" style="padding: 20px; color: var(--text-secondary);">Maaf, halaman tidak ditemukan.</p>
+                <p
+                    role="alert"
+                    style="padding: 20px; color: var(--text-secondary);">
+                    Maaf, halaman tidak ditemukan.
+                </p>
             </LayoutView>
+
         </NotFound>
+
     </Router>
 
-    <!-- Script Blazor Web Engine (Wajib untuk .NET 8/9/10) -->
+    <!-- Blazor Web -->
     <script src="_framework/blazor.web.js"></script>
-    
-    <!-- Script JS Interop Download -->
+
+    <!-- JS Interop Download -->
     <script>
         window.triggerFileDownload = (url, fileName) => {
             const anchorElement = document.createElement('a');
+
             anchorElement.href = url;
             anchorElement.download = fileName || '';
             anchorElement.target = '_blank';
+
             document.body.appendChild(anchorElement);
             anchorElement.click();
             document.body.removeChild(anchorElement);
-        }
+        };
     </script>
+
 </body>
 
 </html>
