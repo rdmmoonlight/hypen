@@ -40,8 +40,6 @@ builder.Services.AddScoped(sp =>
 });
 
 builder.Services.AddScoped<ISongService, SongService>();
-builder.Services.AddScoped<LastFmService>();
-builder.Services.AddScoped<OfflineMusicService>();
 
 // ============================================================
 // 3. BUILD APLIKASI & MIDDLEWARE PIPELINE
