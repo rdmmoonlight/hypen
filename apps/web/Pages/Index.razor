@@ -2,108 +2,113 @@
 
 <PageTitle>Hypen Vault Downloader</PageTitle>
 
-<main class="main-container">
-    <!-- Header Title -->
-    <div class="input-group" style="margin-bottom: 25px;">
-        <h2 class="nebula-title" style="font-size: 1.8rem; margin-bottom: 5px;">Hypen Downloader Portal</h2>
-        <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0;">
-            Ekstrak audio YouTube ke Vault, lalu unduh ke perangkat Anda. Pemutaran lagu ditangani oleh aplikasi Mobile.
+<div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7;">
+    
+    <!-- SIDEBAR KIRI: Form Converter / Import -->
+    <aside style="width: 320px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; flex-shrink: 0;">
+        <h3 class="nebula-title" style="font-size: 1.4rem; margin-bottom: 20px; color: #4cc9f0;">Hypen Downloader</h3>
+
+        <!-- Input Single Video -->
+        <div style="margin-bottom: 25px;">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Import Single Track</label>
+            <input type="text" @bind="ytUrl" placeholder="Link video YouTube..." disabled="@isLoading" style="width: 100%; padding: 8px 12px; margin-bottom: 8px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px;" />
+            <button class="btn-nebula" @onclick="ConvertVideo" disabled="@isLoading" style="width: 100%;">
+                @(isLoading ? "Memproses..." : "+ Extract Audio")
+            </button>
+        </div>
+
+        <!-- Input Playlist -->
+        <div style="margin-bottom: 25px;">
+            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block;">Import YouTube Playlist</label>
+            <input type="text" @bind="playlistUrl" placeholder="Link playlist YouTube..." disabled="@isLoading" style="width: 100%; padding: 8px 12px; margin-bottom: 8px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px;" />
+            <button class="btn-nebula btn-secondary" @onclick="ConvertPlaylist" disabled="@isLoading" style="width: 100%;">
+                @(isLoading ? "Memproses..." : "+ Import Playlist")
+            </button>
+        </div>
+
+        <p style="font-size: 0.8rem; color: #66fcf1; line-height: 1.4;">
+            * Lagu yang diekstrak akan tersimpan di Vault Neon DB dan siap diputar via Aplikasi Mobile Hypen.
         </p>
-    </div>
+    </aside>
 
-    <!-- Input Track Single -->
-    <div class="input-group">
-        <h3 class="nebula-title">Import Single Track</h3>
-        <div class="input-inline">
-            <input type="text" @bind="ytUrl" placeholder="Tempel link video YouTube..." disabled="@isLoading" />
-            <button class="btn-nebula" @onclick="ConvertVideo" disabled="@isLoading">
-                @(isLoading ? "Memproses..." : "Add Track")
-            </button>
-        </div>
-    </div>
-
-    <!-- Input Playlist YouTube -->
-    <div class="input-group">
-        <h3 class="nebula-title">Import YouTube Playlist</h3>
-        <div class="input-inline">
-            <input type="text" @bind="playlistUrl" placeholder="Tempel link playlist YouTube..." disabled="@isLoading" />
-            <button class="btn-nebula btn-secondary" @onclick="ConvertPlaylist" disabled="@isLoading">
-                @(isLoading ? "Memproses..." : "Import Playlist")
-            </button>
-        </div>
-    </div>
-
-    <!-- Status Message & Progress Bar untuk Mass Download -->
-    @if (!string.IsNullOrEmpty(statusMsg))
-    {
-        <p class="status-msg" style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; margin-top: 15px; margin-bottom: 8px;">@statusMsg</p>
-    }
-
-    @if (isLoading && totalQueueCount > 0)
-    {
-        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 4px; margin-bottom: 15px;">
-            <div style="background: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; height: 10px;">
-                <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; padding: 0 2px;">
-                <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
-                <span>@progressPercentage%</span>
-            </div>
-        </div>
-    }
-
-    <!-- Controls Bar & Search -->
-    <div class="controls-bar input-group" style="margin-top: 25px;">
-        <div class="input-inline" style="margin-bottom: 10px;">
-            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Cari judul lagu atau artis..." />
-        </div>
-        <div class="action-buttons-inline" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <label style="color: var(--text-secondary); font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                <input type="checkbox" @onchange="ToggleSelectAll" /> Pilih Semua
-            </label>
-            <button class="btn-nebula btn-secondary" @onclick="DownloadSelected" disabled="@isLoading">
-                Download Selected
-            </button>
-            <button class="btn-nebula btn-danger" @onclick="DeleteSelected" disabled="@isLoading">
-                Hapus Selected
-            </button>
-        </div>
-    </div>
-
-    <!-- Library Grid Section -->
-    <h3 class="nebula-title section-header" style="margin-top: 20px;">Library Collection</h3>
-    <div class="card-grid">
-        @if (FilteredSongs == null)
+    <!-- AREA UTAMA: Status, Controls, & List Tulisan (Tabel) -->
+    <main style="flex-grow: 1; padding: 25px; overflow-x: auto;">
+        
+        <!-- Status Notification & Progress Bar -->
+        @if (!string.IsNullOrEmpty(statusMsg))
         {
-            <p style="color: var(--text-secondary); text-align: center; grid-column: 1 / -1;">Memuat library...</p>
+            <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; margin-bottom: 12px;">@statusMsg</p>
         }
-        else if (!FilteredSongs.Any())
-        {
-            <p style="color: var(--text-secondary); text-align: center; grid-column: 1 / -1;">Tidak ada lagu ditemukan.</p>
-        }
-        else
-        {
-            @foreach (var song in FilteredSongs)
-            {
-                <div class="card" style="display: flex; align-items: center; padding: 12px; gap: 12px;">
-                    <input type="checkbox" class="song-checkbox" @bind="song.IsSelected" />
-                    
-                    @if (!string.IsNullOrEmpty(song.Cover))
-                    {
-                        <img src="@song.Cover" alt="Cover" style="width: 48px; height: 48px; border-radius: 6px; object-fit: cover;" />
-                    }
 
-                    <div class="card-info" style="flex-grow: 1; overflow: hidden;">
-                        <div class="card-title" style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@song.Title</div>
-                        <div class="card-artist" style="color: var(--text-secondary); font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@song.Artist</div>
-                    </div>
-                    
-                    <div class="card-actions" style="display: flex; gap: 6px;">
-                        <button class="btn-nebula btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">Download</button>
-                        <button class="btn-nebula btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">Hapus</button>
-                    </div>
+        @if (isLoading && totalQueueCount > 0)
+        {
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 4px; margin-bottom: 20px;">
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; height: 10px;">
+                    <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
                 </div>
-            }
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #c5c6c7; margin-top: 4px;">
+                    <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
+                    <span>@progressPercentage%</span>
+                </div>
+            </div>
         }
-    </div>
-</main>
+
+        <!-- Top Controls & Filter Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap;">
+            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Cari judul lagu atau artis..." style="padding: 8px 12px; width: 280px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px;" />
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" @onchange="ToggleSelectAll" /> Pilih Semua
+                </label>
+                <button class="btn-nebula btn-secondary" @onclick="DownloadSelected" disabled="@isLoading">Download Selected</button>
+                <button class="btn-nebula btn-danger" @onclick="DeleteSelected" disabled="@isLoading">Hapus Selected</button>
+            </div>
+        </div>
+
+        <!-- LIST LAGU: Tabel Ringkas (Tanpa Thumbnail) -->
+        <div style="background: rgba(255, 255, 255, 0.02); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03);">
+                        <th style="padding: 12px; width: 40px; text-align: center;">#</th>
+                        <th style="padding: 12px;">Judul Lagu</th>
+                        <th style="padding: 12px;">Artis / Uploader</th>
+                        <th style="padding: 12px; width: 180px; text-align: center;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (FilteredSongs == null)
+                    {
+                        <tr>
+                            <td colspan="4" style="padding: 20px; text-align: center; color: #66fcf1;">Memuat library...</td>
+                        </tr>
+                    }
+                    else if (!FilteredSongs.Any())
+                    {
+                        <tr>
+                            <td colspan="4" style="padding: 20px; text-align: center; color: #c5c6c7;">Tidak ada lagu ditemukan.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var song in FilteredSongs)
+                        {
+                            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                <td style="padding: 10px; text-align: center;">
+                                    <input type="checkbox" @bind="song.IsSelected" />
+                                </td>
+                                <td style="padding: 10px; font-weight: 600; color: #fff;">@song.Title</td>
+                                <td style="padding: 10px; color: #c5c6c7;">@song.Artist</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <button class="btn-nebula btn-secondary" style="padding: 4px 10px; font-size: 0.8rem; margin-right: 4px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">Unduh</button>
+                                    <button class="btn-nebula btn-danger" style="padding: 4px 10px; font-size: 0.8rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">Hapus</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
