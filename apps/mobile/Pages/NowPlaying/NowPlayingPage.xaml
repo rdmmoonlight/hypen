@@ -8,9 +8,7 @@
 
     <Grid>
 
-        <!-- Blurred-style immersive background: cover art di-stretch penuh, diredupkan +
-             gradient gelap di atasnya. (Bukan gaussian blur asli — supaya tidak menambah
-             dependency native tambahan — tapi efek "premium/immersive"-nya setara.) -->
+        <!-- Blurred-style immersive background -->
         <Image x:Name="BackgroundCover" Aspect="AspectFill" Opacity="0.30" />
         <BoxView BackgroundColor="#0b0914" Opacity="0.55" />
         <Grid>
@@ -33,12 +31,12 @@
 
             <!-- Top bar: minimize + judul kecil + tombol Up Next -->
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                <Button Grid.Column="0" Text="⌄" FontSize="26" BackgroundColor="Transparent" TextColor="White"
-                        Clicked="OnMinimizeClicked" WidthRequest="44" />
+                <Button Grid.Column="0" Text="󰅀" FontSize="22" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnMinimizeClicked" WidthRequest="44" HeightRequest="44" />
                 <Label Grid.Column="1" Text="MEMUTAR DARI LIBRARY" TextColor="#8A5CF5" FontSize="11"
-                       FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" />
-                <Button Grid.Column="2" Text="☰" FontSize="20" BackgroundColor="Transparent" TextColor="White"
-                        Clicked="OnQueueToggleClicked" WidthRequest="44" />
+                       FontAttributes="Bold" HorizontalOptions="Center" VerticalOptions="Center" CharacterSpacing="1" />
+                <Button Grid.Column="2" Text="󰲸" FontSize="20" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnQueueToggleClicked" WidthRequest="44" HeightRequest="44" />
             </Grid>
 
             <!-- Album art besar + gestur swipe kiri/kanan untuk next/prev -->
@@ -48,8 +46,12 @@
                     <SwipeGestureRecognizer Direction="Right" Swiped="OnSwipePrevious" />
                 </Grid.GestureRecognizers>
 
-                <Border x:Name="CoverFrame" Padding="0" StrokeShape="RoundRectangle18" HasShadow="True" Stroke="Transparent"
-                       BackgroundColor="#141226" HorizontalOptions="Center" WidthRequest="300" HeightRequest="300">
+                <!-- Frame Cover Art dengan efek Shadow .NET 9 -->
+                <Border x:Name="CoverFrame" Padding="0" StrokeShape="RoundRectangle 20" Stroke="Transparent"
+                        BackgroundColor="#141226" HorizontalOptions="Center" WidthRequest="290" HeightRequest="290">
+                    <Border.Shadow>
+                        <Shadow Brush="#8A5CF5" Offset="0,8" Radius="24" Opacity="0.25" />
+                    </Border.Shadow>
                     <Image x:Name="CoverImage" Aspect="AspectFill" />
                 </Border>
             </Grid>
@@ -78,42 +80,53 @@
 
             <!-- Kontrol utama: shuffle - prev - play/pause - next - repeat -->
             <Grid Grid.Row="4" ColumnDefinitions="*,*,Auto,*,*" VerticalOptions="Center">
-                <Button Grid.Column="0" x:Name="ShuffleButton" Text="🔀" FontSize="18" BackgroundColor="Transparent"
-                        TextColor="#6c6c80" Clicked="OnShuffleClicked" />
-                <Button Grid.Column="1" Text="⏮" FontSize="26" BackgroundColor="Transparent" TextColor="White"
-                        Clicked="OnPreviousClicked" />
-                <Button Grid.Column="2" x:Name="PlayPauseButton" Text="▶" FontSize="30" BackgroundColor="#4cc9f0"
-                        TextColor="#0b0914" StrokeShape="RoundRectangle36" WidthRequest="72" HeightRequest="72"
-                        Clicked="OnPlayPauseClicked" />
-                <Button Grid.Column="3" Text="⏭" FontSize="26" BackgroundColor="Transparent" TextColor="White"
-                        Clicked="OnNextClicked" />
-                <Button Grid.Column="4" x:Name="RepeatButton" Text="🔁" FontSize="18" BackgroundColor="Transparent"
-                        TextColor="#6c6c80" Clicked="OnRepeatClicked" />
+                <Button Grid.Column="0" x:Name="ShuffleButton" Text="󰒞" FontSize="18" BackgroundColor="Transparent"
+                        TextColor="#6c6c80" Clicked="OnShuffleClicked" HeightRequest="48" WidthRequest="48" />
+                
+                <Button Grid.Column="1" Text="󰒮" FontSize="26" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnPreviousClicked" HeightRequest="52" WidthRequest="52" />
+                
+                <Button Grid.Column="2" x:Name="PlayPauseButton" Text="󰐊" FontSize="30" BackgroundColor="#4cc9f0"
+                        TextColor="#0b0914" StrokeShape="RoundRectangle 36" WidthRequest="72" HeightRequest="72"
+                        Clicked="OnPlayPauseClicked">
+                    <Button.Shadow>
+                        <Shadow Brush="#4cc9f0" Offset="0,4" Radius="12" Opacity="0.35" />
+                    </Button.Shadow>
+                </Button>
+                
+                <Button Grid.Column="3" Text="󰒭" FontSize="26" BackgroundColor="Transparent" TextColor="White"
+                        Clicked="OnNextClicked" HeightRequest="52" WidthRequest="52" />
+                
+                <Button Grid.Column="4" x:Name="RepeatButton" Text="󰑖" FontSize="18" BackgroundColor="Transparent"
+                        TextColor="#6c6c80" Clicked="OnRepeatClicked" HeightRequest="48" WidthRequest="48" />
             </Grid>
 
-            <!-- Volume -->
-            <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                <Label Grid.Column="0" Text="🔈" TextColor="#6c6c80" FontSize="14" VerticalOptions="Center" />
+            <!-- Volume Slider -->
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <Label Grid.Column="0" Text="󰕿" TextColor="#6c6c80" FontSize="16" VerticalOptions="Center" />
                 <Slider Grid.Column="1" x:Name="VolumeSlider" Minimum="0" Maximum="1" Value="1"
                         ValueChanged="OnVolumeChanged" MinimumTrackColor="#8A5CF5" MaximumTrackColor="#2a274c"
                         ThumbColor="#8A5CF5" />
-                <Label Grid.Column="2" Text="🔊" TextColor="#6c6c80" FontSize="14" VerticalOptions="Center" />
+                <Label Grid.Column="2" Text="󰕾" TextColor="#6c6c80" FontSize="16" VerticalOptions="Center" />
             </Grid>
 
             <!-- Baris sekunder: favorit, lirik, sleep timer -->
             <Grid Grid.Row="6" ColumnDefinitions="*,*,*">
-                <Button Grid.Column="0" x:Name="FavoriteButton" Text="♡ Favorit" FontSize="13"
+                <Button Grid.Column="0" x:Name="FavoriteButton" Text="♡  Favorit" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnFavoriteClicked" />
-                <Button Grid.Column="1" x:Name="LyricsButton" Text="Lirik" FontSize="13"
+                <Button Grid.Column="1" x:Name="LyricsButton" Text="💬  Lirik" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnLyricsToggleClicked" />
-                <Button Grid.Column="2" x:Name="SleepTimerButton" Text="⏰ Sleep" FontSize="13"
+                <Button Grid.Column="2" x:Name="SleepTimerButton" Text="󰔛  Sleep" FontSize="13"
                         BackgroundColor="Transparent" TextColor="#a0a5c0" Clicked="OnSleepTimerClicked" />
             </Grid>
         </Grid>
 
-        <!-- Panel Up Next (queue) — overlay, disembunyikan default -->
-        <Border x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
-               Padding="16" VerticalOptions="End" HeightRequest="380">
+        <!-- Panel Up Next (Queue Overlay) -->
+        <Border x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle 20"
+                Stroke="#2a274c" Padding="16" VerticalOptions="End" HeightRequest="380">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,-4" Radius="16" Opacity="0.5" />
+            </Border.Shadow>
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                     <Label Grid.Column="0" Text="Up Next" TextColor="White" FontAttributes="Bold" FontSize="16" />
@@ -127,8 +140,9 @@
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnQueueItemTapped" CommandParameter="{Binding .}" />
                                 </Grid.GestureRecognizers>
-                                <Image Grid.Column="0" Source="{Binding Cover}" WidthRequest="38" HeightRequest="38"
-                                       Aspect="AspectFill" Margin="0,0,10,0" />
+                                <Border Grid.Column="0" StrokeShape="RoundRectangle 6" Stroke="Transparent" Padding="0" Margin="0,0,10,0">
+                                    <Image Source="{Binding Cover}" WidthRequest="38" HeightRequest="38" Aspect="AspectFill" />
+                                </Border>
                                 <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                     <Label Text="{Binding Title}" TextColor="White" FontSize="13" LineBreakMode="TailTruncation" />
                                     <Label Text="{Binding Artist}" TextColor="#a0a5c0" FontSize="11" LineBreakMode="TailTruncation" />
@@ -140,9 +154,12 @@
             </Grid>
         </Border>
 
-        <!-- Panel Lirik — overlay, disembunyikan default -->
-        <Border x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
-               Padding="16" VerticalOptions="End" HeightRequest="380">
+        <!-- Panel Lirik (Lyrics Overlay) -->
+        <Border x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle 20"
+                Stroke="#2a274c" Padding="16" VerticalOptions="End" HeightRequest="380">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,-4" Radius="16" Opacity="0.5" />
+            </Border.Shadow>
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                     <Label Grid.Column="0" Text="Lirik" TextColor="White" FontAttributes="Bold" FontSize="16" />
@@ -159,7 +176,7 @@
                 </CollectionView>
                 <Button Grid.Row="1" x:Name="OpenGeniusButton" IsVisible="False" Text="Buka lirik lengkap di Genius"
                         VerticalOptions="End" BackgroundColor="#8A5CF5" TextColor="White"
-                        Clicked="OnOpenGeniusClicked" />
+                        Clicked="OnOpenGeniusClicked" CornerRadius="12" />
             </Grid>
         </Border>
     </Grid>
