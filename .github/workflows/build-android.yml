@@ -75,7 +75,7 @@ jobs:
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > apps/mobile/hypen-release.keystore
 
-     - name: Compile & Publish Release APK
+      - name: Compile & Publish Release APK
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_API_SECRET: ${{ secrets.LASTFM_API_SECRET }}
@@ -99,7 +99,7 @@ jobs:
             -p:AndroidSigningKeyAlias="${ANDROID_KEY_ALIAS}" \
             -p:AndroidSigningStorePass="${ANDROID_KEYSTORE_PASSWORD}" \
             -p:AndroidSigningKeyPass="${ANDROID_KEY_PASSWORD}"
-            
+
       - name: Clean Up Keystore File
         if: always()
         run: |
@@ -114,7 +114,7 @@ jobs:
           # Cari APK di seluruh direktori output build/publish
           APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/devnull | head -n 1)
+            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/dev/null | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
