@@ -1,4 +1,5 @@
 using HypenMaui.Pages.Home;
+using HypenMaui.Pages.Library;
 using HypenMaui.Pages.NowPlaying;
 using HypenMaui.Pages.Settings;
 using Microsoft.Maui.Controls;
@@ -13,6 +14,7 @@ public partial class AppShell : Shell
 
         // Registrasi Route Navigasi
         Routing.RegisterRoute(nameof(MainPage), typeof(MainPage));
+        Routing.RegisterRoute(nameof(LibraryPage), typeof(LibraryPage));
         Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
         Routing.RegisterRoute(nameof(NowPlayingPage), typeof(NowPlayingPage));
     }
