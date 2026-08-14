@@ -20,6 +20,11 @@ public partial class Index
     protected bool isError;
     protected bool isLoading;
 
+    // Progress State untuk Antrean Massal
+    protected int totalQueueCount = 0;
+    protected int currentProcessedCount = 0;
+    protected int progressPercentage = 0;
+
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
@@ -49,6 +54,58 @@ public partial class Index
             isLoading = false;
         }
     }
+
+    // ------------------------------------------------------------
+    // TRIK ANTREAN UNTUH MASS DOWNLOAD (PER 10 LAGU)
+    // ------------------------------------------------------------
+
+    protected async Task DownloadSelected()
+    {
+        var selected = songs.Where(s => s.IsSelected).ToList();
+        if (selected.Count == 0) return;
+
+        isLoading = true;
+        totalQueueCount = selected.Count;
+        currentProcessedCount = 0;
+        progressPercentage = 0;
+
+        const int chunkSize = 10; // Ukuran batch per 10 lagu
+        var chunks = selected.Chunk(chunkSize).ToList();
+
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            var currentBatch = chunks[i];
+
+            // Unduh item dalam batch saat ini satu per satu dengan jeda halus
+            foreach (var song in currentBatch)
+            {
+                currentProcessedCount++;
+                progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
+
+                SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
+                StateHasChanged(); // Update progress bar di UI
+
+                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+                await Task.Delay(600); // Jeda antar lagu agar browser tidak memblokir download
+            }
+
+            // Jeda istirahat antar-batch per 10 lagu untuk memberi napas pada browser/server
+            if (i < chunks.Count - 1)
+            {
+                SetStatus($"Mengistirahatkan antrean batch ({i + 1}/{chunks.Count})... Istirahat 2 detik.");
+                StateHasChanged();
+                await Task.Delay(2000);
+            }
+        }
+
+        SetStatus($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
+        isLoading = false;
+        progressPercentage = 100;
+    }
+
+    // ------------------------------------------------------------
+    // CONVERTER & SINGLE ACTIONS
+    // ------------------------------------------------------------
 
     protected async Task ConvertVideo()
     {
@@ -117,29 +174,13 @@ public partial class Index
         try
         {
             SetStatus($"Mengunduh: {song.Title}...");
-            await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
+            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
             SetStatus("");
         }
         catch (Exception ex)
         {
             SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
         }
-    }
-
-    protected async Task DownloadSelected()
-    {
-        var selected = songs.Where(s => s.IsSelected).ToList();
-        if (selected.Count == 0) return;
-
-        for (int i = 0; i < selected.Count; i++)
-        {
-            var song = selected[i];
-            SetStatus($"Mengunduh ({i + 1}/{selected.Count}): {song.Title}...");
-            await DownloadSingle(song);
-            await Task.Delay(500);
-        }
-
-        SetStatus($"Selesai mengunduh {selected.Count} lagu!");
     }
 
     protected async Task DeleteSingle(int id)
