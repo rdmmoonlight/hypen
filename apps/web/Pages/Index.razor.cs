@@ -12,7 +12,6 @@ public partial class Index
     [Inject] protected NavigationManager Navigation { get; set; } = default!;
 
     protected List<CloudSongModel> songs = [];
-
     protected string ytUrl = "";
     protected string playlistUrl = "";
     protected string searchQuery = "";
@@ -61,14 +60,14 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // LOGIKA SELECT ALL & INDIVIDUAL SELECTION SINKRON
+    // TOGGLE SELECT ALL DENGAN FORCE UI UPDATE
     // ------------------------------------------------------------
-
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
         isSelectAllChecked = e.Value is bool val && val;
 
-        foreach (var song in FilteredSongs)
+        var list = FilteredSongs.ToList();
+        foreach (var song in list)
         {
             song.IsSelected = isSelectAllChecked;
         }
@@ -80,19 +79,18 @@ public partial class Index
     {
         song.IsSelected = e.Value is bool val && val;
 
-        var currentFiltered = FilteredSongs.ToList();
-        if (currentFiltered.Count > 0)
+        var list = FilteredSongs.ToList();
+        if (list.Count > 0)
         {
-            isSelectAllChecked = currentFiltered.All(s => s.IsSelected);
+            isSelectAllChecked = list.All(s => s.IsSelected);
         }
 
         StateHasChanged();
     }
 
     // ------------------------------------------------------------
-    // ANTREAN MASS DOWNLOAD (BATCHING PER 10 ITEM)
+    // BATCH DOWNLOAD & ACTIONS
     // ------------------------------------------------------------
-
     protected async Task DownloadSelected()
     {
         var selected = songs.Where(song => song.IsSelected).ToList();
@@ -125,11 +123,7 @@ public partial class Index
                     SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
                     StateHasChanged();
 
-                    await SongService.DownloadSongAsync(
-                        song.AudioUrl,
-                        $"{song.Artist} - {song.Title}"
-                    );
-
+                    await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
                     await Task.Delay(600);
                 }
 
@@ -154,10 +148,6 @@ public partial class Index
         }
     }
 
-    // ------------------------------------------------------------
-    // ACTIONS & CONVERTER
-    // ------------------------------------------------------------
-
     protected async Task ConvertVideo()
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
@@ -168,7 +158,6 @@ public partial class Index
             SetStatus("Mengekstrak & menyimpan track ke library...");
 
             var result = await SongService.ConvertVideoAsync(ytUrl);
-
             if (result != null)
             {
                 SetStatus($"Berhasil mengekstrak: {result.Title}");
@@ -200,7 +189,6 @@ public partial class Index
             SetStatus("Mengimpor playlist YouTube...");
 
             var result = await SongService.ConvertPlaylistAsync(playlistUrl);
-
             if (result != null)
             {
                 SetStatus($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
@@ -227,12 +215,7 @@ public partial class Index
         try
         {
             SetStatus($"Mengunduh: {song.Title}...");
-
-            await SongService.DownloadSongAsync(
-                song.AudioUrl,
-                $"{song.Artist} - {song.Title}"
-            );
-
+            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
             SetStatus("");
         }
         catch (Exception ex)
@@ -243,11 +226,7 @@ public partial class Index
 
     protected async Task DeleteSingle(int id)
     {
-        bool confirmed = await JS.InvokeAsync<bool>(
-            "confirm",
-            "Yakin ingin menghapus lagu ini dari vault?"
-        );
-
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
         if (!confirmed) return;
 
         if (await SongService.DeleteSongAsync(id))
@@ -258,22 +237,14 @@ public partial class Index
 
     protected async Task DeleteSelected()
     {
-        var selectedIds = songs
-            .Where(song => song.IsSelected)
-            .Select(song => song.Id)
-            .ToArray();
-
+        var selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
         if (selectedIds.Length == 0)
         {
             SetStatus("Tidak ada lagu yang dipilih.", true);
             return;
         }
 
-        bool confirmed = await JS.InvokeAsync<bool>(
-            "confirm",
-            $"Yakin ingin menghapus {selectedIds.Length} lagu?"
-        );
-
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu?");
         if (!confirmed) return;
 
         if (await SongService.DeleteBatchSongsAsync(selectedIds))
