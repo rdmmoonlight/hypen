@@ -3,31 +3,31 @@
 
 <PageTitle>Hypen Vault Downloader</PageTitle>
 
-<div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7;">
+<div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7; font-size: 0.82rem;">
     
-    <!-- KOMPONEN SIDEBAR KHUSUS -->
+    <!-- SIDEBAR KIRI -->
     <Sidebar @bind-YtUrl="ytUrl"
              @bind-PlaylistUrl="playlistUrl"
              IsLoading="@isLoading"
              OnConvertVideo="ConvertVideo"
              OnConvertPlaylist="ConvertPlaylist" />
 
-    <!-- AREA UTAMA: Status, Search Controls, & Tabel List Tulisan -->
-    <main style="flex-grow: 1; padding: 25px; overflow-x: auto;">
+    <!-- AREA UTAMA: Status, Controls, & List Tabel -->
+    <main style="flex-grow: 1; padding: 15px; overflow-x: auto;">
         
         <!-- Status Notification & Progress Bar -->
         @if (!string.IsNullOrEmpty(statusMsg))
         {
-            <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; margin-bottom: 12px;">@statusMsg</p>
+            <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; font-size: 0.8rem; margin-bottom: 8px;">@statusMsg</p>
         }
 
         @if (isLoading && totalQueueCount > 0)
         {
-            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 4px; margin-bottom: 20px;">
-                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; height: 10px;">
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 3px; margin-bottom: 15px;">
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; height: 8px;">
                     <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #c5c6c7; margin-top: 4px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #c5c6c7; margin-top: 3px;">
                     <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
                     <span>@progressPercentage%</span>
                 </div>
@@ -35,55 +35,57 @@
         }
 
         <!-- Top Controls Bar & Filter -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap;">
-            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Cari judul lagu atau artis..." style="padding: 8px 12px; width: 280px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px;" />
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+            <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Cari judul lagu atau artis..." style="padding: 5px 10px; width: 240px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.8rem;" />
             
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <label style="font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 6px; color: #fff;">
-                    <input type="checkbox" @onchange="ToggleSelectAll" /> Pilih Semua
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <label style="font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px; color: #fff; user-select: none;">
+                    <input type="checkbox" checked="@selectAllState" @onchange="ToggleSelectAll" /> Pilih Semua
                 </label>
-                <button class="btn-nebula btn-secondary" @onclick="DownloadSelected" disabled="@isLoading">Download Selected</button>
-                <button class="btn-nebula btn-danger" @onclick="DeleteSelected" disabled="@isLoading">Hapus Selected</button>
+                <button class="btn-nebula btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" @onclick="DownloadSelected" disabled="@isLoading">Download Selected</button>
+                <button class="btn-nebula btn-danger" style="padding: 4px 10px; font-size: 0.78rem;" @onclick="DeleteSelected" disabled="@isLoading">Hapus Selected</button>
             </div>
         </div>
 
-        <!-- TABEL LIST LAGU: Tulisan Ringkas (Tanpa Gambar/Thumbnail) -->
-        <div style="background: rgba(255, 255, 255, 0.02); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <!-- TABEL LIST LAGU: List Tulisan Kompak -->
+        <div style="background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
                 <thead>
-                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03);">
-                        <th style="padding: 12px; width: 40px; text-align: center;">#</th>
-                        <th style="padding: 12px;">Judul Lagu</th>
-                        <th style="padding: 12px;">Artis / Uploader</th>
-                        <th style="padding: 12px; width: 160px; text-align: center;">Aksi</th>
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); font-size: 0.78rem; text-transform: uppercase;">
+                        <th style="padding: 6px 10px; width: 35px; text-align: center;">
+                            <input type="checkbox" checked="@selectAllState" @onchange="ToggleSelectAll" />
+                        </th>
+                        <th style="padding: 6px 10px;">Judul Lagu</th>
+                        <th style="padding: 6px 10px;">Artis / Uploader</th>
+                        <th style="padding: 6px 10px; width: 130px; text-align: center;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @if (FilteredSongs == null)
                     {
                         <tr>
-                            <td colspan="4" style="padding: 20px; text-align: center; color: #66fcf1;">Memuat library...</td>
+                            <td colspan="4" style="padding: 15px; text-align: center; color: #66fcf1; font-size: 0.8rem;">Memuat library...</td>
                         </tr>
                     }
                     else if (!FilteredSongs.Any())
                     {
                         <tr>
-                            <td colspan="4" style="padding: 20px; text-align: center; color: #c5c6c7;">Tidak ada lagu ditemukan.</td>
+                            <td colspan="4" style="padding: 15px; text-align: center; color: #c5c6c7; font-size: 0.8rem;">Tidak ada lagu ditemukan.</td>
                         </tr>
                     }
                     else
                     {
                         @foreach (var song in FilteredSongs)
                         {
-                            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
-                                <td style="padding: 10px; text-align: center;">
+                            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                                <td style="padding: 6px 10px; text-align: center;">
                                     <input type="checkbox" @bind="song.IsSelected" />
                                 </td>
-                                <td style="padding: 10px; font-weight: 600; color: #fff;">@song.Title</td>
-                                <td style="padding: 10px; color: #c5c6c7;">@song.Artist</td>
-                                <td style="padding: 10px; text-align: center;">
-                                    <button class="btn-nebula btn-secondary" style="padding: 4px 10px; font-size: 0.8rem; margin-right: 4px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">Unduh</button>
-                                    <button class="btn-nebula btn-danger" style="padding: 4px 10px; font-size: 0.8rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">Hapus</button>
+                                <td style="padding: 6px 10px; font-weight: 500; color: #fff; font-size: 0.82rem;">@song.Title</td>
+                                <td style="padding: 6px 10px; color: #a0a5aa; font-size: 0.78rem;">@song.Artist</td>
+                                <td style="padding: 6px 10px; text-align: center;">
+                                    <button class="btn-nebula btn-secondary" style="padding: 2px 8px; font-size: 0.72rem; margin-right: 3px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">Unduh</button>
+                                    <button class="btn-nebula btn-danger" style="padding: 2px 8px; font-size: 0.72rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">Hapus</button>
                                 </td>
                             </tr>
                         }
