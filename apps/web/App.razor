@@ -26,14 +26,15 @@
 
     <!-- Theme -->
     <link rel="stylesheet" href="/theme.css?v=9.0" />
-    <link rel="stylesheet" href="Hypen.Web.styles.css" />
 
-    <HeadOutlet />
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
 
-    <Router AppAssembly="@typeof(App).Assembly">
+    <Router
+        AppAssembly="@typeof(App).Assembly"
+        @rendermode="InteractiveServer">
 
         <Found Context="routeData">
 
