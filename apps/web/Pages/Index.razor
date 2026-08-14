@@ -5,7 +5,6 @@
 
 <div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7; font-size: 0.78rem;">
 
-    <!-- SIDEBAR -->
     <Sidebar
         @bind-YtUrl="ytUrl"
         @bind-PlaylistUrl="playlistUrl"
@@ -13,10 +12,8 @@
         OnConvertVideo="ConvertVideo"
         OnConvertPlaylist="ConvertPlaylist" />
 
-    <!-- MAIN CONTENT -->
     <main style="flex-grow: 1; padding: 12px; overflow-x: auto;">
 
-        <!-- STATUS -->
         @if (!string.IsNullOrEmpty(statusMsg))
         {
             <p style="
@@ -28,7 +25,6 @@
             </p>
         }
 
-        <!-- PROGRESS -->
         @if (isLoading && totalQueueCount > 0)
         {
             <div style="
@@ -49,7 +45,6 @@
                         height: 100%;
                         transition: width 0.3s ease;">
                     </div>
-
                 </div>
 
                 <div style="
@@ -68,12 +63,11 @@
                     <span>
                         @progressPercentage%
                     </span>
-
                 </div>
             </div>
         }
 
-        <!-- TOP CONTROLS -->
+        <!-- CONTROLS -->
         <div style="
             display: flex;
             justify-content: space-between;
@@ -82,7 +76,6 @@
             gap: 8px;
             flex-wrap: wrap;">
 
-            <!-- SEARCH -->
             <input
                 type="text"
                 @bind="searchQuery"
@@ -97,13 +90,12 @@
                     border-radius: 3px;
                     font-size: 0.75rem;" />
 
-            <!-- ACTIONS -->
             <div style="
                 display: flex;
                 gap: 6px;
                 align-items: center;">
 
-                <!-- SELECT ALL -->
+                <!-- SELECT ALL UTAMA -->
                 <label style="
                     font-size: 0.75rem;
                     cursor: pointer;
@@ -115,13 +107,11 @@
 
                     <input
                         type="checkbox"
-                        checked="@IsSelectAllChecked"
-                        @onchange="ToggleSelectAll" />
+                        @bind="IsSelectAllChecked" />
 
                     Pilih Semua
                 </label>
 
-                <!-- DOWNLOAD SELECTED -->
                 <button
                     class="btn-nebula btn-secondary"
                     style="
@@ -133,7 +123,6 @@
                     Download Selected
                 </button>
 
-                <!-- DELETE SELECTED -->
                 <button
                     class="btn-nebula btn-danger"
                     style="
@@ -148,7 +137,7 @@
             </div>
         </div>
 
-        <!-- SONG TABLE -->
+        <!-- TABLE -->
         <div style="
             background: rgba(255, 255, 255, 0.02);
             border-radius: 4px;
@@ -162,7 +151,6 @@
                 font-size: 0.75rem;
                 line-height: 1.1;">
 
-                <!-- TABLE HEADER -->
                 <thead>
                     <tr style="
                         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -170,7 +158,7 @@
                         font-size: 0.72rem;
                         text-transform: uppercase;">
 
-                        <!-- SELECT ALL -->
+                        <!-- SELECT ALL TABLE -->
                         <th style="
                             padding: 4px 6px;
                             width: 30px;
@@ -178,22 +166,18 @@
 
                             <input
                                 type="checkbox"
-                                checked="@IsSelectAllChecked"
-                                @onchange="ToggleSelectAll" />
+                                @bind="IsSelectAllChecked" />
 
                         </th>
 
-                        <!-- TITLE -->
                         <th style="padding: 4px 6px;">
                             Judul Lagu
                         </th>
 
-                        <!-- ARTIST -->
                         <th style="padding: 4px 6px;">
                             Artis / Uploader
                         </th>
 
-                        <!-- ACTION -->
                         <th style="
                             padding: 4px 6px;
                             width: 110px;
@@ -202,14 +186,12 @@
                             Aksi
 
                         </th>
-
                     </tr>
                 </thead>
 
-                <!-- TABLE BODY -->
                 <tbody>
 
-                    @if (songs == null)
+                    @if (songs.Count == 0 && isLoading)
                     {
                         <tr>
                             <td
@@ -246,7 +228,6 @@
                             <tr style="
                                 border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
 
-                                <!-- SONG CHECKBOX -->
                                 <td style="
                                     padding: 2px 6px;
                                     text-align: center;">
@@ -257,7 +238,6 @@
 
                                 </td>
 
-                                <!-- TITLE -->
                                 <td style="
                                     padding: 2px 6px;
                                     font-weight: 500;
@@ -271,7 +251,6 @@
 
                                 </td>
 
-                                <!-- ARTIST -->
                                 <td style="
                                     padding: 2px 6px;
                                     color: #a0a5aa;
@@ -284,12 +263,10 @@
 
                                 </td>
 
-                                <!-- ACTIONS -->
                                 <td style="
                                     padding: 2px 6px;
                                     text-align: center;">
 
-                                    <!-- DOWNLOAD -->
                                     <button
                                         class="btn-nebula btn-secondary"
                                         style="
@@ -303,7 +280,6 @@
 
                                     </button>
 
-                                    <!-- DELETE -->
                                     <button
                                         class="btn-nebula btn-danger"
                                         style="
@@ -317,13 +293,11 @@
                                     </button>
 
                                 </td>
-
                             </tr>
                         }
                     }
 
                 </tbody>
-
             </table>
         </div>
 
