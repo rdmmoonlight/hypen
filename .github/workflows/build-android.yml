@@ -106,15 +106,16 @@ jobs:
           # Fresh restore
           dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android36.1
           
-          # Build + publish dalam satu invocation MSBuild, dikunci ke SATU RID (arm64).
-          # CATATAN: publish Release Android default membangun untuk banyak arsitektur CPU
-          # sekaligus (multi-RID: arm, arm64, x86, x64). Setiap RID memicu ulang XAML
-          # source-generator ke file .sg.cs yang sama di obj/, sehingga field/atribut yang
-          # sudah digenerate untuk RID pertama digandakan lagi oleh RID berikutnya ->
-          # error CS0102/CS0579/CS0111/CS0229 (duplicate definition). Karena target minimum
-          # adalah Android 9 (API 28) dan perangkat modern nyaris semua arm64, publish
-          # dikunci ke android-arm64 saja untuk menghindari duplikasi source-gen ini.
-          dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore \
+          # Build Release dengan signing, TANPA dotnet publish.
+          # CATATAN: sudah dicoba single-RID (android-arm64) tapi duplikasi XAML source-gen
+          # (CS0102/CS0579/CS0111) tetap muncul. Artinya penyebabnya bukan multi-RID, tapi
+          # pipeline "dotnet publish" MAUI Android sendiri yang secara internal memicu ulang
+          # XAML source-generator (untuk optimisasi publish/trimming) di atas hasil generate
+          # dari tahap build, menghasilkan definisi dobel di file .sg.cs yang sama.
+          # Solusi: gunakan "dotnet build -c Release" saja. Selama AndroidKeyStore=true dan
+          # Configuration=Release, target SignAndroidPackage tetap jalan sebagai bagian dari
+          # build biasa dan tetap menghasilkan APK yang sudah ditandatangani (*-Signed.apk).
+          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore \
             -p:RuntimeIdentifier=android-arm64 \
             -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
