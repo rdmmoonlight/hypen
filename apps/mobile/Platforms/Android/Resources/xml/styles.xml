@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+
+	<style name="Maui.MainTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+		<!-- Style aplikasi utama -->
+	</style>
+
+	<!-- Theme Splash Screen: Status Bar & Nav Bar Hitam Pekat -->
+	<style name="Maui.SplashTheme" parent="Maui.MainTheme">
+		<item name="android:windowBackground">@color/maui_splash_color</item>
+		
+		<!-- Menjaga Status Bar tetap ada & berwarna Hitam -->
+		<item name="android:statusBarColor">#000000</item>
+		
+		<!-- Menjaga Navigation Bar (tombol back/home) berwarna Hitam -->
+		<item name="android:navigationBarColor">#000000</item>
+		
+		<!-- Ikon status bar (jam, baterai, wifi) menjadi warna putih terang -->
+		<item name="android:windowLightStatusBar">false</item>
+	</style>
+
+</resources>
