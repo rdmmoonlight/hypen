@@ -19,6 +19,7 @@ public partial class Index
     protected string statusMsg = "";
     protected bool isError;
     protected bool isLoading;
+    protected bool selectAllState = false;
 
     // Progress State untuk Antrean Massal
     protected int totalQueueCount = 0;
@@ -43,6 +44,7 @@ public partial class Index
             isLoading = true;
             SetStatus("Memuat library...");
             songs = await SongService.GetSongsAsync();
+            selectAllState = false;
             SetStatus("");
         }
         catch (Exception ex)
@@ -56,20 +58,20 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // SELECT ALL FIX & MASS DOWNLOAD QUEUE (PER 10 LAGU)
+    // FIXED SELECT ALL LOGIC & MASS DOWNLOAD QUEUE (PER 10 LAGU)
     // ------------------------------------------------------------
 
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
-        bool isChecked = (bool)(e.Value ?? false);
+        selectAllState = e.Value is bool val && val;
         
-        // Centang lagu yang sedang tampil sesuai filter pencarian
+        // Centang/hilangkan centang untuk seluruh lagu yang sedang tampil
         foreach (var song in FilteredSongs)
         {
-            song.IsSelected = isChecked;
+            song.IsSelected = selectAllState;
         }
 
-        // Paksa Blazor me-render ulang UI secara instan
+        // Paksa render ulang UI seketika
         StateHasChanged();
     }
 
@@ -99,7 +101,7 @@ public partial class Index
                 StateHasChanged();
 
                 await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                await Task.Delay(600); // Jeda aman antar file
+                await Task.Delay(600); // Jeda antar file
             }
 
             if (i < chunks.Count - 1)
