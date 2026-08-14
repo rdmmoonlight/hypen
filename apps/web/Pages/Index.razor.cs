@@ -9,7 +9,6 @@ namespace Hypen.Web.Pages;
 public partial class Index
 {
     [Inject] protected ISongService SongService { get; set; } = default!;
-    [Inject] protected LastFmService LastFmService { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
     [Inject] protected NavigationManager Navigation { get; set; } = default!;
 
@@ -19,11 +18,7 @@ public partial class Index
     protected string searchQuery = "";
     protected string statusMsg = "";
     protected bool isError;
-
-    protected string? currentPlayingTrack;
-    protected string? currentAudioUrl;
-    
-    protected string? lastFmSessionKey;
+    protected bool isLoading;
 
     protected IEnumerable<SongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
@@ -33,43 +28,14 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        await HandleLastFmCallback();
         await LoadLibrary();
-    }
-
-    private async Task HandleLastFmCallback()
-    {
-        var uri = new Uri(Navigation.Uri);
-        var query = HttpUtility.ParseQueryString(uri.Query);
-        var token = query["token"];
-
-        if (!string.IsNullOrEmpty(token))
-        {
-            try
-            {
-                SetStatus("Menghubungkan ke Last.fm...");
-                lastFmSessionKey = await LastFmService.FetchSessionKeyAsync(token);
-                
-                if (!string.IsNullOrEmpty(lastFmSessionKey))
-                {
-                    SetStatus("Berhasil terhubung ke Last.fm!");
-                }
-                else
-                {
-                    SetStatus("Gagal mendapatkan sesi Last.fm.", true);
-                }
-            }
-            catch (Exception ex)
-            {
-                SetStatus($"Gagal menghubungkan Last.fm: {ex.Message}", true);
-            }
-        }
     }
 
     protected async Task LoadLibrary()
     {
         try
         {
+            isLoading = true;
             SetStatus("Memuat library...");
             songs = await SongService.GetSongsAsync();
             SetStatus("");
@@ -78,68 +44,88 @@ public partial class Index
         {
             SetStatus($"Gagal memuat library: {ex.Message}", true);
         }
+        finally
+        {
+            isLoading = false;
+        }
     }
+
+    // ------------------------------------------------------------
+    // CONVERTER & EXTRACTOR METHODS
+    // ------------------------------------------------------------
 
     protected async Task ConvertVideo()
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
-        SetStatus("Menyimpan track ke library...");
-
+        
         try
         {
+            isLoading = true;
+            SetStatus("Mengekstrak & menyimpan track ke library...");
+
             var result = await SongService.ConvertVideoAsync(ytUrl);
             if (result != null)
             {
-                SetStatus("Track berhasil ditambahkan!");
+                SetStatus($"Berhasil mengekstrak: {result.Title}");
                 ytUrl = "";
                 await LoadLibrary();
             }
             else
             {
-                SetStatus("Gagal menyimpan video ke database.", true);
+                SetStatus("Gagal mengekstrak video dari YouTube.", true);
             }
         }
         catch (Exception ex)
         {
             SetStatus($"Error: {ex.Message}", true);
         }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     protected async Task ConvertPlaylist()
     {
         if (string.IsNullOrWhiteSpace(playlistUrl)) return;
-        SetStatus("Mengimpor playlist YouTube...");
 
-        var result = await SongService.ConvertPlaylistAsync(playlistUrl);
-        if (result != null)
+        try
         {
-            SetStatus($"Berhasil mengimpor {result.TotalAdded} lagu!");
-            playlistUrl = "";
-            await LoadLibrary();
+            isLoading = true;
+            SetStatus("Mengimpor playlist YouTube...");
+
+            var result = await SongService.ConvertPlaylistAsync(playlistUrl);
+            if (result != null)
+            {
+                SetStatus($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
+                playlistUrl = "";
+                await LoadLibrary();
+            }
+            else
+            {
+                SetStatus("Gagal mengimpor playlist.", true);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            SetStatus("Gagal mengimpor playlist.", true);
+            SetStatus($"Error: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    protected async Task PlaySong(SongModel song)
-    {
-        currentPlayingTrack = $"PLAYING: {song.Title} - {song.Artist}";
-        currentAudioUrl = song.AudioUrl;
-
-        if (!string.IsNullOrEmpty(lastFmSessionKey))
-        {
-            _ = LastFmService.UpdateNowPlayingAsync(song.Title, song.Artist, lastFmSessionKey);
-        }
-    }
+    // ------------------------------------------------------------
+    // DOWNLOADER METHODS
+    // ------------------------------------------------------------
 
     protected async Task DownloadSingle(SongModel song)
     {
         try
         {
             SetStatus($"Mengunduh: {song.Title}...");
-            await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Title}.mp3");
+            await JS.InvokeVoidAsync("triggerFileDownload", song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
             SetStatus("");
         }
         catch (Exception ex)
@@ -153,16 +139,25 @@ public partial class Index
         var selected = songs.Where(s => s.IsSelected).ToList();
         if (selected.Count == 0) return;
 
-        foreach (var song in selected)
+        for (int i = 0; i < selected.Count; i++)
         {
+            var song = selected[i];
+            SetStatus($"Mengunduh ({i + 1}/{selected.Count}): {song.Title}...");
             await DownloadSingle(song);
-            await Task.Delay(500);
+            await Task.Delay(500); // Mencegah pemblokiran unduhan browser bersamaan
         }
+
+        SetStatus($"Selesai mengunduh {selected.Count} lagu!");
     }
+
+    // ------------------------------------------------------------
+    // MANAGEMENT / MAINTENANCE METHODS
+    // ------------------------------------------------------------
 
     protected async Task DeleteSingle(int id)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini?")) return;
+        if (!await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?")) return;
+        
         if (await SongService.DeleteSongAsync(id))
         {
             await LoadLibrary();
@@ -186,12 +181,6 @@ public partial class Index
     {
         bool isChecked = (bool)(e.Value ?? false);
         foreach (var song in songs) song.IsSelected = isChecked;
-    }
-
-    protected void ConnectLastFm()
-    {
-        var authUrl = LastFmService.GetAuthorizationUrl();
-        Navigation.NavigateTo(authUrl, forceLoad: true);
     }
 
     private void SetStatus(string msg, bool error = false)
