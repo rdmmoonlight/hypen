@@ -19,7 +19,7 @@ public partial class Index
     protected string statusMsg = "";
     protected bool isError;
     protected bool isLoading;
-    protected bool selectAllState = false;
+    protected bool isSelectAllChecked = false;
 
     // Progress State untuk Antrean Massal
     protected int totalQueueCount = 0;
@@ -44,7 +44,7 @@ public partial class Index
             isLoading = true;
             SetStatus("Memuat library...");
             songs = await SongService.GetSongsAsync();
-            selectAllState = false;
+            isSelectAllChecked = false;
             SetStatus("");
         }
         catch (Exception ex)
@@ -58,20 +58,19 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // FIXED SELECT ALL LOGIC & MASS DOWNLOAD QUEUE (PER 10 LAGU)
+    // LOGIKA SELECT ALL TERPERBAIKI
     // ------------------------------------------------------------
 
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
-        selectAllState = e.Value is bool val && val;
-        
-        // Centang/hilangkan centang untuk seluruh lagu yang sedang tampil
-        foreach (var song in FilteredSongs)
+        isSelectAllChecked = e.Value is bool val && val;
+
+        var targetList = FilteredSongs.ToList();
+        foreach (var song in targetList)
         {
-            song.IsSelected = selectAllState;
+            song.IsSelected = isSelectAllChecked;
         }
 
-        // Paksa render ulang UI seketika
         StateHasChanged();
     }
 
@@ -85,7 +84,7 @@ public partial class Index
         currentProcessedCount = 0;
         progressPercentage = 0;
 
-        const int chunkSize = 10; // Batch per 10 lagu
+        const int chunkSize = 10;
         var chunks = selected.Chunk(chunkSize).ToList();
 
         for (int i = 0; i < chunks.Count; i++)
@@ -101,7 +100,7 @@ public partial class Index
                 StateHasChanged();
 
                 await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                await Task.Delay(600); // Jeda antar file
+                await Task.Delay(600);
             }
 
             if (i < chunks.Count - 1)
