@@ -80,21 +80,18 @@ public partial class App : Application
 
     private static void StartBackgroundAutoUpdate()
     {
+        // Selalu cek update setiap startup — tidak lagi bergantung pada toggle
+        // "AutoUpdateEnabled", karena kartu UI togglenya sudah dihapus dari home.
         Task.Run(async () =>
         {
             try
             {
-                bool isAutoUpdateEnabled = Preferences.Default.Get("AutoUpdateEnabled", true);
-
-                if (isAutoUpdateEnabled)
-                {
-                    var updateService = new UpdateService();
-                    await updateService.CheckAndInstallUpdateAsync(
-                        githubUser: "rdmmoonlight",
-                        githubRepo: "hypen",
-                        isSilent: true
-                    );
-                }
+                var updateService = new UpdateService();
+                await updateService.CheckAndInstallUpdateAsync(
+                    githubUser: "rdmmoonlight",
+                    githubRepo: "hypen",
+                    isSilent: true
+                );
             }
             catch (Exception ex)
             {
