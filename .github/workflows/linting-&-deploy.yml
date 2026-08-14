@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   # ----------------------------------------------------
-  # STEP 1: Linting, Formatting, & Auto-Fix (Wajib Jalan)
+  # STEP 1: Linting, Formatting, & Auto-Fix
   # ----------------------------------------------------
   lint-and-fix:
     name: Code Formatting & Quality Check
@@ -19,9 +19,8 @@ jobs:
     permissions:
       contents: write
 
-    # Outputkan variabel agar bisa dibaca oleh job berikutnya
     outputs:
-      should_build: ${{ steps.changes.outputs.non_mobile == 'true' }}
+      should_deploy: ${{ steps.changes.outputs.non_mobile == 'true' }}
 
     steps:
       - name: Checkout Code
@@ -30,7 +29,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      # Pengecekan perubahan file
+      # Pengecekan perubahan file (skip jika perubahan HANYA di apps/mobile)
       - name: Check Changed Files
         id: changes
         uses: dorny/paths-filter@v3
@@ -44,21 +43,18 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore Web & Backend Dependencies
+      - name: Restore Web Dependencies
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then dotnet restore apps/backend/Hypen.csproj; fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then dotnet restore apps/web/Hypen.Web.csproj; fi
+          if [ -f "apps/web/Hypen.csproj" ]; then 
+            dotnet restore apps/web/Hypen.csproj
+          fi
 
       - name: Run Dotnet Format Fix
         continue-on-error: true
         run: |
-          if [ -f "apps/backend/Hypen.csproj" ]; then 
-            dotnet format whitespace apps/backend/Hypen.csproj --no-restore
-            dotnet format style apps/backend/Hypen.csproj --no-restore --severity info
-          fi
-          if [ -f "apps/web/Hypen.Web.csproj" ]; then 
-            dotnet format whitespace apps/web/Hypen.Web.csproj --no-restore
-            dotnet format style apps/web/Hypen.Web.csproj --no-restore --severity info
+          if [ -f "apps/web/Hypen.csproj" ]; then 
+            dotnet format whitespace apps/web/Hypen.csproj --no-restore
+            dotnet format style apps/web/Hypen.csproj --no-restore --severity info
           fi
 
       - name: Revert Generated Files
@@ -76,63 +72,19 @@ jobs:
           internal_git_options: '-c rebase.autoStash=true'
 
   # ----------------------------------------------------
-  # CABANG 1: Build Blazor WASM
+  # STEP 2: Trigger Deployment ke Render.com
   # ----------------------------------------------------
-  build-web:
-    name: Build Blazor WebAssembly
+  deploy-render:
+    name: Trigger Render Deployment
     needs: lint-and-fix
-    # Jalankan HANYA JIKA ada file di luar apps/mobile yang berubah
-    if: needs.lint-and-fix.outputs.should_build == 'true'
+    if: needs.lint-and-fix.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Publish Blazor WebAssembly
+      - name: Trigger Deploy Hook
         run: |
-          rm -rf _site
-          dotnet publish apps/web/Hypen.Web.csproj -c Release -o _site/wwwroot
-
-          if [ -f "_site/wwwroot/wwwroot/index.html" ]; then
-            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/index.html
-            cp _site/wwwroot/wwwroot/index.html _site/wwwroot/404.html
-          elif [ -f "_site/wwwroot/index.html" ]; then
-            cp _site/wwwroot/index.html _site/wwwroot/404.html
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          else
+            echo "RENDER_DEPLOY_HOOK_URL secret belum diatur, skip trigger manual."
           fi
-
-          touch _site/wwwroot/.nojekyll
-
-      - name: Upload Artifact to Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '_site/wwwroot'
-
-  # ----------------------------------------------------
-  # STEP AKHIR: Deploy Blazor WASM ke GitHub Pages
-  # ----------------------------------------------------
-  deploy:
-    name: Deploy Web to GitHub Pages
-    needs: build-web
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
