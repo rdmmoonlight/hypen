@@ -111,13 +111,16 @@ jobs:
         run: |
           mkdir -p release-assets
           
-          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/devnull | head -n 1)
+          # Cari APK di seluruh direktori output build/publish
+          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
             APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/devnull | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
             echo "::error::File APK tidak ditemukan!"
+            echo "--- Struktur folder output build ---"
+            ls -R apps/mobile/bin/Release/net10.0-android/ || true
             exit 1
           fi
 
