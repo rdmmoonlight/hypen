@@ -1,4 +1,3 @@
-using System.Web;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using Hypen.Web.Models;
@@ -8,34 +7,71 @@ namespace Hypen.Web.Pages;
 
 public partial class Index
 {
-    [Inject] protected ISongService SongService { get; set; } = default!;
-    [Inject] protected IJSRuntime JS { get; set; } = default!;
-    [Inject] protected NavigationManager Navigation { get; set; } = default!;
+    [Inject]
+    protected ISongService SongService { get; set; } = default!;
+
+    [Inject]
+    protected IJSRuntime JS { get; set; } = default!;
+
+    [Inject]
+    protected NavigationManager Navigation { get; set; } = default!;
 
     protected List<CloudSongModel> songs = [];
+
     protected string ytUrl = "";
     protected string playlistUrl = "";
     protected string searchQuery = "";
     protected string statusMsg = "";
+
     protected bool isError;
     protected bool isLoading;
-    protected bool isSelectAllChecked = false;
 
-    // Progress State untuk Antrean Massal
+    // ------------------------------------------------------------
+    // SELECT ALL
+    // ------------------------------------------------------------
+
+    protected bool IsSelectAllChecked =>
+        FilteredSongs.Any() &&
+        FilteredSongs.All(song => song.IsSelected);
+
+    // ------------------------------------------------------------
+    // PROGRESS STATE
+    // ------------------------------------------------------------
+
     protected int totalQueueCount = 0;
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
+    // ------------------------------------------------------------
+    // FILTER
+    // ------------------------------------------------------------
+
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
-            : songs.Where(s => s.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                               s.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            : songs.Where(song =>
+                song.Title.Contains(
+                    searchQuery,
+                    StringComparison.OrdinalIgnoreCase
+                ) ||
+                song.Artist.Contains(
+                    searchQuery,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            );
+
+    // ------------------------------------------------------------
+    // INITIALIZATION
+    // ------------------------------------------------------------
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLibrary();
     }
+
+    // ------------------------------------------------------------
+    // LOAD LIBRARY
+    // ------------------------------------------------------------
 
     protected async Task LoadLibrary()
     {
@@ -43,13 +79,17 @@ public partial class Index
         {
             isLoading = true;
             SetStatus("Memuat library...");
+
             songs = await SongService.GetSongsAsync();
-            isSelectAllChecked = false;
+
             SetStatus("");
         }
         catch (Exception ex)
         {
-            SetStatus($"Gagal memuat library: {ex.Message}", true);
+            SetStatus(
+                $"Gagal memuat library: {ex.Message}",
+                true
+            );
         }
         finally
         {
@@ -58,160 +98,290 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // LOGIKA SELECT ALL TERPERBAIKI
+    // SELECT ALL
     // ------------------------------------------------------------
 
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
-        isSelectAllChecked = e.Value is bool val && val;
+        bool isChecked = Convert.ToBoolean(e.Value);
 
-        var targetList = FilteredSongs.ToList();
-        foreach (var song in targetList)
+        foreach (var song in FilteredSongs)
         {
-            song.IsSelected = isSelectAllChecked;
+            song.IsSelected = isChecked;
         }
-
-        StateHasChanged();
-    }
-
-    protected async Task DownloadSelected()
-    {
-        var selected = songs.Where(s => s.IsSelected).ToList();
-        if (selected.Count == 0) return;
-
-        isLoading = true;
-        totalQueueCount = selected.Count;
-        currentProcessedCount = 0;
-        progressPercentage = 0;
-
-        const int chunkSize = 10;
-        var chunks = selected.Chunk(chunkSize).ToList();
-
-        for (int i = 0; i < chunks.Count; i++)
-        {
-            var currentBatch = chunks[i];
-
-            foreach (var song in currentBatch)
-            {
-                currentProcessedCount++;
-                progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
-
-                SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
-                StateHasChanged();
-
-                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                await Task.Delay(600);
-            }
-
-            if (i < chunks.Count - 1)
-            {
-                SetStatus($"Mengistirahatkan antrean batch ({i + 1}/{chunks.Count})... Istirahat 2 detik.");
-                StateHasChanged();
-                await Task.Delay(2000);
-            }
-        }
-
-        SetStatus($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
-        isLoading = false;
-        progressPercentage = 100;
     }
 
     // ------------------------------------------------------------
-    // CONVERTER & SINGLE ACTIONS
+    // DOWNLOAD SELECTED
+    // ------------------------------------------------------------
+
+    protected async Task DownloadSelected()
+    {
+        var selected = songs
+            .Where(song => song.IsSelected)
+            .ToList();
+
+        if (selected.Count == 0)
+        {
+            SetStatus("Tidak ada lagu yang dipilih.", true);
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+
+            totalQueueCount = selected.Count;
+            currentProcessedCount = 0;
+            progressPercentage = 0;
+
+            const int chunkSize = 10;
+
+            var chunks = selected
+                .Chunk(chunkSize)
+                .ToList();
+
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                var currentBatch = chunks[i];
+
+                foreach (var song in currentBatch)
+                {
+                    currentProcessedCount++;
+
+                    progressPercentage =
+                        (int)(
+                            (double)currentProcessedCount /
+                            totalQueueCount *
+                            100
+                        );
+
+                    SetStatus(
+                        $"[Antrean {currentProcessedCount}/{totalQueueCount}] " +
+                        $"Mengunduh: {song.Title}..."
+                    );
+
+                    StateHasChanged();
+
+                    await SongService.DownloadSongAsync(
+                        song.AudioUrl,
+                        $"{song.Artist} - {song.Title}"
+                    );
+
+                    await Task.Delay(600);
+                }
+
+                if (i < chunks.Count - 1)
+                {
+                    SetStatus(
+                        $"Mengistirahatkan antrean batch " +
+                        $"({i + 1}/{chunks.Count})... Istirahat 2 detik."
+                    );
+
+                    StateHasChanged();
+
+                    await Task.Delay(2000);
+                }
+            }
+
+            progressPercentage = 100;
+
+            SetStatus(
+                $"Selesai mengunduh seluruh {totalQueueCount} lagu!"
+            );
+        }
+        catch (Exception ex)
+        {
+            SetStatus(
+                $"Gagal mengunduh antrean: {ex.Message}",
+                true
+            );
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // ------------------------------------------------------------
+    // CONVERT SINGLE VIDEO
     // ------------------------------------------------------------
 
     protected async Task ConvertVideo()
     {
-        if (string.IsNullOrWhiteSpace(ytUrl)) return;
-        
+        if (string.IsNullOrWhiteSpace(ytUrl))
+            return;
+
         try
         {
             isLoading = true;
-            SetStatus("Mengekstrak & menyimpan track ke library...");
+
+            SetStatus(
+                "Mengekstrak & menyimpan track ke library..."
+            );
 
             var result = await SongService.ConvertVideoAsync(ytUrl);
+
             if (result != null)
             {
-                SetStatus($"Berhasil mengekstrak: {result.Title}");
+                SetStatus(
+                    $"Berhasil mengekstrak: {result.Title}"
+                );
+
                 ytUrl = "";
+
                 await LoadLibrary();
             }
             else
             {
-                SetStatus("Gagal mengekstrak video dari YouTube.", true);
+                SetStatus(
+                    "Gagal mengekstrak video dari YouTube.",
+                    true
+                );
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Error: {ex.Message}", true);
+            SetStatus(
+                $"Error: {ex.Message}",
+                true
+            );
         }
         finally
         {
             isLoading = false;
         }
     }
+
+    // ------------------------------------------------------------
+    // CONVERT PLAYLIST
+    // ------------------------------------------------------------
 
     protected async Task ConvertPlaylist()
     {
-        if (string.IsNullOrWhiteSpace(playlistUrl)) return;
+        if (string.IsNullOrWhiteSpace(playlistUrl))
+            return;
 
         try
         {
             isLoading = true;
-            SetStatus("Mengimpor playlist YouTube...");
 
-            var result = await SongService.ConvertPlaylistAsync(playlistUrl);
+            SetStatus(
+                "Mengimpor playlist YouTube..."
+            );
+
+            var result =
+                await SongService.ConvertPlaylistAsync(playlistUrl);
+
             if (result != null)
             {
-                SetStatus($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
+                SetStatus(
+                    $"Berhasil mengimpor {result.TotalAdded} lagu ke library!"
+                );
+
                 playlistUrl = "";
+
                 await LoadLibrary();
             }
             else
             {
-                SetStatus("Gagal mengimpor playlist.", true);
+                SetStatus(
+                    "Gagal mengimpor playlist.",
+                    true
+                );
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Error: {ex.Message}", true);
+            SetStatus(
+                $"Error: {ex.Message}",
+                true
+            );
         }
         finally
         {
             isLoading = false;
         }
     }
+
+    // ------------------------------------------------------------
+    // DOWNLOAD SINGLE
+    // ------------------------------------------------------------
 
     protected async Task DownloadSingle(CloudSongModel song)
     {
         try
         {
-            SetStatus($"Mengunduh: {song.Title}...");
-            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+            SetStatus(
+                $"Mengunduh: {song.Title}..."
+            );
+
+            await SongService.DownloadSongAsync(
+                song.AudioUrl,
+                $"{song.Artist} - {song.Title}"
+            );
+
             SetStatus("");
         }
         catch (Exception ex)
         {
-            SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+            SetStatus(
+                $"Gagal mengunduh lagu: {ex.Message}",
+                true
+            );
         }
     }
 
+    // ------------------------------------------------------------
+    // DELETE SINGLE
+    // ------------------------------------------------------------
+
     protected async Task DeleteSingle(int id)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?")) return;
-        
+        bool confirmed =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                "Yakin ingin menghapus lagu ini dari vault?"
+            );
+
+        if (!confirmed)
+            return;
+
         if (await SongService.DeleteSongAsync(id))
         {
             await LoadLibrary();
         }
     }
 
+    // ------------------------------------------------------------
+    // DELETE SELECTED
+    // ------------------------------------------------------------
+
     protected async Task DeleteSelected()
     {
-        var selectedIds = songs.Where(s => s.IsSelected).Select(s => s.Id).ToArray();
-        if (selectedIds.Length == 0) return;
+        var selectedIds = songs
+            .Where(song => song.IsSelected)
+            .Select(song => song.Id)
+            .ToArray();
 
-        if (!await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu?")) return;
+        if (selectedIds.Length == 0)
+        {
+            SetStatus(
+                "Tidak ada lagu yang dipilih.",
+                true
+            );
+
+            return;
+        }
+
+        bool confirmed =
+            await JS.InvokeAsync<bool>(
+                "confirm",
+                $"Yakin ingin menghapus {selectedIds.Length} lagu?"
+            );
+
+        if (!confirmed)
+            return;
 
         if (await SongService.DeleteBatchSongsAsync(selectedIds))
         {
@@ -219,7 +389,13 @@ public partial class Index
         }
     }
 
-    private void SetStatus(string msg, bool error = false)
+    // ------------------------------------------------------------
+    // STATUS
+    // ------------------------------------------------------------
+
+    private void SetStatus(
+        string msg,
+        bool error = false)
     {
         statusMsg = msg;
         isError = error;
