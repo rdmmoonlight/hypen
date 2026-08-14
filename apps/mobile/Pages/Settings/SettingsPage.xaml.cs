@@ -1,224 +1,112 @@
-using System;
 using System.Diagnostics;
 using HypenMaui.Services;
-using Microsoft.Maui.ApplicationModel;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Storage;
 
 namespace HypenMaui.Pages.Settings;
 
 public partial class SettingsPage : ContentPage
 {
-    private readonly LastFmService _lastFmService = new();
-    private readonly GoogleDriveService _gDriveService = new();
-    private readonly TeraBoxService _teraBoxService = new();
+    private readonly LastFmService _lastFm = new();
+    private readonly GoogleDriveService _gDrive = new();
+    private readonly TeraBoxService _teraBox = new();
 
     public SettingsPage()
     {
         InitializeComponent();
         AutoUpdateSwitch.IsToggled = Preferences.Default.Get("AutoUpdateEnabled", true);
-        _ = UpdateAllStatusUIAsync();
+        _ = RefreshAllStatusAsync();
     }
 
-    private async Task UpdateAllStatusUIAsync()
+    private async Task RefreshAllStatusAsync()
     {
-        await UpdateLastFmStatusUIAsync();
-        await UpdateGoogleDriveStatusUIAsync();
-        await UpdateTeraBoxStatusUIAsync();
+        await UpdateStatusUIAsync(_lastFm, LastFmStatusLabel, LastFmAuthButton, "Last.fm", "Last.fm");
+        await UpdateStatusUIAsync(_gDrive, GoogleDriveStatusLabel, GoogleDriveAuthButton, "Google Drive Vault", "Google Drive");
+        await UpdateStatusUIAsync(_teraBox, TeraBoxStatusLabel, TeraBoxAuthButton, "TeraBox Vault", "TeraBox Token");
     }
 
-    // --- LAST.FM LOGIC ---
-    private async Task UpdateLastFmStatusUIAsync()
+    private async Task UpdateStatusUIAsync(dynamic service, Label label, Button button, string serviceName, string btnName)
     {
-        if (await _lastFmService.IsAuthenticatedAsync())
-        {
-            LastFmStatusLabel.Text = "Status: Terhubung ke Last.fm ✅";
-            LastFmStatusLabel.TextColor = Color.Parse("#4CC9F0");
-            LastFmAuthButton.Text = "Putuskan Koneksi Last.fm";
-            LastFmAuthButton.BackgroundColor = Color.Parse("#F72585");
-        }
-        else
-        {
-            LastFmStatusLabel.Text = "Status: Belum Terhubung";
-            LastFmStatusLabel.TextColor = Color.Parse("#A0A0B0");
-            LastFmAuthButton.Text = "Hubungkan Akun Last.fm";
-            LastFmAuthButton.BackgroundColor = Color.Parse("#8A5CF5");
-        }
+        bool isAuth = await service.IsAuthenticatedAsync();
+        label.Text = isAuth ? $"Status: Terhubung ke {serviceName} ✅" : "Status: Belum Terhubung";
+        label.TextColor = Color.Parse(isAuth ? "#4CC9F0" : "#A0A0B0");
+        button.Text = isAuth ? $"Putuskan Koneksi {btnName}" : $"Hubungkan {btnName}";
+        button.BackgroundColor = Color.Parse(isAuth ? "#F72585" : "#8A5CF5");
     }
 
     private async void OnLastFmAuthClicked(object sender, EventArgs e)
     {
         try
         {
-            if (await _lastFmService.IsAuthenticatedAsync())
+            if (await _lastFm.IsAuthenticatedAsync())
             {
-                _lastFmService.ForgetSession();
-                await UpdateLastFmStatusUIAsync();
-                await DisplayAlertAsync("Info", "Koneksi Last.fm berhasil diputuskan.", "OK");
+                _lastFm.ForgetSession();
+                await DisplayAlertAsync("Info", "Koneksi Last.fm diputuskan.", "OK");
                 return;
             }
 
-            LastFmStatusLabel.Text = "Mengambil token autentikasi...";
-            var token = await _lastFmService.GetAuthTokenAsync();
+            LastFmStatusLabel.Text = "Mengambil token...";
+            var token = await _lastFm.GetAuthTokenAsync();
+            if (string.IsNullOrEmpty(token)) throw new Exception("Gagal mengambil token Last.fm.");
 
-            if (string.IsNullOrEmpty(token))
+            await Launcher.Default.OpenAsync(new Uri($"https://www.last.fm/api/auth/?api_key={_lastFm.PublicApiKey}&token={token}"));
+
+            if (await DisplayAlertAsync("Otorisasi", "Apakah Anda sudah memberikan izin di browser?", "Sudah", "Batal"))
             {
-                await DisplayAlertAsync("Error", "Gagal menghubungi server Last.fm.", "OK");
-                await UpdateLastFmStatusUIAsync();
-                return;
-            }
-
-            string authUrl = $"https://www.last.fm/api/auth/?api_key={_lastFmService.PublicApiKey}&token={token}";
-            await Launcher.Default.OpenAsync(new Uri(authUrl));
-
-            bool confirm = await DisplayAlertAsync("Konfirmasi Otorisasi", 
-                "Apakah Anda sudah memberikan izin di halaman Last.fm yang terbuka di browser?", "Sudah", "Batal");
-
-            if (confirm)
-            {
-                bool success = await _lastFmService.FetchSessionAsync(token);
-                if (success)
-                {
-                    await DisplayAlertAsync("Sukses", "Berhasil terhubung ke akun Last.fm!", "OK");
-                }
-                else
-                {
-                    await DisplayAlertAsync("Gagal", "Gagal melakukan verifikasi sesi Last.fm. Pastikan Anda sudah login di browser.", "OK");
-                }
+                bool ok = await _lastFm.FetchSessionAsync(token);
+                await DisplayAlertAsync(ok ? "Sukses" : "Gagal", ok ? "Terhubung ke Last.fm!" : "Gagal verifikasi sesi.", "OK");
             }
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[LastFm Auth Error] {ex.Message}");
-            await DisplayAlertAsync("Error", $"Gagal autentikasi: {ex.Message}", "OK");
-        }
-        finally
-        {
-            await UpdateLastFmStatusUIAsync();
-        }
-    }
-
-    // --- GOOGLE DRIVE LOGIC ---
-    private async Task UpdateGoogleDriveStatusUIAsync()
-    {
-        if (await _gDriveService.IsAuthenticatedAsync())
-        {
-            GoogleDriveStatusLabel.Text = "Status: Terhubung ke Google Drive Vault ✅";
-            GoogleDriveStatusLabel.TextColor = Color.Parse("#4CC9F0");
-            GoogleDriveAuthButton.Text = "Putuskan Koneksi Google Drive";
-            GoogleDriveAuthButton.BackgroundColor = Color.Parse("#F72585");
-        }
-        else
-        {
-            GoogleDriveStatusLabel.Text = "Status: Belum Terhubung";
-            GoogleDriveStatusLabel.TextColor = Color.Parse("#A0A0B0");
-            GoogleDriveAuthButton.Text = "Hubungkan Google Drive";
-            GoogleDriveAuthButton.BackgroundColor = Color.Parse("#8A5CF5");
-        }
+        catch (Exception ex) { await DisplayAlertAsync("Error", ex.Message, "OK"); }
+        finally { await RefreshAllStatusAsync(); }
     }
 
     private async void OnGoogleDriveAuthClicked(object sender, EventArgs e)
     {
         try
         {
-            if (await _gDriveService.IsAuthenticatedAsync())
+            if (await _gDrive.IsAuthenticatedAsync())
             {
-                _gDriveService.ForgetSession();
-                await UpdateGoogleDriveStatusUIAsync();
-                await DisplayAlertAsync("Info", "Koneksi Google Drive berhasil diputuskan.", "OK");
-                return;
-            }
-
-            bool success = await _gDriveService.AuthenticateAsync();
-            if (success)
-            {
-                await DisplayAlertAsync("Sukses", "Berhasil terhubung ke Google Drive Vault!", "OK");
+                _gDrive.ForgetSession();
+                await DisplayAlertAsync("Info", "Koneksi Google Drive diputuskan.", "OK");
             }
             else
             {
-                await DisplayAlertAsync("Gagal", "Gagal menghubungkan Google Drive.", "OK");
+                bool ok = await _gDrive.AuthenticateAsync();
+                await DisplayAlertAsync(ok ? "Sukses" : "Gagal", ok ? "Terhubung ke Google Drive Vault!" : "Gagal menghubungkan.", "OK");
             }
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GDrive Auth Error] {ex.Message}");
-            await DisplayAlertAsync("Error", $"Error Google Drive: {ex.Message}", "OK");
-        }
-        finally
-        {
-            await UpdateGoogleDriveStatusUIAsync();
-        }
-    }
-
-    // --- TERABOX LOGIC ---
-    private async Task UpdateTeraBoxStatusUIAsync()
-    {
-        if (await _teraBoxService.IsAuthenticatedAsync())
-        {
-            TeraBoxStatusLabel.Text = "Status: Terhubung ke TeraBox Vault ✅";
-            TeraBoxStatusLabel.TextColor = Color.Parse("#4CC9F0");
-            TeraBoxAuthButton.Text = "Putuskan Koneksi TeraBox";
-            TeraBoxAuthButton.BackgroundColor = Color.Parse("#F72585");
-        }
-        else
-        {
-            TeraBoxStatusLabel.Text = "Status: Belum Terhubung";
-            TeraBoxStatusLabel.TextColor = Color.Parse("#A0A0B0");
-            TeraBoxAuthButton.Text = "Hubungkan TeraBox Token";
-            TeraBoxAuthButton.BackgroundColor = Color.Parse("#8A5CF5");
-        }
+        catch (Exception ex) { await DisplayAlertAsync("Error", ex.Message, "OK"); }
+        finally { await RefreshAllStatusAsync(); }
     }
 
     private async void OnTeraBoxAuthClicked(object sender, EventArgs e)
     {
         try
         {
-            if (await _teraBoxService.IsAuthenticatedAsync())
+            if (await _teraBox.IsAuthenticatedAsync())
             {
-                _teraBoxService.ForgetSession();
-                await UpdateTeraBoxStatusUIAsync();
-                await DisplayAlertAsync("Info", "Koneksi TeraBox berhasil diputuskan.", "OK");
-                return;
+                _teraBox.ForgetSession();
+                await DisplayAlertAsync("Info", "Koneksi TeraBox diputuskan.", "OK");
             }
-
-            string token = await DisplayPromptAsync("TeraBox Token", 
-                "Masukkan NDUID / Session Cookie ndus dari TeraBox Anda:", "Simpan", "Batal");
-
-            if (!string.IsNullOrWhiteSpace(token))
+            else
             {
-                await _teraBoxService.SaveSessionTokenAsync(token.Trim());
-                await DisplayAlertAsync("Sukses", "Token TeraBox Vault berhasil disimpan!", "OK");
+                string token = await DisplayPromptAsync("TeraBox Token", "Masukkan NDUID / Session Cookie ndus:", "Simpan", "Batal");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    await _teraBox.SaveSessionTokenAsync(token.Trim());
+                    await DisplayAlertAsync("Sukses", "Token TeraBox berhasil disimpan!", "OK");
+                }
             }
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[TeraBox Auth Error] {ex.Message}");
-            await DisplayAlertAsync("Error", $"Error TeraBox: {ex.Message}", "OK");
-        }
-        finally
-        {
-            await UpdateTeraBoxStatusUIAsync();
-        }
+        catch (Exception ex) { await DisplayAlertAsync("Error", ex.Message, "OK"); }
+        finally { await RefreshAllStatusAsync(); }
     }
 
-    // --- AUTO UPDATE LOGIC ---
-    private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e)
-    {
+    private void OnAutoUpdateToggled(object? sender, ToggledEventArgs e) =>
         Preferences.Default.Set("AutoUpdateEnabled", e.Value);
-    }
 
     private async void OnCheckUpdateManualClicked(object? sender, EventArgs e)
     {
-        try
-        {
-            var updateService = new UpdateService();
-            await updateService.CheckAndInstallUpdateAsync("rdmmoonlight", "hypen", isSilent: false);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Manual update check error: {ex}");
-            await DisplayAlertAsync("Error", "Gagal memeriksa pembaruan.", "OK");
-        }
+        try { await new UpdateService().CheckAndInstallUpdateAsync("rdmmoonlight", "hypen", isSilent: false); }
+        catch { await DisplayAlertAsync("Error", "Gagal memeriksa pembaruan.", "OK"); }
     }
 }
