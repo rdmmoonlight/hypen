@@ -54,7 +54,7 @@
         </RefreshView>
 
         <!-- Mini Player Bar: ringkasan elegan, tap untuk buka Now Playing Page -->
-        <Frame x:Name="MiniPlayerBar" Grid.Row="3" IsVisible="False" BackgroundColor="#141226" Stroke="#2a274c"
+        <Border x:Name="MiniPlayerBar" Grid.Row="3" IsVisible="False" BackgroundColor="#141226" Stroke="#2a274c"
                Padding="10,8" StrokeShape="RoundRectangle0" HasShadow="True">
             <Grid ColumnDefinitions="Auto, *, Auto, Auto">
                 <Grid.GestureRecognizers>

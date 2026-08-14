@@ -112,7 +112,7 @@
         </Grid>
 
         <!-- Panel Up Next (queue) — overlay, disembunyikan default -->
-        <Frame x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
+        <Border x:Name="QueuePanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
                Padding="16" VerticalOptions="End" HeightRequest="380">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
@@ -141,7 +141,7 @@
         </Border>
 
         <!-- Panel Lirik — overlay, disembunyikan default -->
-        <Frame x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
+        <Border x:Name="LyricsPanel" IsVisible="False" BackgroundColor="#141226" StrokeShape="RoundRectangle20"
                Padding="16" VerticalOptions="End" HeightRequest="380">
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
