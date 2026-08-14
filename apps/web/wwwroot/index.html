@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hypen Vault Player</title>
+    <title>Hypen Vault Downloader</title>
 
-    <!-- Path base href mengarah ke subfolder repository GitHub Pages -->
-    <base href="/hypen/" />
+    <!-- Base href disesuaikan untuk Render.com (Root Domain) -->
+    <base href="/" />
     
-    <!-- Favicon langsung mengambil dari GitHub Raw (folder apps/mobile) -->
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
 
     <!-- Google Fonts -->
@@ -16,16 +16,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Custom Stylesheet -->
+    <!-- Custom Stylesheet (Dimuat dari wwwroot/theme.css atau wwwroot/css/app.css) -->
     <link rel="stylesheet" href="theme.css?v=7.0" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="Hypen.Web.styles.css" />
+
+    <HeadOutlet />
 </head>
 
 <body>
-    <!-- Target Mounting Blazor WASM -->
+    <!-- Target Mounting Blazor -->
     <div id="app">
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; color: #4cc9f0; font-family: sans-serif;">
-            <h3>Memuat Hypen Vault Player...</h3>
-        </div>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <PageTitle>Not found</PageTitle>
+                <LayoutView Type="@typeof(MainLayout)">
+                    <p role="alert" style="padding: 20px; color: var(--text-secondary);">Maaf, halaman tidak ditemukan.</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
     </div>
 
     <!-- UI Handler Error Bawaan Blazor -->
@@ -48,7 +61,7 @@
         };
     </script>
 
-    <!-- Script Utama Runtime Blazor WASM -->
-    <script src="_framework/blazor.webassembly.js"></script>
+    <!-- Script Utama Runtime Blazor Engine -->
+    <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
