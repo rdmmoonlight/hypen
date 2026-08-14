@@ -32,7 +32,6 @@ builder.Services.AddRazorComponents()
 // 2. REGISTRASI SERVICE FRONTEND / BLAZOR (DI IN-PROCESS)
 // ============================================================
 
-// Base Address HttpClient menyesuaikan konteks server/client
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -73,9 +72,11 @@ string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTI
 // ============================================================
 
 // Health Check API
-app.MapGet("/api/health", () => Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.0.0" }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
-// Endpoint Utama: Convert via yt-dlp
+// ------------------------------------------------------------
+// [OPSI 1] ENDPOINT UTAMA: SINGLE CONVERT (TIDAK DIUBAH / TERJAGA)
+// ------------------------------------------------------------
 app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 {
     try
@@ -141,6 +142,67 @@ app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
     }
 });
 
+// ------------------------------------------------------------
+// [OPSI 2] ENDPOINT BARU: BATCH / MASS CONVERT (OPSIONAL)
+// ------------------------------------------------------------
+app.MapPost("/api/convert-ytdlp/batch", async ([FromBody] BatchConvertYtDlpRequest req) =>
+{
+    try
+    {
+        if (req == null || req.YoutubeUrls == null || req.YoutubeUrls.Count == 0)
+        {
+            return Results.BadRequest(new { error = "Daftar URL YouTube tidak boleh kosong." });
+        }
+
+        // Batasi maksimal 10 URL per request agar tidak melebihi timeout Render (30s)
+        var urlsToProcess = req.YoutubeUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(10).ToList();
+        logger.LogInformation("[YT-DLP BATCH] Processing {Count} URLs...", urlsToProcess.Count);
+
+        var results = new List<object>();
+
+        foreach (var url in urlsToProcess)
+        {
+            try
+            {
+                var ytdlpResult = await ExtractWithYtDlpAsync(url, logger);
+                if (!string.IsNullOrWhiteSpace(ytdlpResult.AudioUrl))
+                {
+                    results.Add(new
+                    {
+                        success = true,
+                        youtubeUrl = url,
+                        youtubeId = ytdlpResult.YoutubeId,
+                        title = ytdlpResult.Title,
+                        artist = ytdlpResult.Artist,
+                        coverUrl = ytdlpResult.CoverUrl,
+                        audioUrl = ytdlpResult.AudioUrl,
+                        duration = ytdlpResult.Duration
+                    });
+                }
+                else
+                {
+                    results.Add(new { success = false, youtubeUrl = url, error = "Gagal mengekstrak audio URL." });
+                }
+            }
+            catch (Exception ex)
+            {
+                results.Add(new { success = false, youtubeUrl = url, error = ex.Message });
+            }
+        }
+
+        return Results.Ok(new
+        {
+            totalProcessed = results.Count,
+            items = results
+        });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[YT-DLP BATCH] Processing Error");
+        return Results.Json(new { error = ex.Message }, statusCode: 500);
+    }
+});
+
 // ============================================================
 // 5. ROUTING BLAZOR WEB ASSEMBLY
 // ============================================================
@@ -202,4 +264,5 @@ static async Task<YtDlpMetadata> ExtractWithYtDlpAsync(string youtubeUrl, ILogge
 
 // DTO Models
 public record ConvertYtDlpRequest(string YoutubeUrl);
+public record BatchConvertYtDlpRequest(List<string> YoutubeUrls); // Model Baru untuk Mass Download
 public record YtDlpMetadata(string YoutubeId, string Title, string Artist, string CoverUrl, string AudioUrl, int Duration);
