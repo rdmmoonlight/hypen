@@ -65,11 +65,23 @@ jobs:
       - name: Install .NET MAUI Workload
         run: dotnet workload install maui-android
 
-      - name: Clean Build Artifacts
+      - name: Aggressive Clean Build Artifacts
         run: |
-          dotnet clean apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --verbosity minimal || true
-          rm -rf apps/mobile/bin/Release/net10.0-android
-          rm -rf apps/mobile/obj/Release/net10.0-android
+          set -e
+          # Clean entire solution
+          dotnet clean apps/mobile/HypenMaui.csproj -c Release --verbosity minimal || true
+          
+          # Remove all obj and bin directories
+          rm -rf apps/mobile/bin
+          rm -rf apps/mobile/obj
+          
+          # Clear NuGet cache for MAUI packages
+          rm -rf ~/.nuget/packages/microsoft.maui* || true
+          
+          # Clear dotnet cache
+          dotnet nuget locals all --clear || true
+          
+          echo "✓ Build artifacts cleaned successfully"
 
       - name: Decode Release Keystore
         env:
@@ -91,9 +103,20 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android
+          # Fresh restore
+          dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android35.0
           
-          dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android --no-restore \
+          # Build first (single project MAUI build)
+          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android35.0 --no-restore \
+            -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
+            -p:ApplicationVersion="${{ github.run_number }}" \
+            -p:LASTFM_KEY="${LASTFM_API_KEY:-dummy_key}" \
+            -p:LASTFM_SECRET="${LASTFM_API_SECRET:-dummy_secret}" \
+            -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
+            -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
+          
+          # Then publish with signing
+          dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android35.0 --no-restore --no-build \
             -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LASTFM_KEY="${LASTFM_API_KEY:-dummy_key}" \
@@ -118,15 +141,15 @@ jobs:
           mkdir -p release-assets
           
           # Cari APK di seluruh direktori output build/publish
-          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
+          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android* -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/dev/null | head -n 1)
+            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android* -type f -name "*.apk" 2>/dev/null | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
             echo "::error::File APK tidak ditemukan!"
             echo "--- Struktur folder output build ---"
-            ls -R apps/mobile/bin/Release/net10.0-android/ || true
+            ls -R apps/mobile/bin/Release/net10.0-android* || true
             exit 1
           fi
 
