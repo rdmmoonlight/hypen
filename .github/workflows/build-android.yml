@@ -106,17 +106,13 @@ jobs:
           # Fresh restore
           dotnet restore apps/mobile/HypenMaui.csproj -p:TargetFramework=net10.0-android36.1
           
-          # Build first (single project MAUI build)
-          dotnet build apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore \
-            -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
-            -p:ApplicationVersion="${{ github.run_number }}" \
-            -p:LASTFM_KEY="${LASTFM_API_KEY:-dummy_key}" \
-            -p:LASTFM_SECRET="${LASTFM_API_SECRET:-dummy_secret}" \
-            -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
-            -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}"
-          
-          # Then publish with signing
-          dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore --no-build \
+          # Build + publish dalam satu invocation MSBuild.
+          # CATATAN: sebelumnya "dotnet build" lalu "dotnet publish --no-build" dijalankan
+          # terpisah. Pada .NET 10 MAUI, target publish Android tetap memicu ulang XAML
+          # source-generator meski --no-build, sehingga field/atribut yang sudah di-generate
+          # oleh "dotnet build" digandakan lagi oleh "dotnet publish" -> error CS0102/CS0579/
+          # CS0111/CS0229 (duplicate definition). Solusinya: publish langsung tanpa build terpisah.
+          dotnet publish apps/mobile/HypenMaui.csproj -c Release -f net10.0-android36.1 --no-restore \
             -p:ApplicationDisplayVersion="${{ needs.prepare-version.outputs.version_name }}" \
             -p:ApplicationVersion="${{ github.run_number }}" \
             -p:LASTFM_KEY="${LASTFM_API_KEY:-dummy_key}" \
