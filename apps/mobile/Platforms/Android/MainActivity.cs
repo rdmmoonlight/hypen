@@ -41,4 +41,15 @@ public class MainActivity : MauiAppCompatActivity
             stopIntent,
             PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
     }
+
+    protected override void OnNewIntent(Intent? intent)
+    {
+        base.OnNewIntent(intent);
+
+        if (intent?.Action == "ACTION_FORCE_CLOSE")
+        {
+            Services.PlayerService.Current.Pause();
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+        }
+    }
 }
