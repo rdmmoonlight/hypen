@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             xmlns:models="clr-namespace:HypenMaui.Models"
+             x:Class="HypenMaui.Pages.Library.LibraryPage"
+             Title="Audiophile Library"
+             BackgroundColor="#121212">
+
+    <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
+        
+        <!-- Header & Audio Technical Summary -->
+        <Border Grid.Row="0" Margin="16,12" Padding="16" BackgroundColor="#1E1E1E" StrokeShape="RoundRectangle 12" StrokeThickness="0">
+            <Grid ColumnDefinitions="*, Auto">
+                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                    <Label Text="LOCAL AUDIOPHILE LIBRARY" FontSize="11" FontAttributes="Bold" TextColor="#A0A0A0" CharacterSpacing="1.5" />
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                        <Label x:Name="TotalTracksLabel" Text="0 Tracks" FontSize="18" FontAttributes="Bold" TextColor="White" />
+                        <Label Text="•" TextColor="#666666" VerticalOptions="Center" />
+                        <Label x:Name="HiResCountLabel" Text="0 Hi-Res" FontSize="13" TextColor="#FFD700" VerticalOptions="Center" FontAttributes="Bold" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+                <Button Grid.Column="1" Text="Rescan" Clicked="OnRescanClicked" HeightRequest="36" BackgroundColor="#2D2D2D" TextColor="White" FontSize="12" CornerRadius="8" ImageSource="refresh.png" />
+            </Grid>
+        </Border>
+
+        <!-- Search Bar -->
+        <SearchBar Grid.Row="1" x:Name="SearchInput" Placeholder="Search title, artist, format (e.g. FLAC, 96kHz)..." TextChanged="OnSearchTextChanged" PlaceholderColor="#777777" TextColor="White" Margin="16,0,16,8" BackgroundColor="#1E1E1E" />
+
+        <!-- Filter Chips (Audiophile Categories) -->
+        <ScrollView Grid.Row="2" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="16,0,16,12">
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="FilterAllBtn" Text="All Tracks" Clicked="OnFilterCategoryClicked" CommandParameter="ALL" HeightRequest="32" CornerRadius="16" BackgroundColor="#00E5FF" TextColor="Black" FontSize="12" FontAttributes="Bold" />
+                <Button x:Name="FilterHiResBtn" Text="💛 Hi-Res / Lossless" Clicked="OnFilterCategoryClicked" CommandParameter="HIRES" HeightRequest="32" CornerRadius="16" BackgroundColor="#2A2A2A" TextColor="White" FontSize="12" />
+                <Button x:Name="FilterAlbumsBtn" Text="Albums" Clicked="OnFilterCategoryClicked" CommandParameter="ALBUMS" HeightRequest="32" CornerRadius="16" BackgroundColor="#2A2A2A" TextColor="White" FontSize="12" />
+                <Button x:Name="FilterArtistsBtn" Text="Artists" Clicked="OnFilterCategoryClicked" CommandParameter="ARTISTS" HeightRequest="32" CornerRadius="16" BackgroundColor="#2A2A2A" TextColor="White" FontSize="12" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Main Content Stream -->
+        <RefreshView Grid.Row="3" x:Name="RefreshControl" Refreshing="OnRefreshTriggered">
+            <Grid>
+                <Label x:Name="StatusLabel" HorizontalOptions="Center" VerticalOptions="Center" TextColor="#888888" FontSize="14" HorizontalTextAlignment="Center" Margin="24" />
+                
+                <CollectionView x:Name="SongsCollectionView" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:SongModel">
+                            <Grid ColumnDefinitions="56, *, Auto" Padding="16,8" ColumnSpacing="12">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnSongItemTapped" CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+
+                                <!-- Album Art Cover -->
+                                <Border Grid.Column="0" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 8" StrokeThickness="0" BackgroundColor="#222222">
+                                    <Image Source="{Binding Cover}" Aspect="AspectFill" HeightRequest="56" WidthRequest="56" />
+                                </Border>
+
+                                <!-- Song & Audiophile Metadata -->
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="{Binding Title}" LineBreakMode="TailTruncation" TextColor="White" FontSize="15" FontAttributes="Bold" />
+                                    <Label Text="{Binding Artist}" LineBreakMode="TailTruncation" TextColor="#BBBBBB" FontSize="13" />
+                                    
+                                    <!-- Audiophile Specs Badge Row -->
+                                    <HorizontalStackLayout Spacing="6" Margin="0,2,0,0">
+                                        <!-- Lossless / Hi-Res Indicator -->
+                                        <Border BackgroundColor="#282000" Stroke="#FFD700" StrokeThickness="0.5" Padding="4,1" StrokeShape="RoundRectangle 4">
+                                            <Label Text="24-bit / 96kHz FLAC" FontSize="9" TextColor="#FFD700" FontAttributes="Bold" />
+                                        </Border>
+                                        <Label Text="{Binding Album}" LineBreakMode="TailTruncation" TextColor="#666666" FontSize="11" VerticalOptions="Center" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <!-- Action Buttons -->
+                                <HorizontalStackLayout Grid.Column="2" VerticalOptions="Center" Spacing="4">
+                                    <Button Text="▶" Clicked="OnPlaySingleClicked" CommandParameter="{Binding .}" WidthRequest="38" HeightRequest="38" CornerRadius="19" BackgroundColor="#222222" TextColor="#00E5FF" FontSize="12" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </RefreshView>
+
+        <!-- Audiophile Mini Player Bar -->
+        <Border Grid.Row="4" x:Name="MiniPlayerBar" IsVisible="False" BackgroundColor="#1A1A1A" Stroke="#333333" StrokeShape="Rectangle" Padding="12,8">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnMiniBarTapped" />
+            </Border.GestureRecognizers>
+            <Grid ColumnDefinitions="44, *, Auto" ColumnSpacing="12" VerticalOptions="Center">
+                <Border Grid.Column="0" WidthRequest="44" HeightRequest="44" StrokeShape="RoundRectangle 6" StrokeThickness="0" x:Name="MiniCoverBorder">
+                    <Image x:Name="MiniCover" Aspect="AspectFill" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                    <Label x:Name="MiniTitle" TextColor="White" FontSize="13" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                    <HorizontalStackLayout Spacing="6">
+                        <Label x:Name="MiniArtist" TextColor="#AAAAAA" FontSize="11" LineBreakMode="TailTruncation" />
+                        <Label Text="• DIRECT AUDIO" TextColor="#00E5FF" FontSize="9" FontAttributes="Bold" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+                <HorizontalStackLayout Grid.Column="2" Spacing="8">
+                    <Button x:Name="MiniPlayPauseButton" Text="▶" Clicked="OnMiniPlayPauseClicked" WidthRequest="36" HeightRequest="36" CornerRadius="18" BackgroundColor="#282828" TextColor="White" FontSize="12" />
+                    <Button Text="⏭" Clicked="OnMiniNextClicked" WidthRequest="36" HeightRequest="36" CornerRadius="18" BackgroundColor="#282828" TextColor="White" FontSize="12" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>
