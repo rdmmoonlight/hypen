@@ -9,22 +9,24 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     private readonly HttpClient _http = http;
     private readonly IJSRuntime _js = js;
 
-    public async Task<List<SongModel>> GetSongsAsync()
+    public async Task<List<CloudSongModel>> GetSongsAsync()
     {
-        var result = await _http.GetFromJsonAsync<List<SongModel>>("/api/songs");
+        var result = await _http.GetFromJsonAsync<List<CloudSongModel>>("/api/songs");
         return result ?? [];
     }
 
     public async Task<ConvertResponse?> ConvertVideoAsync(string youtubeUrl)
     {
-        var response = await _http.PostAsJsonAsync("/api/convert", new ConvertRequest(youtubeUrl));
+        // Disesuaikan dengan endpoint yt-dlp backend: /api/convert-ytdlp
+        var response = await _http.PostAsJsonAsync("/api/convert-ytdlp", new ConvertRequest(youtubeUrl));
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<ConvertResponse>();
     }
 
     public async Task<PlaylistResponse?> ConvertPlaylistAsync(string playlistUrl)
     {
-        var response = await _http.PostAsJsonAsync("/api/convert-playlist", new PlaylistRequest(playlistUrl));
+        // Disesuaikan dengan endpoint playlist backend
+        var response = await _http.PostAsJsonAsync("/api/convert-ytdlp/playlist", new PlaylistRequest(playlistUrl));
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<PlaylistResponse>();
     }
