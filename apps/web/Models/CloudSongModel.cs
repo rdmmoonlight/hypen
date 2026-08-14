@@ -1,6 +1,13 @@
 namespace Hypen.Web.Models;
 
-public class SongModel
+public enum CloudProvider
+{
+    GoogleDrive,
+    TeraBox,
+    YouTube
+}
+
+public class CloudSongModel
 {
     public int Id { get; set; }
     public string YoutubeId { get; set; } = string.Empty;
@@ -9,7 +16,12 @@ public class SongModel
     public string Cover { get; set; } = string.Empty;
     public string AudioUrl { get; set; } = string.Empty;
 
-    // UI State Property
+    // Mobile Compatible Fields
+    public string StreamUrl { get; set; } = string.Empty;
+    public string SizeFormatted { get; set; } = string.Empty;
+    public CloudProvider Provider { get; set; } = CloudProvider.YouTube;
+
+    // UI State Property (Web Only)
     public bool IsSelected { get; set; }
 }
 
