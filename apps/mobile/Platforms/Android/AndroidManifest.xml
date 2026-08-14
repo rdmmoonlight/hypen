@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.hypen.vault">
 
+    <!-- Gatekeeper: Mengunci aplikasi Khusus Android 9 (API 28) -->
+    <uses-sdk 
+        android:minSdkVersion="28" 
+        android:targetSdkVersion="28" 
+        android:maxSdkVersion="28" />
+
     <!-- Izin standar -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -9,12 +15,9 @@
     <!-- Izin Instalasi Update APK (Android 8.0+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- Izin Baca Musik Lokal (Android 13+ / API 33+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    
-    <!-- Izin Baca/Tulis Penyimpanan (Android 12 ke bawah) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Izin Penyimpanan Khusus Android 9 (API 28) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application 
         android:allowBackup="true" 
