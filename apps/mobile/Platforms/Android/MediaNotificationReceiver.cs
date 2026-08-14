@@ -15,13 +15,13 @@ public class MediaNotificationReceiver : BroadcastReceiver
             // 1. Hentikan pemutaran musik
             PlayerService.Current.Pause();
 
-            // 2. Bersihkan notifikasi
+            // 2. Bersihkan semua notifikasi
             if (context?.GetSystemService(Context.NotificationService) is NotificationManager manager)
             {
                 manager.CancelAll();
             }
 
-            // 3. Force Close / Matikan Proses Aplikasi
+            // 3. Force close / Matikan proses aplikasi
             System.Diagnostics.Process.GetCurrentProcess().Kill();
         }
     }
