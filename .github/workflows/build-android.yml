@@ -39,7 +39,7 @@ jobs:
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
   # ====================================================
-  # CABANG PARALEL A: BUILD & VALIDATE APK (SATU ARTIFACT FOKUS)
+  # CABANG PARALEL A: BUILD & VALIDATE APK
   # ====================================================
   build-and-validate-apk:
     name: 2a. Build & Validate APK
@@ -95,7 +95,7 @@ jobs:
             -p:GoogleClientId="${GOOGLE_CLIENT_ID:-dummy_client_id}" \
             -p:GoogleClientSecret="${GOOGLE_CLIENT_SECRET:-dummy_client_secret}" \
             -p:AndroidKeyStore=true \
-            -p:AndroidSigningKeyStore="apps/mobile/hypen-release.keystore" \
+            -p:AndroidSigningKeyStore="$(pwd)/apps/mobile/hypen-release.keystore" \
             -p:AndroidSigningKeyAlias="${ANDROID_KEY_ALIAS}" \
             -p:AndroidSigningStorePass="${ANDROID_KEYSTORE_PASSWORD}" \
             -p:AndroidSigningKeyPass="${ANDROID_KEY_PASSWORD}"
@@ -111,10 +111,9 @@ jobs:
         run: |
           mkdir -p release-assets
           
-          # Cari APK hasil build/publish dengan aman
-          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/dev/null | head -n 1)
+          APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*-Signed.apk" 2>/devnull | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/dev/null | head -n 1)
+            APK_FILE=$(find apps/mobile/bin/Release/net10.0-android -type f -name "*.apk" 2>/devnull | head -n 1)
           fi
 
           if [ -z "$APK_FILE" ]; then
