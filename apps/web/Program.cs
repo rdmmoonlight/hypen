@@ -32,11 +32,12 @@ builder.Services.AddRazorComponents()
 // 2. REGISTRASI SERVICE FRONTEND / BLAZOR (DI IN-PROCESS)
 // ============================================================
 
-// Karena berjalan dalam satu server, HttpClient lokal dapat menggunakan URL server
+// Base Address HttpClient menyesuaikan konteks server/client
 builder.Services.AddScoped(sp =>
 {
-    var navigationManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
-    return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
+    var navigationManager = sp.GetService<Microsoft.AspNetCore.Components.NavigationManager>();
+    string baseUri = navigationManager?.BaseUri ?? "http://localhost:8080";
+    return new HttpClient { BaseAddress = new Uri(baseUri) };
 });
 
 builder.Services.AddScoped<ISongService, SongService>();
@@ -145,8 +146,7 @@ app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 // ============================================================
 
 app.MapRazorComponents<App>()
-    .AddInteractiveWebAssemblyRenderMode()
-    .AddAdditionalAssemblies(typeof(App).Assembly);
+    .AddInteractiveWebAssemblyRenderMode();
 
 app.Run();
 
