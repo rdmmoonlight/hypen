@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Components.WebAssembly.Server;
 using Npgsql;
 using Hypen.Web;
+using Hypen.Web.Models;
 using Hypen.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -73,7 +74,109 @@ string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTI
 app.MapGet("/api/health", () => Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
 // ------------------------------------------------------------
-// [OPSI 1] ENDPOINT UTAMA: SINGLE CONVERT (TIDAK DIUBAH / TERJAGA)
+// 4.1 ENDPOINT NEON DB: GET, DELETE, BATCH DELETE SONGS
+// ------------------------------------------------------------
+
+// Get All Songs dari Neon DB
+app.MapGet("/api/songs", async () =>
+{
+    if (string.IsNullOrWhiteSpace(dbConnectionString))
+    {
+        return Results.Ok(new List<CloudSongModel>());
+    }
+
+    try
+    {
+        await using var conn = new NpgsqlConnection(dbConnectionString);
+        await conn.OpenAsync();
+
+        const string sql = """
+            SELECT id, youtube_id, title, artist, cover_url, audio_url
+            FROM songs
+            ORDER BY id DESC;
+            """;
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var songs = new List<CloudSongModel>();
+        while (await reader.ReadAsync())
+        {
+            songs.Add(new CloudSongModel
+            {
+                Id = reader.GetInt32(0),
+                YoutubeId = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                Title = reader.IsDBNull(2) ? "Untitled" : reader.GetString(2),
+                Artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
+                Cover = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                AudioUrl = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                StreamUrl = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                Provider = CloudProvider.YouTube
+            });
+        }
+
+        return Results.Ok(songs);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[NEON DB] Failed to fetch songs");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// Delete Single Song
+app.MapDelete("/api/songs/{id:int}", async (int id) =>
+{
+    if (string.IsNullOrWhiteSpace(dbConnectionString)) return Results.BadRequest();
+
+    try
+    {
+        await using var conn = new NpgsqlConnection(dbConnectionString);
+        await conn.OpenAsync();
+
+        const string sql = "DELETE FROM songs WHERE id = @id;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", id);
+
+        int affected = await cmd.ExecuteNonQueryAsync();
+        return affected > 0 ? Results.Ok() : Results.NotFound();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[NEON DB] Failed to delete song {Id}", id);
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// Delete Batch Songs
+app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req) =>
+{
+    if (string.IsNullOrWhiteSpace(dbConnectionString) || req?.Ids == null || req.Ids.Length == 0)
+    {
+        return Results.BadRequest();
+    }
+
+    try
+    {
+        await using var conn = new NpgsqlConnection(dbConnectionString);
+        await conn.OpenAsync();
+
+        const string sql = "DELETE FROM songs WHERE id = ANY(@ids);";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("ids", req.Ids);
+
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[NEON DB] Failed to delete batch songs");
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// ------------------------------------------------------------
+// 4.2 ENDPOINT CONVERT: SINGLE CONVERT (TIDAK DIUBAH / TERJAGA)
 // ------------------------------------------------------------
 app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 {
@@ -141,7 +244,7 @@ app.MapPost("/api/convert-ytdlp", async ([FromBody] ConvertYtDlpRequest req) =>
 });
 
 // ------------------------------------------------------------
-// [OPSI 2] ENDPOINT BARU: BATCH / MASS CONVERT (OPSIONAL)
+// 4.3 ENDPOINT CONVERT: BATCH / MASS CONVERT (OPSIONAL)
 // ------------------------------------------------------------
 app.MapPost("/api/convert-ytdlp/batch", async ([FromBody] BatchConvertYtDlpRequest req) =>
 {
@@ -152,7 +255,6 @@ app.MapPost("/api/convert-ytdlp/batch", async ([FromBody] BatchConvertYtDlpReque
             return Results.BadRequest(new { error = "Daftar URL YouTube tidak boleh kosong." });
         }
 
-        // Batasi maksimal 10 URL per request agar tidak melebihi timeout Render (30s)
         var urlsToProcess = req.YoutubeUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(10).ToList();
         logger.LogInformation("[YT-DLP BATCH] Processing {Count} URLs...", urlsToProcess.Count);
 
@@ -262,5 +364,5 @@ static async Task<YtDlpMetadata> ExtractWithYtDlpAsync(string youtubeUrl, ILogge
 
 // DTO Models
 public record ConvertYtDlpRequest(string YoutubeUrl);
-public record BatchConvertYtDlpRequest(List<string> YoutubeUrls); // Model Baru untuk Mass Download
+public record BatchConvertYtDlpRequest(List<string> YoutubeUrls);
 public record YtDlpMetadata(string YoutubeId, string Title, string Artist, string CoverUrl, string AudioUrl, int Duration);
