@@ -38,15 +38,15 @@
 
     <script src="_framework/blazor.web.js"></script>
 
-    <!-- Script Helper JS Download dengan Fallback Anti-Block -->
+    <!-- Script Helper JS Download & Web Terminal Streaming -->
     <script>
+        // 1. Helper Download File dengan Fallback Anti-Block
         window.downloadFileFromUrl = async (fileUrl, fileName) => {
             const cleanFileName = fileName && fileName.endsWith('.mp3') 
                 ? fileName 
                 : `${fileName || 'track'}.mp3`;
 
             try {
-                // 1. Coba unduh via Fetch & Blob Stream (Paksa Mime-Type MP3)
                 const response = await fetch(fileUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
@@ -65,7 +65,6 @@
             } catch (error) {
                 console.warn("Fetch Blob terhalang CORS/Security, beralih ke Direct Link Fallback...", error);
 
-                // 2. Direct Fallback: Trigger tautan unduhan langsung tanpa fetch
                 const fallbackAnchor = document.createElement('a');
                 fallbackAnchor.href = fileUrl;
                 fallbackAnchor.download = cleanFileName;
@@ -76,6 +75,50 @@
                 fallbackAnchor.click();
                 document.body.removeChild(fallbackAnchor);
             }
+        };
+
+        // 2. Helper Real-Time SSE Terminal Streamer
+        let activeEventSource = null;
+
+        window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
+            if (activeEventSource) {
+                activeEventSource.close();
+            }
+
+            const encodedUrl = encodeURIComponent(youtubeUrl);
+            activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
+
+            activeEventSource.onmessage = (event) => {
+                const logLine = event.data;
+
+                // Kirim log per baris ke method C# [JSInvokable] OnTerminalLogReceived
+                if (dotNetHelper) {
+                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', logLine);
+                }
+
+                // Auto Scroll Box Terminal ke Paling Bawah
+                setTimeout(() => {
+                    const terminalBox = document.getElementById('terminal-box');
+                    if (terminalBox) {
+                        terminalBox.scrollTop = terminalBox.scrollHeight;
+                    }
+                }, 50);
+
+                // Tutup koneksi jika proses selesai atau error
+                if (logLine.includes('[COMPLETED]') || logLine.includes('[ERROR]')) {
+                    activeEventSource.close();
+                    activeEventSource = null;
+                }
+            };
+
+            activeEventSource.onerror = (error) => {
+                console.error("SSE Stream Error:", error);
+                if (dotNetHelper) {
+                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', '[ERROR] Stream terputus dari server.');
+                }
+                activeEventSource.close();
+                activeEventSource = null;
+            };
         };
     </script>
 
