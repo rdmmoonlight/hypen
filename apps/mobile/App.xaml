@@ -7,14 +7,14 @@
 
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-            </ResourceDictionary.MergedDictionaries>
+            <!-- Definisi Warna Langsung -->
+            <Color x:Key="PrimaryBackground">#F8F9FA</Color>
+            <Color x:Key="Primary">#512BD4</Color>
+            <Color x:Key="Secondary">#DFD8F7</Color>
 
-            <!-- Anda juga bisa mendeklarasikannya langsung di sini jika tidak ingin membuat file terpisah -->
-            <Color x:Key="PrimaryBackground">#FFFFFF</Color>
+            <!-- Brush pendukung jika XAML menggunakan SolidColorBrush -->
+            <SolidColorBrush x:Key="PrimaryBackgroundBrush" Color="{StaticResource PrimaryBackground}" />
         </ResourceDictionary>
     </Application.Resources>
-
+    
 </Application>
