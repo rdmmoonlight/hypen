@@ -2,13 +2,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy project file dan restore dependency dari apps/web
-COPY ["apps/web/Hypen.Web.csproj", "apps/web/"]
-RUN dotnet restore "apps/web/Hypen.Web.csproj"
+# Copy project file langsung dari root
+COPY ["Hypen.Web.csproj", "./"]
+RUN dotnet restore "Hypen.Web.csproj"
 
 # Copy seluruh kode sumber dan publish
 COPY . .
-WORKDIR "/src/apps/web"
 RUN dotnet publish "Hypen.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # 2. Stage Runtime + Dependencies (.NET 10.0 + Python 3 + FFmpeg + yt-dlp)
@@ -35,5 +34,4 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# Sesuaikan nama DLL hasil publish
 ENTRYPOINT ["dotnet", "Hypen.Web.dll"]
