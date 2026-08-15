@@ -2,6 +2,7 @@ using Hypen.Web;
 using Hypen.Web.Endpoints;
 using Hypen.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +20,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Konfigurasi Forwarded Headers (Diperbarui agar bebas warning NET 9/10 dengan KnownIPNetworks)
+// Konfigurasi Forwarded Headers (Bebas warning .NET 9/10 dengan KnownIPNetworks)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -39,7 +40,7 @@ builder.Services.AddScoped<ISongService, SongService>();
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
 
-// Wajib diletakkan paling atas agar header HTTPS dari Render langsung diproses
+// Wajib diletakkan paling atas agar header HTTPS dari Reverse Proxy Render diproses
 app.UseForwardedHeaders();
 
 app.UseCors("AllowAll");
@@ -49,15 +50,27 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Catatan: app.UseHttpsRedirection() sengaja dilewati agar SSL termination dari Reverse Proxy Render tidak bentrok
-app.UseStaticFiles();
+// Ensure folder wwwroot/downloads tersedia di server container saat startup
+string downloadsPath = Path.Combine(app.Environment.WebRootPath, "downloads");
+Directory.CreateDirectory(downloadsPath);
+
+// Konfigurasi Static Files untuk menyajikan file .mp3 publik di /downloads
+app.UseStaticFiles(); // Default static files (wwwroot)
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(downloadsPath),
+    RequestPath = "/downloads",
+    ServeUnknownFileTypes = true
+});
+
 app.MapStaticAssets();
 app.UseAntiforgery();
 
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 
 // 3. Health Check & Endpoint Extensions
-// Menerima HTTP HEAD pada Root (/) agar Health Check Render tidak lagi mengembalikan status 405
+// Menerima HTTP HEAD pada Root (/) agar Health Check Render mengembalikan status 200 OK
 app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 
 // Endpoint khusus Health Check internal
