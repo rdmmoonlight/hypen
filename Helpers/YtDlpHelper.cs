@@ -7,22 +7,21 @@ public static class YtDlpHelper
 {
     public static async Task<YtDlpMetadata> ExtractAndConvertMp3Async(string youtubeUrl, string outputDirectory, ILogger logger)
     {
-        // Pastikan direktori tujuan penyimpanan MP3 ada
         Directory.CreateDirectory(outputDirectory);
 
         string cookiesPath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
         string cookiesArg = File.Exists(cookiesPath) ? $"--cookies \"{cookiesPath}\"" : "";
-
-        // Template output file: [outputDirectory]/[id].mp3
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
 
-        // Opsi CLI:
-        // -x / --extract-audio     : Ambil audio saja
-        // --audio-format mp3        : Konversi ke MP3 via FFmpeg
-        // --audio-quality 0        : Kualitas VBR tertinggi (~250-320kbps)
-        // -j                       : Dump JSON metadata
-        // --no-playlist            : Hanya proses 1 video
-        string arguments = $"{cookiesArg} -x --audio-format mp3 --audio-quality 0 -j -o \"{outputTemplate}\" --no-playlist \"{youtubeUrl}\"";
+        // Ganti URL agar bersih dari parameter playlist jika berupa link lagu tunggal
+        string cleanUrl = youtubeUrl;
+        if (cleanUrl.Contains("watch?v=") && cleanUrl.Contains("&list="))
+        {
+            cleanUrl = cleanUrl.Split("&list=")[0];
+        }
+
+        // Flags penting: --no-playlist, --no-warnings, -x, --audio-format mp3
+        string arguments = $"{cookiesArg} --no-playlist --no-warnings -x --audio-format mp3 --audio-quality 0 -j -o \"{outputTemplate}\" \"{cleanUrl}\"";
 
         var process = new Process
         {
@@ -39,14 +38,28 @@ public static class YtDlpHelper
 
         process.Start();
 
-        string output = await process.StandardOutput.ReadToEndAsync();
-        string error = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        // Gunakan CancellationTokenSource agar proses kill otomatis jika lebih dari 45 detik
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        
+        string output = "";
+        string error = "";
+
+        try
+        {
+            output = await process.StandardOutput.ReadToEndAsync(cts.Token);
+            error = await process.StandardError.ReadToEndAsync(cts.Token);
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(true); } catch { }
+            throw new Exception("Proses konversi timeout (lebih dari 45 detik).");
+        }
 
         if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
         {
-            logger.LogError("[YT-DLP / FFMPEG CONVERT ERROR] {Error}", error);
-            throw new Exception($"yt-dlp FFmpeg Process Error: {error}");
+            logger.LogError("[YT-DLP ERROR] {Error}", error);
+            throw new Exception($"Gagal memproses YouTube audio: {error}");
         }
 
         using var doc = JsonDocument.Parse(output);
@@ -58,7 +71,6 @@ public static class YtDlpHelper
         string thumbnail = root.TryGetProperty("thumbnail", out var thumbElem) ? thumbElem.GetString() ?? $"https://img.youtube.com/vi/{id}/hqdefault.jpg" : $"https://img.youtube.com/vi/{id}/hqdefault.jpg";
         int duration = root.TryGetProperty("duration", out var durElem) ? durElem.GetInt32() : 0;
 
-        // Path lokal tempat file MP3 tersimpan setelah dikonversi FFmpeg
         string localMp3FileName = $"{id}.mp3";
         string fullMp3Path = Path.Combine(outputDirectory, localMp3FileName);
 
