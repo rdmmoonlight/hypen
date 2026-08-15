@@ -1,26 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Shell
-    x:Class="HypenMaui.AppShell"
+<Application
+    x:Class="HypenMaui.App"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:home="clr-namespace:HypenMaui.Pages.Home"
-    xmlns:library="clr-namespace:HypenMaui.Pages.Library"
-    xmlns:settings="clr-namespace:HypenMaui.Pages.Settings"
-    Shell.FlyoutBehavior="Disabled">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <TabBar>
-        <Tab Title="Home" Icon="home.png">
-            <ShellContent ContentTemplate="{DataTemplate home:MainPage}" />
-        </Tab>
-        
-        <!-- Pendaftaran LibraryPage di Shell UI -->
-        <Tab Title="Library" Icon="library.png">
-            <ShellContent ContentTemplate="{DataTemplate library:LibraryPage}" />
-        </Tab>
-
-        <Tab Title="Settings" Icon="settings.png">
-            <ShellContent ContentTemplate="{DataTemplate settings:SettingsPage}" />
-        </Tab>
-    </TabBar>
-
-</Shell>
+</Application>
