@@ -13,15 +13,18 @@ public static class YtDlpHelper
         string cookiesArg = File.Exists(cookiesPath) ? $"--cookies \"{cookiesPath}\"" : "";
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
 
-        // Ganti URL agar bersih dari parameter playlist jika berupa link lagu tunggal
+        // Bersihkan parameter playlist jika link lagu tunggal
         string cleanUrl = youtubeUrl;
         if (cleanUrl.Contains("watch?v=") && cleanUrl.Contains("&list="))
         {
             cleanUrl = cleanUrl.Split("&list=")[0];
         }
 
-        // Flags penting: --no-playlist, --no-warnings, -x, --audio-format mp3
-        string arguments = $"{cookiesArg} --no-playlist --no-warnings -x --audio-format mp3 --audio-quality 0 -j -o \"{outputTemplate}\" \"{cleanUrl}\"";
+        // Optimasi Render Free Tier (512MB RAM):
+        // 1. --no-cache-dir    : Bebaskan cache yt-dlp dari RAM/Disk container.
+        // 2. --audio-quality 5 : Menggunakan VBR ~130-160kbps (jauh lebih ringan CPU/RAM dibanding quality 0).
+        // 3. --max-filesize 50M: Mencegah OOM jika user memasukkan video durasi sangat panjang.
+        string arguments = $"{cookiesArg} --no-playlist --no-warnings --no-cache-dir --max-filesize 50M -x --audio-format mp3 --audio-quality 5 -j -o \"{outputTemplate}\" \"{cleanUrl}\"";
 
         var process = new Process
         {
@@ -38,7 +41,7 @@ public static class YtDlpHelper
 
         process.Start();
 
-        // Gunakan CancellationTokenSource agar proses kill otomatis jika lebih dari 45 detik
+        // Timeout 45 detik agar proses tidak menggantung selamanya
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         
         string output = "";
@@ -54,6 +57,12 @@ public static class YtDlpHelper
         {
             try { process.Kill(true); } catch { }
             throw new Exception("Proses konversi timeout (lebih dari 45 detik).");
+        }
+        finally
+        {
+            // Paksa pembersihan RAM setelah subprocess yt-dlp selesai
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
