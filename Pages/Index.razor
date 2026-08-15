@@ -21,8 +21,8 @@
             </p>
         }
 
-        <!-- PROGRESS BAR (Mendukung Batch Queue maupun Single Conversion) -->
-        @if (isLoading)
+        <!-- PROGRESS BAR (Muncul saat proses konversi atau unduhan antrean aktif) -->
+        @if (isLoading && !string.IsNullOrEmpty(statusMsg) && statusMsg != "Memuat library...")
         {
             <div style="background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 4px; margin-bottom: 10px;">
                 <div style="background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; height: 8px; position: relative;">
