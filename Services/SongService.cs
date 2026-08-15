@@ -17,7 +17,7 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
 
     public async Task<ConvertResponse?> ConvertVideoAsync(string youtubeUrl)
     {
-        // Disesuaikan dengan endpoint yt-dlp backend: /api/convert-ytdlp
+        // Memanggil endpoint backend: /api/convert-ytdlp
         var response = await _http.PostAsJsonAsync("/api/convert-ytdlp", new ConvertRequest(youtubeUrl));
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<ConvertResponse>();
@@ -25,7 +25,7 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
 
     public async Task<PlaylistResponse?> ConvertPlaylistAsync(string playlistUrl)
     {
-        // Disesuaikan dengan endpoint playlist backend
+        // Memanggil endpoint playlist backend
         var response = await _http.PostAsJsonAsync("/api/convert-ytdlp/playlist", new PlaylistRequest(playlistUrl));
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<PlaylistResponse>();
@@ -45,16 +45,24 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
 
     public async Task DownloadSongAsync(string audioUrl, string title)
     {
-        if (string.IsNullOrEmpty(audioUrl)) return;
+        if (string.IsNullOrWhiteSpace(audioUrl)) return;
 
-        // Panggil proxy download dari backend jika URL masih berupa link YouTube biasa
         string targetUrl = audioUrl;
-        if (audioUrl.Contains("youtube.com") || audioUrl.Contains("youtu.be"))
+
+        // Jika URL berupa link YouTube mentah, teruskan via proxy backend
+        if (audioUrl.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) || 
+            audioUrl.Contains("youtu.be", StringComparison.OrdinalIgnoreCase))
         {
-            targetUrl = $"{_http.BaseAddress}api/download?url={Uri.EscapeDataString(audioUrl)}";
+            var baseUrl = _http.BaseAddress?.ToString().TrimEnd('/') ?? "";
+            targetUrl = $"{baseUrl}/api/download?url={Uri.EscapeDataString(audioUrl)}";
         }
 
-        // Trigger browser download via JS Interop
-        await _js.InvokeVoidAsync("triggerFileDownload", targetUrl, $"{title}.mp3");
+        // Format nama file agar selalu berakhiran .mp3
+        string fileName = title.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) 
+            ? title 
+            : $"{title}.mp3";
+
+        // Panggil JS Helper `downloadFileFromUrl` (sesuai fungsi di App.razor)
+        await _js.InvokeVoidAsync("downloadFileFromUrl", targetUrl, fileName);
     }
 }
