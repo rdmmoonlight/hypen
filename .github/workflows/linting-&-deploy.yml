@@ -2,7 +2,7 @@ name: Linting & Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ production ]
 
 concurrency:
   group: ci-cd-${{ github.ref }}
