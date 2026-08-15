@@ -21,15 +21,32 @@
             </p>
         }
 
-        @if (isLoading && totalQueueCount > 0)
+        <!-- PROGRESS BAR (Mendukung Batch Queue maupun Single Conversion) -->
+        @if (isLoading)
         {
-            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 2px; margin-bottom: 10px;">
-                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; height: 6px;">
-                    <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
+            <div style="background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 4px; margin-bottom: 10px;">
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; height: 8px; position: relative;">
+                    @if (totalQueueCount > 0)
+                    {
+                        <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
+                    }
+                    else
+                    {
+                        <!-- Progress Bar Indeterminate saat Konversi Server (FFmpeg/yt-dlp) -->
+                        <div style="width: 100%; background: linear-gradient(90deg, #4cc9f0, #7209b7, #4cc9f0); height: 100%; animation: pulseProgress 1.5s infinite linear;"></div>
+                    }
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #c5c6c7; margin-top: 2px;">
-                    <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
-                    <span>@progressPercentage%</span>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #c5c6c7; margin-top: 4px;">
+                    @if (totalQueueCount > 0)
+                    {
+                        <span>Progres: @currentProcessedCount / @totalQueueCount Lagu</span>
+                        <span>@progressPercentage%</span>
+                    }
+                    else
+                    {
+                        <span>Memproses media di server...</span>
+                        <span>Harap tunggu</span>
+                    }
                 </div>
             </div>
         }
@@ -97,7 +114,6 @@
                     {
                         @foreach (var song in FilteredSongs)
                         {
-                            <!-- 🔴 WAJIB: @key memicu Re-render DOM secara instan -->
                             <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
                                 <td style="padding: 2px 6px; text-align: center;">
                                     <input type="checkbox"
@@ -127,3 +143,12 @@
 
     </main>
 </div>
+
+<!-- Animasi CSS untuk Progress Bar Indeterminate -->
+<style>
+    @@keyframes pulseProgress {
+        0% { opacity: 0.4; }
+        50% { opacity: 1.0; }
+        100% { opacity: 0.4; }
+    }
+</style>
