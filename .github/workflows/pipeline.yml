@@ -1,4 +1,4 @@
-name: Linting & Deploy
+name: Linting
 
 on:
   push:
