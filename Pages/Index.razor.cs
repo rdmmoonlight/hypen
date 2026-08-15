@@ -5,7 +5,7 @@ using Hypen.Web.Services;
 
 namespace Hypen.Web.Pages;
 
-public partial class Index
+public partial class Index : IAsyncDisposable
 {
     [Inject] protected ISongService SongService { get; set; } = default!;
     [Inject] protected IJSRuntime JS { get; set; } = default!;
@@ -21,6 +21,11 @@ public partial class Index
     protected bool isLoading;
     protected bool isSelectAllChecked;
 
+    // Web Terminal Streaming state
+    protected bool showTerminal;
+    protected List<string> terminalLogs = [];
+    private DotNetObjectReference<Index>? objRef;
+
     protected int totalQueueCount = 0;
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
@@ -34,6 +39,7 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
+        objRef = DotNetObjectReference.Create(this);
         await LoadLibrary();
     }
 
@@ -58,6 +64,61 @@ public partial class Index
             isLoading = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    // ------------------------------------------------------------
+    // WEB TERMINAL STREAMING ACTIONS
+    // ------------------------------------------------------------
+    protected async Task StartTerminalDownload()
+    {
+        if (string.IsNullOrWhiteSpace(ytUrl)) return;
+
+        showTerminal = true;
+        isLoading = true;
+        terminalLogs.Clear();
+        terminalLogs.Add($"[INIT] Memulai koneksi stream terminal untuk: {ytUrl}");
+        await UpdateStatusAsync("Memproses terminal stream di server...");
+
+        try
+        {
+            // Panggil fungsi JS startTerminalStream di App.razor
+            await JS.InvokeVoidAsync("startTerminalStream", ytUrl, objRef);
+        }
+        catch (Exception ex)
+        {
+            terminalLogs.Add($"[ERROR] Gagal membuka terminal stream: {ex.Message}");
+            isLoading = false;
+            await UpdateStatusAsync($"Error: {ex.Message}", true);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnTerminalLogReceived(string logLine)
+    {
+        terminalLogs.Add(logLine);
+
+        if (logLine.Contains("[COMPLETED]"))
+        {
+            isLoading = false;
+            await UpdateStatusAsync("Konversi MP3 selesai!");
+            ytUrl = "";
+            await LoadLibrary();
+        }
+        else if (logLine.Contains("[ERROR]"))
+        {
+            isLoading = false;
+            await UpdateStatusAsync("Gagal memproses audio di terminal server.", true);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetTerminalLogColor(string log)
+    {
+        if (log.StartsWith("[ERROR]") || log.Contains("ERROR")) return "#f72585";
+        if (log.StartsWith("[COMPLETED]") || log.Contains("100%")) return "#4cc9f0";
+        if (log.StartsWith("[INIT]") || log.StartsWith("[download]")) return "#66fcf1";
+        return "#c5c6c7";
     }
 
     // ------------------------------------------------------------
@@ -133,7 +194,6 @@ public partial class Index
 
                 await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
                 
-                // Jeda 1.2 detik antar unduhan agar browser tidak memblokir multiple downloads
                 await Task.Delay(1200);
             }
 
@@ -157,44 +217,7 @@ public partial class Index
     // ------------------------------------------------------------
     protected async Task ConvertVideo()
     {
-        if (string.IsNullOrWhiteSpace(ytUrl)) return;
-
-        try
-        {
-            isLoading = true;
-            totalQueueCount = 0; // Trigger indikator loading server/pulse
-            await UpdateStatusAsync("Mengekstrak audio & memproses konversi ke MP3 di server...");
-
-            // 1. Konversi FFmpeg di backend via SongService
-            var result = await SongService.ConvertVideoAsync(ytUrl);
-
-            if (result != null && !string.IsNullOrWhiteSpace(result.AudioUrl))
-            {
-                await UpdateStatusAsync($"Konversi MP3 selesai! Memulai pengunduhan {result.Title}...");
-                
-                // 2. Reload library agar daftar lagu terbaru muncul
-                await LoadLibrary();
-
-                // 3. Pemicu otomatis unduhan MP3 ke browser
-                await SongService.DownloadSongAsync(result.AudioUrl, $"{result.Artist} - {result.Title}");
-
-                ytUrl = "";
-                await UpdateStatusAsync($"Berhasil mengonversi & mengunduh: {result.Title}");
-            }
-            else
-            {
-                await UpdateStatusAsync("Gagal mengekstrak atau mengonversi video dari YouTube.", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            await UpdateStatusAsync($"Error: {ex.Message}", true);
-        }
-        finally
-        {
-            isLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
+        await StartTerminalDownload();
     }
 
     protected async Task ConvertPlaylist()
@@ -264,5 +287,10 @@ public partial class Index
         statusMsg = msg;
         isError = error;
         await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        objRef?.Dispose();
     }
 }
