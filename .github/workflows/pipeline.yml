@@ -1,4 +1,4 @@
-name: Linting
+name: Linting & Deploy
 
 on:
   push:
@@ -28,15 +28,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-
-      # Pengecekan perubahan file (skip jika perubahan HANYA di apps/mobile)
-      - name: Check Changed Files
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            non_mobile:
-              - '!apps/mobile/**'
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
