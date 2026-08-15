@@ -19,32 +19,27 @@
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <link
         href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
         rel="stylesheet" />
 
     <!-- Theme -->
-    <link rel="stylesheet" href="/theme.css?v=9.0" />
+    <link rel="stylesheet" href="theme.css?v=9.0" />
 
-    <HeadOutlet />
-
-    @* 
-        Tidak ada InteractiveWebAssembly.
-        Tidak ada InteractiveServer di sini.
-        Render mode akan ditentukan pada Routes/root component.
-    *@
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
 
-    <Routes />
+    <Routes @rendermode="InteractiveServer" />
 
     <script src="_framework/blazor.web.js"></script>
 
+    <!-- Script Helper JS Download -->
     <script>
-        window.triggerFileDownload = (url, fileName) => {
+        window.downloadFileFromUrl = (url, fileName) => {
             const anchorElement = document.createElement('a');
 
             anchorElement.href = url;
