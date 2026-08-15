@@ -96,7 +96,7 @@ public partial class Index
         try
         {
             SetStatus($"Mempersiapkan unduhan: {song.Title}...");
-            await TriggerBrowserDownloadAsync(song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
+            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
             SetStatus("");
         }
         catch (Exception ex)
@@ -130,9 +130,9 @@ public partial class Index
                 SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
                 StateHasChanged();
 
-                await TriggerBrowserDownloadAsync(song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
+                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
                 
-                // Jeda 1.5 detik antar unduhan agar tidak diblokir oleh browser pop-up blocker
+                // Jeda 1.5 detik antar unduhan agar tidak diblokir pop-up blocker browser
                 await Task.Delay(1500);
             }
 
@@ -149,12 +149,6 @@ public partial class Index
         }
     }
 
-    private async Task TriggerBrowserDownloadAsync(string fileUrl, string fileName)
-    {
-        // Panggil JS Helper untuk trigger download secara langsung di browser
-        await JS.InvokeVoidAsync("downloadFileFromUrl", fileUrl, fileName);
-    }
-
     // ------------------------------------------------------------
     // CONVERT & DELETE ACTIONS
     // ------------------------------------------------------------
@@ -165,18 +159,27 @@ public partial class Index
         try
         {
             isLoading = true;
-            SetStatus("Mengekstrak & menyimpan track ke library...");
+            SetStatus("Mengekstrak audio & memproses konversi ke MP3 di server...");
 
+            // 1. Panggil konversi FFmpeg di backend via SongService
             var result = await SongService.ConvertVideoAsync(ytUrl);
-            if (result != null)
+
+            if (result != null && !string.IsNullOrWhiteSpace(result.AudioUrl))
             {
-                SetStatus($"Berhasil mengekstrak: {result.Title}");
-                ytUrl = "";
+                SetStatus($"Konversi MP3 selesai! Memulai pengunduhan otomatis {result.Title}...");
+                
+                // 2. Refresh library agar lagu baru langsung masuk ke list
                 await LoadLibrary();
+
+                // 3. Pemicu otomatis download ke browser pengguna
+                await SongService.DownloadSongAsync(result.AudioUrl, $"{result.Artist} - {result.Title}");
+
+                ytUrl = "";
+                SetStatus($"Berhasil mengonversi & mengunduh: {result.Title}");
             }
             else
             {
-                SetStatus("Gagal mengekstrak video dari YouTube.", true);
+                SetStatus("Gagal mengekstrak atau mengonversi video dari YouTube.", true);
             }
         }
         catch (Exception ex)
@@ -196,7 +199,7 @@ public partial class Index
         try
         {
             isLoading = true;
-            SetStatus("Mengimpor playlist YouTube...");
+            SetStatus("Mengimpor & mengonversi playlist YouTube...");
 
             var result = await SongService.ConvertPlaylistAsync(playlistUrl);
             if (result != null)
