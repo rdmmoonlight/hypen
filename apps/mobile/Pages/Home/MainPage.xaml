@@ -2,12 +2,16 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:HypenMaui.Models"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="HypenMaui.Pages.Home.MainPage"
              Title="Audiophile Library"
              BackgroundColor="{StaticResource PrimaryBackground}">
 
     <Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
-        
+
+        <!-- Audio Engine (hidden, persisten selama app hidup) -->
+        <toolkit:MediaElement x:Name="AudioPlayer" ShouldAutoPlay="False" ShouldShowPlaybackControls="False" IsVisible="False" HeightRequest="0" WidthRequest="0" />
+
         <!-- Header Summary -->
         <Border Grid.Row="0" Margin="16,12" Padding="16" BackgroundColor="{StaticResource CardBackground}" StrokeShape="RoundRectangle 12" StrokeThickness="0">
             <Grid ColumnDefinitions="*, Auto">
