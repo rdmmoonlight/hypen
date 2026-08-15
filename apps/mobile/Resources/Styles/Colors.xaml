@@ -9,9 +9,20 @@
     <Color x:Key="Secondary">#DFD8F7</Color>
     <Color x:Key="Tertiary">#2B0B98</Color>
     
+    <!-- Accent Colors -->
+    <Color x:Key="AccentCyan">#00D2FF</Color>
+    <Color x:Key="AccentBlue">#007AFF</Color>
+    <Color x:Key="AccentPurple">#7000FF</Color>
+    <Color x:Key="AccentPink">#FF2D55</Color>
+
     <!-- Background Colors -->
     <Color x:Key="PrimaryBackground">#F8F9FA</Color>
     <Color x:Key="CardBackground">#FFFFFF</Color>
+
+    <!-- Status Colors -->
+    <Color x:Key="Success">#34C759</Color>
+    <Color x:Key="Warning">#FF9500</Color>
+    <Color x:Key="Error">#FF3B30</Color>
 
     <!-- Text & Border Colors -->
     <Color x:Key="PrimaryText">#1F1F1F</Color>
@@ -30,4 +41,5 @@
     <!-- SolidColorBrushes -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}" />
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}" />
+    <SolidColorBrush x:Key="AccentCyanBrush" Color="{StaticResource AccentCyan}" />
 </ResourceDictionary>
