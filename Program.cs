@@ -36,6 +36,7 @@ builder.Services.AddScoped(sp =>
 });
 
 builder.Services.AddScoped<ISongService, SongService>();
+builder.Services.AddSingleton<YtDlpStreamService>();
 
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
