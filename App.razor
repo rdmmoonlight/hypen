@@ -38,18 +38,44 @@
 
     <script src="_framework/blazor.web.js"></script>
 
-    <!-- Script Helper JS Download -->
+    <!-- Script Helper JS Download dengan Fallback Anti-Block -->
     <script>
-        window.downloadFileFromUrl = (url, fileName) => {
-            const anchorElement = document.createElement('a');
+        window.downloadFileFromUrl = async (fileUrl, fileName) => {
+            const cleanFileName = fileName && fileName.endsWith('.mp3') 
+                ? fileName 
+                : `${fileName || 'track'}.mp3`;
 
-            anchorElement.href = url;
-            anchorElement.download = fileName || '';
-            anchorElement.target = '_blank';
+            try {
+                // 1. Coba unduh via Fetch & Blob Stream (Paksa Mime-Type MP3)
+                const response = await fetch(fileUrl, { mode: 'cors' });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
-            document.body.appendChild(anchorElement);
-            anchorElement.click();
-            document.body.removeChild(anchorElement);
+                const blob = await response.blob();
+                const mp3Blob = new Blob([blob], { type: 'audio/mpeg' });
+                const blobUrl = window.URL.createObjectURL(mp3Blob);
+
+                const anchor = document.createElement('a');
+                anchor.href = blobUrl;
+                anchor.download = cleanFileName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                console.warn("Fetch Blob terhalang CORS/Security, beralih ke Direct Link Fallback...", error);
+
+                // 2. Direct Fallback: Trigger tautan unduhan langsung tanpa fetch
+                const fallbackAnchor = document.createElement('a');
+                fallbackAnchor.href = fileUrl;
+                fallbackAnchor.download = cleanFileName;
+                fallbackAnchor.target = '_blank';
+                fallbackAnchor.rel = 'noopener noreferrer';
+
+                document.body.appendChild(fallbackAnchor);
+                fallbackAnchor.click();
+                document.body.removeChild(fallbackAnchor);
+            }
         };
     </script>
 
