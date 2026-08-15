@@ -42,20 +42,21 @@ public partial class Index
         try
         {
             isLoading = true;
-            SetStatus("Memuat library...");
+            await UpdateStatusAsync("Memuat library...");
 
             songs = await SongService.GetSongsAsync();
             isSelectAllChecked = false;
 
-            SetStatus("");
+            await UpdateStatusAsync("");
         }
         catch (Exception ex)
         {
-            SetStatus($"Gagal memuat library: {ex.Message}", true);
+            await UpdateStatusAsync($"Gagal memuat library: {ex.Message}", true);
         }
         finally
         {
             isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -95,13 +96,13 @@ public partial class Index
     {
         try
         {
-            SetStatus($"Mempersiapkan unduhan: {song.Title}...");
+            await UpdateStatusAsync($"Mempersiapkan unduhan: {song.Title}...");
             await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-            SetStatus("");
+            await UpdateStatusAsync("");
         }
         catch (Exception ex)
         {
-            SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+            await UpdateStatusAsync($"Gagal mengunduh lagu: {ex.Message}", true);
         }
     }
 
@@ -111,7 +112,7 @@ public partial class Index
 
         if (selected.Count == 0)
         {
-            SetStatus("Tidak ada lagu yang dipilih.", true);
+            await UpdateStatusAsync("Tidak ada lagu yang dipilih.", true);
             return;
         }
 
@@ -121,31 +122,33 @@ public partial class Index
             totalQueueCount = selected.Count;
             currentProcessedCount = 0;
             progressPercentage = 0;
+            await InvokeAsync(StateHasChanged);
 
             foreach (var song in selected)
             {
                 currentProcessedCount++;
                 progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
 
-                SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
-                StateHasChanged();
+                await UpdateStatusAsync($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
 
                 await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
                 
-                // Jeda 1.5 detik antar unduhan agar tidak diblokir pop-up blocker browser
-                await Task.Delay(1500);
+                // Jeda 1.2 detik antar unduhan agar browser tidak memblokir multiple downloads
+                await Task.Delay(1200);
             }
 
             progressPercentage = 100;
-            SetStatus($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
+            await UpdateStatusAsync($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
         }
         catch (Exception ex)
         {
-            SetStatus($"Gagal mengunduh antrean: {ex.Message}", true);
+            await UpdateStatusAsync($"Gagal mengunduh antrean: {ex.Message}", true);
         }
         finally
         {
             isLoading = false;
+            totalQueueCount = 0;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -159,36 +162,38 @@ public partial class Index
         try
         {
             isLoading = true;
-            SetStatus("Mengekstrak audio & memproses konversi ke MP3 di server...");
+            totalQueueCount = 0; // Trigger indikator loading server/pulse
+            await UpdateStatusAsync("Mengekstrak audio & memproses konversi ke MP3 di server...");
 
-            // 1. Panggil konversi FFmpeg di backend via SongService
+            // 1. Konversi FFmpeg di backend via SongService
             var result = await SongService.ConvertVideoAsync(ytUrl);
 
             if (result != null && !string.IsNullOrWhiteSpace(result.AudioUrl))
             {
-                SetStatus($"Konversi MP3 selesai! Memulai pengunduhan otomatis {result.Title}...");
+                await UpdateStatusAsync($"Konversi MP3 selesai! Memulai pengunduhan {result.Title}...");
                 
-                // 2. Refresh library agar lagu baru langsung masuk ke list
+                // 2. Reload library agar daftar lagu terbaru muncul
                 await LoadLibrary();
 
-                // 3. Pemicu otomatis download ke browser pengguna
+                // 3. Pemicu otomatis unduhan MP3 ke browser
                 await SongService.DownloadSongAsync(result.AudioUrl, $"{result.Artist} - {result.Title}");
 
                 ytUrl = "";
-                SetStatus($"Berhasil mengonversi & mengunduh: {result.Title}");
+                await UpdateStatusAsync($"Berhasil mengonversi & mengunduh: {result.Title}");
             }
             else
             {
-                SetStatus("Gagal mengekstrak atau mengonversi video dari YouTube.", true);
+                await UpdateStatusAsync("Gagal mengekstrak atau mengonversi video dari YouTube.", true);
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Error: {ex.Message}", true);
+            await UpdateStatusAsync($"Error: {ex.Message}", true);
         }
         finally
         {
             isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -199,27 +204,29 @@ public partial class Index
         try
         {
             isLoading = true;
-            SetStatus("Mengimpor & mengonversi playlist YouTube...");
+            totalQueueCount = 0;
+            await UpdateStatusAsync("Mengimpor & mengonversi playlist YouTube...");
 
             var result = await SongService.ConvertPlaylistAsync(playlistUrl);
             if (result != null)
             {
-                SetStatus($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
+                await UpdateStatusAsync($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
                 playlistUrl = "";
                 await LoadLibrary();
             }
             else
             {
-                SetStatus("Gagal mengimpor playlist.", true);
+                await UpdateStatusAsync("Gagal mengimpor playlist.", true);
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Error: {ex.Message}", true);
+            await UpdateStatusAsync($"Error: {ex.Message}", true);
         }
         finally
         {
             isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -239,7 +246,7 @@ public partial class Index
         var selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
         if (selectedIds.Length == 0)
         {
-            SetStatus("Tidak ada lagu yang dipilih.", true);
+            await UpdateStatusAsync("Tidak ada lagu yang dipilih.", true);
             return;
         }
 
@@ -252,9 +259,10 @@ public partial class Index
         }
     }
 
-    private void SetStatus(string msg, bool error = false)
+    private async Task UpdateStatusAsync(string msg, bool error = false)
     {
         statusMsg = msg;
         isError = error;
+        await InvokeAsync(StateHasChanged);
     }
 }
