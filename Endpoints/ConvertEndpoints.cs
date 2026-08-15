@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using Hypen.Web.Models;
 using Hypen.Web.Helpers;
+using Hypen.Web.Services;
 
 namespace Hypen.Web.Endpoints;
 
@@ -8,6 +10,46 @@ public static class ConvertEndpoints
 {
     public static void MapConvertEndpoints(this IEndpointRouteBuilder app, string dbConnectionString)
     {
+        // ------------------------------------------------------------
+        // WEB TERMINAL LOG STREAM (Server-Sent Events / SSE)
+        // ------------------------------------------------------------
+        app.MapGet("/api/convert-stream", async (
+            string url, 
+            HttpContext httpContext, 
+            IWebHostEnvironment env, 
+            YtDlpStreamService streamService, 
+            ILogger<Program> logger,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(url)) 
+                return Results.BadRequest("URL YouTube wajib diisi.");
+
+            // Set Header agar browser membaca HTTP stream per baris (SSE)
+            httpContext.Response.Headers.Append("Content-Type", "text/event-stream");
+            httpContext.Response.Headers.Append("Cache-Control", "no-cache");
+            httpContext.Response.Headers.Append("Connection", "keep-alive");
+
+            string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+
+            try
+            {
+                await foreach (var logLine in streamService.StreamDownloadAsync(url, downloadsFolder, ct))
+                {
+                    // Format SSE: "data: <isi_log>\n\n"
+                    await httpContext.Response.WriteAsync($"data: {logLine}\n\n", ct);
+                    await httpContext.Response.Body.FlushAsync(ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[SSE STREAM ERROR] Streaming interrupted for URL: {Url}", url);
+                await httpContext.Response.WriteAsync($"data: [ERROR] System Exception: {ex.Message}\n\n", ct);
+                await httpContext.Response.Body.FlushAsync(ct);
+            }
+
+            return Results.Empty;
+        });
+
         // ------------------------------------------------------------
         // SINGLE CONVERT (Download & Convert ke MP3 via FFmpeg)
         // ------------------------------------------------------------
@@ -24,11 +66,27 @@ public static class ConvertEndpoints
 
                 logger.LogInformation("[FFMPEG CONVERT] Starting process for: {Url}", req.YoutubeUrl);
                 
-                // Set folder penyimpanan MP3 di wwwroot/downloads
                 string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+
+                // Cleanup otomatis: Hapus file MP3 lama yang berumur > 1 jam untuk hemat disk/RAM container
+                try
+                {
+                    var dirInfo = new DirectoryInfo(downloadsFolder);
+                    if (dirInfo.Exists)
+                    {
+                        foreach (var file in dirInfo.GetFiles("*.mp3"))
+                        {
+                            if (file.CreationTime < DateTime.Now.AddHours(-1))
+                            {
+                                file.Delete();
+                            }
+                        }
+                    }
+                }
+                catch { /* abaikan error cleanup file lama */ }
+
                 var ytdlpResult = await YtDlpHelper.ExtractAndConvertMp3Async(req.YoutubeUrl, downloadsFolder, logger);
 
-                // Buat public URL mengarah ke file .mp3 statis
                 string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                 string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
 
