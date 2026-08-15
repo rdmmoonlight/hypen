@@ -19,11 +19,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Konfigurasi Forwarded Headers agar ASP.NET mengenali HTTPS dari Reverse Proxy Render
+// Konfigurasi Forwarded Headers (Diperbarui agar bebas warning NET 9/10 dengan KnownIPNetworks)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
@@ -49,8 +49,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Catatan: app.UseHttpsRedirection() dihapus agar tidak bentrok dengan SSL Render
-
+// Catatan: app.UseHttpsRedirection() sengaja dilewati agar SSL termination dari Reverse Proxy Render tidak bentrok
 app.UseStaticFiles();
 app.MapStaticAssets();
 app.UseAntiforgery();
@@ -58,7 +57,10 @@ app.UseAntiforgery();
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 
 // 3. Health Check & Endpoint Extensions
-// Mendukung GET dan HEAD agar health checker Render tidak menghasilkan HTTP 405
+// Menerima HTTP HEAD pada Root (/) agar Health Check Render tidak lagi mengembalikan status 405
+app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
+
+// Endpoint khusus Health Check internal
 app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
