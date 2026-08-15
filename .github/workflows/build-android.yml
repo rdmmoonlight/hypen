@@ -2,7 +2,7 @@ name: Hypen Android CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ production ]
     paths:
       - 'apps/mobile/**'
       - '.github/workflows/**'
