@@ -60,7 +60,7 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // TOGGLE SELECT ALL DENGAN FORCE UI UPDATE
+    // TOGGLE SELECT ALL
     // ------------------------------------------------------------
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
@@ -89,8 +89,22 @@ public partial class Index
     }
 
     // ------------------------------------------------------------
-    // BATCH DOWNLOAD & ACTIONS
+    // DOWNLOAD ACTIONS
     // ------------------------------------------------------------
+    protected async Task DownloadSingle(CloudSongModel song)
+    {
+        try
+        {
+            SetStatus($"Mempersiapkan unduhan: {song.Title}...");
+            await TriggerBrowserDownloadAsync(song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
+            SetStatus("");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+        }
+    }
+
     protected async Task DownloadSelected()
     {
         var selected = songs.Where(song => song.IsSelected).ToList();
@@ -108,31 +122,18 @@ public partial class Index
             currentProcessedCount = 0;
             progressPercentage = 0;
 
-            const int chunkSize = 10;
-            var chunks = selected.Chunk(chunkSize).ToList();
-
-            for (int i = 0; i < chunks.Count; i++)
+            foreach (var song in selected)
             {
-                var currentBatch = chunks[i];
+                currentProcessedCount++;
+                progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
 
-                foreach (var song in currentBatch)
-                {
-                    currentProcessedCount++;
-                    progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
+                SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
+                StateHasChanged();
 
-                    SetStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
-                    StateHasChanged();
-
-                    await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                    await Task.Delay(600);
-                }
-
-                if (i < chunks.Count - 1)
-                {
-                    SetStatus($"Mengistirahatkan antrean batch ({i + 1}/{chunks.Count})... Istirahat 2 detik.");
-                    StateHasChanged();
-                    await Task.Delay(2000);
-                }
+                await TriggerBrowserDownloadAsync(song.AudioUrl, $"{song.Artist} - {song.Title}.mp3");
+                
+                // Jeda 1.5 detik antar unduhan agar tidak diblokir oleh browser pop-up blocker
+                await Task.Delay(1500);
             }
 
             progressPercentage = 100;
@@ -148,6 +149,15 @@ public partial class Index
         }
     }
 
+    private async Task TriggerBrowserDownloadAsync(string fileUrl, string fileName)
+    {
+        // Panggil JS Helper untuk trigger download secara langsung di browser
+        await JS.InvokeVoidAsync("downloadFileFromUrl", fileUrl, fileName);
+    }
+
+    // ------------------------------------------------------------
+    // CONVERT & DELETE ACTIONS
+    // ------------------------------------------------------------
     protected async Task ConvertVideo()
     {
         if (string.IsNullOrWhiteSpace(ytUrl)) return;
@@ -207,20 +217,6 @@ public partial class Index
         finally
         {
             isLoading = false;
-        }
-    }
-
-    protected async Task DownloadSingle(CloudSongModel song)
-    {
-        try
-        {
-            SetStatus($"Mengunduh: {song.Title}...");
-            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-            SetStatus("");
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Gagal mengunduh lagu: {ex.Message}", true);
         }
     }
 
