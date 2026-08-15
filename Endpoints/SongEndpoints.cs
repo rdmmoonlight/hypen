@@ -9,7 +9,9 @@ public static class SongEndpoints
 {
     public static void MapSongEndpoints(this IEndpointRouteBuilder app, string dbConnectionString)
     {
-        // Get All Songs
+        // ------------------------------------------------------------
+        // GET ALL SONGS
+        // ------------------------------------------------------------
         app.MapGet("/api/songs", async (ILogger<Program> logger) =>
         {
             if (string.IsNullOrWhiteSpace(dbConnectionString))
@@ -27,6 +29,8 @@ public static class SongEndpoints
                 var songs = new List<CloudSongModel>();
                 while (await reader.ReadAsync())
                 {
+                    string audioUrl = reader.IsDBNull(5) ? "" : reader.GetString(5);
+
                     songs.Add(new CloudSongModel
                     {
                         Id = reader.GetInt32(0),
@@ -34,8 +38,8 @@ public static class SongEndpoints
                         Title = reader.IsDBNull(2) ? "Untitled" : reader.GetString(2),
                         Artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
                         Cover = reader.IsDBNull(4) ? "" : reader.GetString(4),
-                        AudioUrl = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                        StreamUrl = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                        AudioUrl = audioUrl,
+                        StreamUrl = audioUrl,
                         Provider = CloudProvider.YouTube
                     });
                 }
@@ -48,7 +52,9 @@ public static class SongEndpoints
             }
         });
 
-        // Delete Single Song
+        // ------------------------------------------------------------
+        // DELETE SINGLE SONG
+        // ------------------------------------------------------------
         app.MapDelete("/api/songs/{id:int}", async (int id, ILogger<Program> logger) =>
         {
             if (string.IsNullOrWhiteSpace(dbConnectionString)) return Results.BadRequest();
@@ -72,7 +78,9 @@ public static class SongEndpoints
             }
         });
 
-        // Delete Batch Songs
+        // ------------------------------------------------------------
+        // DELETE BATCH SONGS
+        // ------------------------------------------------------------
         app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req, ILogger<Program> logger) =>
         {
             if (string.IsNullOrWhiteSpace(dbConnectionString) || req?.Ids == null || req.Ids.Length == 0)
@@ -97,22 +105,32 @@ public static class SongEndpoints
             }
         });
 
-        // Download Proxy Redirect
-        app.MapGet("/api/download", async (string url, ILogger<Program> logger) =>
+        // ------------------------------------------------------------
+        // DOWNLOAD PROXY REDIRECT (Convert & Serve MP3)
+        // ------------------------------------------------------------
+        app.MapGet("/api/download", async (
+            string url, 
+            ILogger<Program> logger, 
+            IWebHostEnvironment env, 
+            HttpContext httpContext) =>
         {
             if (string.IsNullOrWhiteSpace(url)) return Results.BadRequest("URL parameter is required.");
 
             try
             {
-                var ytdlpResult = await YtDlpHelper.ExtractWithYtDlpAsync(url, logger);
-                if (string.IsNullOrWhiteSpace(ytdlpResult.AudioUrl))
-                    return Results.Problem("Gagal mengekstrak stream URL.", statusCode: 500);
+                string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+                
+                // Panggil method konversi MP3 baru dari YtDlpHelper
+                var ytdlpResult = await YtDlpHelper.ExtractAndConvertMp3Async(url, downloadsFolder, logger);
 
-                return Results.Redirect(ytdlpResult.AudioUrl);
+                string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
+
+                return Results.Redirect(publicAudioUrl);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[DOWNLOAD PROXY] Failed to redirect stream");
+                logger.LogError(ex, "[DOWNLOAD PROXY] Failed to process & redirect MP3 stream");
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
