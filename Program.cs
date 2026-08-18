@@ -23,7 +23,7 @@ builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Konfigurasi Forwarded Headers untuk Cloud Hosting / Reverse Proxy (e.g. Render)
+// Konfigurasi Forwarded Headers untuk Cloud Hosting / Reverse Proxy (e.g. Render/Fly.io)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -31,6 +31,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+// Registrasi Base HttpClient untuk Blazor / API Internal
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -38,8 +39,16 @@ builder.Services.AddScoped(sp =>
     return new HttpClient { BaseAddress = new Uri(baseUri) };
 });
 
+// Registrasi Standard HttpClient untuk External API Call (iTunes / YouTube Metadata)
+builder.Services.AddHttpClient();
+
+// Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
+
+// Registrasi YouTube Sync & Processing Services (Engine ETL)
+builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
+builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
