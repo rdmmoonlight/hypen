@@ -1,12 +1,36 @@
 @inherits LayoutComponentBase
 @using Hypen.Web.Components
 
-<div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7;">
+<div class="page-layout">
     <!-- Sidebar Utama -->
     <Sidebar />
 
     <!-- Area Konten Utama Halaman (/library atau /downloader) -->
-    <main style="flex-grow: 1; padding: 16px; overflow-x: auto;">
+    <main class="main-content">
         @Body
     </main>
 </div>
+
+<style>
+    .page-layout {
+        display: flex;
+        min-height: 100vh;
+        background: #0b0c10;
+        color: #c5c6c7;
+    }
+
+    .main-content {
+        flex-grow: 1;
+        padding: 16px;
+        overflow-x: auto;
+        
+        /* MENDORONG KONTEN AGAR TIDAK TERTUTUP SIDEBAR FIXED */
+        margin-left: 240px; /* Lebar default saat sidebar expanded */
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* KETIKA SIDEBAR COLLAPSED (76px) */
+    ::deep .hypen-sidebar.collapsed ~ .main-content {
+        margin-left: 76px;
+    }
+</style>
