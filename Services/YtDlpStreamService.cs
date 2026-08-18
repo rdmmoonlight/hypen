@@ -75,9 +75,14 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add("youtube:player_client=android");
         }
 
-        // Format Seleksi Audio yang Lebih Stabil untuk YouTube Music (M4A/Best Audio)
+        // PAKSA DOWNLOAD VIDEO TERBAIK JIKA AUDIO MURNI DIBLOKIR
+        // yt-dlp akan mencoba mengambil stream audio, jika gagal dia akan mengambil video & mengekstrak audionya
         startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("bestaudio[ext=m4a]/bestaudio/best");
+        startInfo.ArgumentList.Add("best/bestaudio");
+
+        // Tambahkan ini untuk memaksa ffmpeg melakukan re-encode dari stream apa pun yang didapat
+        startInfo.ArgumentList.Add("--postprocessor-args");
+        startInfo.ArgumentList.Add("ffmpeg:-ar 44100 -ac 2 -b:a 128k");
 
         // Konversi ke MP3
         startInfo.ArgumentList.Add("-x");
