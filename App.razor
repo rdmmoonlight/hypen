@@ -13,18 +13,15 @@
     <title>Hypen Vault Downloader</title>
 
     <!-- Favicon -->
-    <link
-        rel="icon"
-        type="image/png"
-        href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
+    <link rel="icon"
+          type="image/png"
+          href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
+          rel="stylesheet" />
 
     <!-- Theme -->
     <link rel="stylesheet" href="theme.css?v=9.0" />
@@ -40,10 +37,10 @@
 
     <!-- Script Helper JS Download & Web Terminal Streaming -->
     <script>
-        // 1. Helper Download File dengan Fallback Anti-Block
+        // 1. Helper Download Single File (Dengan Fallback Anti-Block)
         window.downloadFileFromUrl = async (fileUrl, fileName) => {
-            const cleanFileName = fileName && fileName.endsWith('.mp3') 
-                ? fileName 
+            const cleanFileName = fileName && fileName.toLowerCase().endsWith('.mp3')
+                ? fileName
                 : `${fileName || 'track'}.mp3`;
 
             try {
@@ -77,7 +74,32 @@
             }
         };
 
-        // 2. Helper Real-Time SSE Terminal Streamer
+        // 2. Helper Download Multiple Files (ZIP via Controller)
+        window.downloadZipFromController = async (fileNames) => {
+            try {
+                const response = await fetch('/api/download/download-to-client', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fileNames)
+                });
+
+                if (!response.ok) throw new Error('Gagal mengunduh file dari server.');
+
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = blobUrl;
+                anchor.download = fileNames.length === 1 ? fileNames[0] : `audio_files_${Date.now()}.zip`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (err) {
+                console.error("Gagal mengunduh ZIP:", err);
+            }
+        };
+
+        // 3. Helper Real-Time SSE Terminal Streamer
         let activeEventSource = null;
 
         window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
@@ -88,10 +110,21 @@
             const encodedUrl = encodeURIComponent(youtubeUrl);
             activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
 
+            let extractedFileName = null;
+
             activeEventSource.onmessage = (event) => {
                 const logLine = event.data;
 
-                // Kirim log per baris ke method C# [JSInvokable] OnTerminalLogReceived
+                // Tangkap lokasi file hasil ekstraksi dari log yt-dlp
+                if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
+                    const match = logLine.match(/Destination:\s*(.+)$/);
+                    if (match && match[1]) {
+                        const fullPath = match[1].trim();
+                        extractedFileName = fullPath.split('/').pop().split('\\').pop();
+                    }
+                }
+
+                // Kirim log per baris ke C# [JSInvokable] OnTerminalLogReceived
                 if (dotNetHelper) {
                     dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', logLine);
                 }
@@ -104,8 +137,16 @@
                     }
                 }, 50);
 
-                // Tutup koneksi jika proses selesai atau error
-                if (logLine.includes('[COMPLETED]') || logLine.includes('[ERROR]')) {
+                // Jika proses Selesai: Tutup Stream & Otomatis Picu Dialog Save File di Browser Windows
+                if (logLine.includes('[COMPLETED]')) {
+                    activeEventSource.close();
+                    activeEventSource = null;
+
+                    if (extractedFileName) {
+                        const downloadUrl = `/downloads/${encodeURIComponent(extractedFileName)}`;
+                        window.downloadFileFromUrl(downloadUrl, extractedFileName);
+                    }
+                } else if (logLine.includes('[ERROR]')) {
                     activeEventSource.close();
                     activeEventSource = null;
                 }
@@ -116,8 +157,10 @@
                 if (dotNetHelper) {
                     dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', '[ERROR] Stream terputus dari server.');
                 }
-                activeEventSource.close();
-                activeEventSource = null;
+                if (activeEventSource) {
+                    activeEventSource.close();
+                    activeEventSource = null;
+                }
             };
         };
     </script>
