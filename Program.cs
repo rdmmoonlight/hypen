@@ -17,10 +17,13 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Registrasi Controller API untuk DownloadController & API Endpoint Lainnya
+builder.Services.AddControllers();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Konfigurasi Forwarded Headers (Bebas warning .NET 9/10 dengan KnownIPNetworks)
+// Konfigurasi Forwarded Headers untuk Cloud Hosting / Reverse Proxy (e.g. Render)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -41,7 +44,7 @@ builder.Services.AddSingleton<YtDlpStreamService>();
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
 
-// Wajib diletakkan paling atas agar header HTTPS dari Reverse Proxy Render diproses
+// Wajib diletakkan paling atas agar header HTTPS dari Reverse Proxy diproses
 app.UseForwardedHeaders();
 
 app.UseCors("AllowAll");
@@ -51,12 +54,18 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Ensure folder wwwroot/downloads tersedia di server container saat startup
-string downloadsPath = Path.Combine(app.Environment.WebRootPath, "downloads");
+// Ensure folder wwwroot dan wwwroot/downloads tersedia di server container saat startup
+string webRoot = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(webRoot))
+{
+    Directory.CreateDirectory(webRoot);
+}
+
+string downloadsPath = Path.Combine(webRoot, "downloads");
 Directory.CreateDirectory(downloadsPath);
 
-// Konfigurasi Static Files untuk menyajikan file .mp3 publik di /downloads
-app.UseStaticFiles(); // Default static files (wwwroot)
+// Konfigurasi Static Files (menyajikan file publik di /downloads)
+app.UseStaticFiles(); // Default static files
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -71,13 +80,15 @@ app.UseAntiforgery();
 string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 
 // 3. Health Check & Endpoint Extensions
-// Menerima HTTP HEAD pada Root (/) agar Health Check Render mengembalikan status 200 OK
 app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 
-// Endpoint khusus Health Check internal
 app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
+// Map Controller Attribute-based routing (e.g. DownloadController -> /api/download)
+app.MapControllers();
+
+// Map Minimal API Endpoints
 app.MapSongEndpoints(dbConnectionString);
 app.MapConvertEndpoints(dbConnectionString);
 
