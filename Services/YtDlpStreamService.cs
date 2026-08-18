@@ -53,14 +53,18 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- STRATEGI SURVIVAL (GEO-BYPASS & BYPASS BOT) ---
+        // --- ANTI-BOT SLEEP / RATE LIMITING (Mencegah Blokir di Playlist Panjang) ---
+        startInfo.ArgumentList.Add("--sleep-requests");
+        startInfo.ArgumentList.Add("1");           // Jeda 1 detik antar request API
+        startInfo.ArgumentList.Add("--min-sleep-interval");
+        startInfo.ArgumentList.Add("2");           // Minimal jeda 2 detik antar lagu
+        startInfo.ArgumentList.Add("--max-sleep-interval");
+        startInfo.ArgumentList.Add("5");           // Maksimal jeda 5 detik secara random
+
+        // --- STRATEGI SURVIVAL (GEO-BYPASS & CLIENT IOS) ---
         startInfo.ArgumentList.Add("--geo-bypass");
         startInfo.ArgumentList.Add("--geo-bypass-country");
         startInfo.ArgumentList.Add("US");
-
-        // (Opsional) Jika masih kena blokir, uncomment baris proxy di bawah ini dan isi dengan IP proxy HTTP aktif
-        // startInfo.ArgumentList.Add("--proxy");
-        // startInfo.ArgumentList.Add("http://IP_PROXY_ANDA:PORT");
 
         // User-Agent & Referer Desktop
         startInfo.ArgumentList.Add("--user-agent");
