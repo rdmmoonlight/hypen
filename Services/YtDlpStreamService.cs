@@ -29,7 +29,7 @@ public class YtDlpStreamService
 
         string cleanUrl = youtubeUrl.Trim();
 
-        // Konversi otomatis link YouTube Music ke YouTube Umum untuk menghindari format restriksi datacenter
+        // Konversi otomatis link YouTube Music ke YouTube Umum
         if (cleanUrl.Contains("music.youtube.com"))
         {
             cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com");
@@ -67,23 +67,11 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Cek file cookies.txt
-        string cookiePath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
-        if (File.Exists(cookiePath))
-        {
-            startInfo.ArgumentList.Add("--cookies");
-            startInfo.ArgumentList.Add(cookiePath);
-            
-            startInfo.ArgumentList.Add("--user-agent");
-            startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-        }
-        else
-        {
-            startInfo.ArgumentList.Add("--extractor-args");
-            startInfo.ArgumentList.Add("youtube:player_client=android");
-        }
+        // Menggunakan player client Android secara langsung tanpa cookies
+        startInfo.ArgumentList.Add("--extractor-args");
+        startInfo.ArgumentList.Add("youtube:player_client=android");
 
-        // Format Paling Toleran untuk Cloud Server (Mengatasi Requested format is not available)
+        // Format Paling Toleran untuk Cloud Server
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("best/bestaudio");
 
