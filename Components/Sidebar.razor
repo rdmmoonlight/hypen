@@ -1,66 +1,81 @@
 @namespace Hypen.Web.Components
 
-<aside style="width: 260px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between;">
+<aside style="width: 240px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 18px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
     <div>
         <!-- Brand Title -->
-        <div style="margin-bottom: 25px;">
-            <h3 class="nebula-title" style="font-size: 1.4rem; color: #4cc9f0; margin-bottom: 4px;">Hypen Vault</h3>
-            <span style="font-size: 0.8rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Audio Portal</span>
+        <div style="margin-bottom: 24px;">
+            <h3 class="nebula-title" style="font-size: 1.3rem; color: #4cc9f0; margin-bottom: 2px;">Hypen Vault</h3>
+            <span style="font-size: 0.75rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Audio Portal</span>
         </div>
 
-        <!-- Navigation Links -->
-        <nav style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 25px;">
-            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula">
+        <!-- Navigation Section -->
+        <nav style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #c5c6c7; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem;">
                 🎵 Pustaka Musik
             </NavLink>
-            <NavLink href="downloader" class="nav-item-nebula">
-                ⚡ Downloader Ekstraksi
-            </NavLink>
+
+            <!-- Tombol Ikon Kotak Expandable -->
+            <button @onclick="ToggleExpand" 
+                    style="display: flex; align-items: center; justify-content: space-between; width: 100%; background: #1f2833; border: 1px solid #45a29e; color: #66fcf1; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: rgba(102, 252, 241, 0.15); border-radius: 3px; font-weight: bold; font-size: 0.75rem;">⚡</span>
+                    <span>Ekstrak Audio</span>
+                </div>
+                <span style="font-size: 0.7rem; transform: rotate(@(isExpanded ? "90deg" : "0deg")); transition: transform 0.2s ease;">▶</span>
+            </button>
         </nav>
 
-        <!-- Single Video Extract Section -->
-        <div style="margin-bottom: 20px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
-            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
-                Ekstrak Track Tunggal
-            </label>
-            <input type="text" 
-                   value="@YtUrl" 
-                   @oninput="OnYtUrlChanged" 
-                   placeholder="Link video YouTube..." 
-                   disabled="@IsLoading" 
-                   style="width: 100%; padding: 8px 10px; margin-bottom: 10px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.85rem;" />
-            <button class="btn-nebula" 
-                    @onclick="OnConvertVideo" 
-                    disabled="@IsLoading" 
-                    style="width: 100%; padding: 8px;">
-                @(IsLoading ? "Mengekstraksi..." : "⚡ Ekstrak Audio")
-            </button>
-        </div>
+        <!-- Panel Input Popup / Expandable (Memanjang & Auto-Hide) -->
+        @if (isExpanded)
+        {
+            <div style="position: absolute; left: 245px; top: 70px; width: 300px; background: #0b0c10; border: 1px solid #45a29e; border-radius: 6px; padding: 14px; box-shadow: 0 0 16px rgba(0, 0, 0, 0.6); z-index: 1000; animation: fadeIn 0.15s ease-out;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px;">
+                    <span style="font-weight: 600; color: #4cc9f0; font-size: 0.8rem;">Ekstraksi Audio YouTube</span>
+                    <button style="background: transparent; border: none; color: #f72585; cursor: pointer; font-size: 0.8rem;" @onclick="() => isExpanded = false">✕</button>
+                </div>
 
-        <!-- Playlist Extract Section -->
-        <div style="margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
-            <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
-                Ekstrak Playlist
-            </label>
-            <input type="text" 
-                   value="@PlaylistUrl" 
-                   @oninput="OnPlaylistUrlChanged" 
-                   placeholder="Link playlist YouTube..." 
-                   disabled="@IsLoading" 
-                   style="width: 100%; padding: 8px 10px; margin-bottom: 10px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.85rem;" />
-            <button class="btn-nebula btn-secondary" 
-                    @onclick="OnConvertPlaylist" 
-                    disabled="@IsLoading" 
-                    style="width: 100%; padding: 8px;">
-                @(IsLoading ? "Mengekstraksi..." : "📜 Ekstrak Playlist")
-            </button>
-        </div>
+                <!-- Single Track -->
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 0.75rem; color: #fff; display: block; margin-bottom: 4px;">Track Tunggal:</label>
+                    <input type="text" 
+                           value="@YtUrl" 
+                           @oninput="OnYtUrlChanged" 
+                           placeholder="Link video YouTube..." 
+                           disabled="@IsLoading" 
+                           style="width: 100%; padding: 6px 8px; background: #1f2833; border: 1px solid rgba(69, 162, 158, 0.5); color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 6px;" />
+                    <button class="btn-nebula" 
+                            @onclick="HandleConvertVideo" 
+                            disabled="@IsLoading" 
+                            style="width: 100%; padding: 6px; font-size: 0.75rem;">
+                        @(IsLoading ? "Mengekstraksi..." : "Ekstrak Single Audio")
+                    </button>
+                </div>
+
+                <!-- Playlist Track -->
+                <div>
+                    <label style="font-size: 0.75rem; color: #fff; display: block; margin-bottom: 4px;">Playlist:</label>
+                    <input type="text" 
+                           value="@PlaylistUrl" 
+                           @oninput="OnPlaylistUrlChanged" 
+                           placeholder="Link playlist YouTube..." 
+                           disabled="@IsLoading" 
+                           style="width: 100%; padding: 6px 8px; background: #1f2833; border: 1px solid rgba(69, 162, 158, 0.5); color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 6px;" />
+                    <button class="btn-nebula btn-secondary" 
+                            @onclick="HandleConvertPlaylist" 
+                            disabled="@IsLoading" 
+                            style="width: 100%; padding: 6px; font-size: 0.75rem;">
+                        @(IsLoading ? "Mengekstraksi..." : "Ekstrak Playlist")
+                    </button>
+                </div>
+            </div>
+        }
     </div>
 
     <!-- Info Footer -->
-    <div style="padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-        <p style="font-size: 0.78rem; color: #c5c6c7; line-height: 1.4; margin: 0;">
-            💡 Audio hasil ekstraksi otomatis tersimpan di Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
+    <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <p style="font-size: 0.75rem; color: #c5c6c7; line-height: 1.35; margin: 0;">
+            💡 Audio hasil ekstraksi tersimpan di Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
         </p>
     </div>
 </aside>
@@ -77,6 +92,13 @@
     [Parameter] public EventCallback OnConvertVideo { get; set; }
     [Parameter] public EventCallback OnConvertPlaylist { get; set; }
 
+    private bool isExpanded = false;
+
+    private void ToggleExpand()
+    {
+        isExpanded = !isExpanded;
+    }
+
     private async Task OnYtUrlChanged(ChangeEventArgs e)
     {
         await YtUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
@@ -85,5 +107,17 @@
     private async Task OnPlaylistUrlChanged(ChangeEventArgs e)
     {
         await PlaylistUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    }
+
+    private async Task HandleConvertVideo()
+    {
+        isExpanded = false; // Auto-Hide setelah diklik
+        await OnConvertVideo.InvokeAsync();
+    }
+
+    private async Task HandleConvertPlaylist()
+    {
+        isExpanded = false; // Auto-Hide setelah diklik
+        await OnConvertPlaylist.InvokeAsync();
     }
 }
