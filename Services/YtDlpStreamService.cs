@@ -43,16 +43,18 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--no-playlist");
 
-        // Cek jika file cookie tersedia
+        // Cek jika file cookie tersedia untuk bypass proteksi Bot YouTube di Cloud Server
         string cookiePath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
         if (File.Exists(cookiePath))
         {
-            startInfo.ArgumentList.Add("--cookiefile");
+            startInfo.ArgumentList.Add("--cookies");
             startInfo.ArgumentList.Add(cookiePath);
+            
+            startInfo.ArgumentList.Add("--user-agent");
+            startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
         }
         else
         {
-            // Jika tidak ada cookie, gunakan fallback client iOS/MWeb
             startInfo.ArgumentList.Add("--extractor-args");
             startInfo.ArgumentList.Add("youtube:player_client=ios,mweb");
         }
