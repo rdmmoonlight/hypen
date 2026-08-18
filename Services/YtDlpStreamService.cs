@@ -52,7 +52,20 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
+
+        // --- STRATEGI BYPASS BOT TANPA COOKIE ---
+        // 1. User-Agent Desktop Terbaru
+        startInfo.ArgumentList.Add("--user-agent");
+        startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
         
+        // 2. Referer resmi YouTube
+        startInfo.ArgumentList.Add("--referer");
+        startInfo.ArgumentList.Add("https://www.youtube.com/");
+
+        // 3. Menggunakan client tv,mweb agar proteksi bot lebih longgar
+        startInfo.ArgumentList.Add("--extractor-args");
+        startInfo.ArgumentList.Add("youtube:player_client=tv,mweb");
+
         // Playlist vs Single Track Logic
         if (isPlaylist)
         {
@@ -66,10 +79,6 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add("-o");
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
-
-        // Menggunakan player client Android secara langsung tanpa cookies
-        startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=android");
 
         // Format Paling Toleran untuk Cloud Server
         startInfo.ArgumentList.Add("-f");
