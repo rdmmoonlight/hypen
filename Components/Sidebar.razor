@@ -1,29 +1,210 @@
 @namespace Hypen.Web.Components
 
-<aside style="width: 240px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 18px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; position: sticky; top: 0; height: 100vh; box-sizing: border-box; z-index: 100;">
+<aside class="hypen-sidebar @(isExpanded ? "expanded" : "collapsed")">
+    
+    <!-- TOP SECTION: Brand & Toggle -->
     <div>
-        <!-- Brand Title -->
-        <div style="margin-bottom: 24px;">
-            <h3 class="nebula-title" style="font-size: 1.3rem; color: #4cc9f0; margin-bottom: 2px;">Hypen Vault</h3>
-            <span style="font-size: 0.75rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Audio Portal</span>
+        <div class="sidebar-header">
+            @if (isExpanded)
+            {
+                <div class="brand-info animate-fade">
+                    <h3 class="nebula-title">Hypen Vault</h3>
+                    <span class="portal-subtitle">Audio Portal</span>
+                </div>
+            }
+            
+            <!-- TOGGLE BUTTON -->
+            <button type="button" class="toggle-btn" @onclick="ToggleSidebar" title="@(isExpanded ? "Collapse Sidebar" : "Expand Sidebar")">
+                <i class="bi @(isExpanded ? "bi-chevron-left" : "bi-chevron-right")"></i>
+            </button>
         </div>
 
         <!-- Navigation Links -->
-        <nav style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
-            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #c5c6c7; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem;">
-                🎵 Pustaka Musik
+        <nav class="sidebar-nav">
+            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" title="Pustaka Musik">
+                <i class="bi bi-music-note-list fs-5"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Pustaka Musik</span>
+                }
             </NavLink>
 
-            <NavLink href="downloader" class="nav-item-nebula" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #c5c6c7; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem;">
-                ⚡ Halaman Downloader
+            <NavLink href="downloader" class="nav-link-nebula nav-item-nebula" title="Halaman Downloader">
+                <i class="bi bi-lightning-charge-fill fs-5"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Downloader</span>
+                }
             </NavLink>
         </nav>
     </div>
 
-    <!-- Info Footer -->
-    <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-        <p style="font-size: 0.75rem; color: #c5c6c7; line-height: 1.35; margin: 0;">
-            💡 Audio hasil ekstraksi tersimpan di Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
+    <!-- INFO FOOTER -->
+    @if (isExpanded)
+    <div class="sidebar-footer animate-fade">
+        <p class="footer-text">
+            💡 Audio hasil ekstraksi tersimpan di Vault dan siap diputar via <strong class="text-accent">Aplikasi Mobile Hypen</strong>.
         </p>
     </div>
 </aside>
+
+@code {
+    private bool isExpanded = true;
+
+    private void ToggleSidebar()
+    {
+        isExpanded = !isExpanded;
+    }
+}
+
+<style>
+    /* STICKY SIDEBAR CONTAINER */
+    .hypen-sidebar {
+        background: rgba(18, 16, 28, 0.85);
+        backdrop-filter: blur(12px);
+        border-right: 2px solid #ffffff;
+        padding: 18px 12px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        max-height: 100vh;
+        box-sizing: border-box;
+        z-index: 100;
+        box-shadow: 
+            0 0 8px rgba(255, 255, 255, 0.8),
+            0 0 20px rgba(255, 255, 255, 0.3);
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-x: hidden;
+    }
+
+    /* KONDISI LEBAR SIDEBAR */
+    .hypen-sidebar.expanded {
+        width: 240px;
+    }
+
+    .hypen-sidebar.collapsed {
+        width: 76px;
+        padding: 18px 8px;
+    }
+
+    /* HEADER & TOGGLE */
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        min-height: 38px;
+    }
+
+    .hypen-sidebar.collapsed .sidebar-header {
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+    }
+
+    .nebula-title {
+        font-size: 1.2rem;
+        color: #4cc9f0;
+        margin-bottom: 0px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .portal-subtitle {
+        font-size: 0.7rem;
+        color: #66fcf1;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        white-space: nowrap;
+    }
+
+    .toggle-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    /* NAV LINKS */
+    .sidebar-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .nav-item-nebula {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #c5c6c7;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        transition: all 0.2s ease-in-out;
+        white-space: nowrap;
+    }
+
+    .hypen-sidebar.collapsed .nav-item-nebula {
+        justify-content: center;
+        padding: 10px 0;
+    }
+
+    .nav-item-nebula:hover, 
+    .nav-item-nebula.active {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+
+    /* FOOTER */
+    .sidebar-footer {
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .footer-text {
+        font-size: 0.72rem;
+        color: #c5c6c7;
+        line-height: 1.35;
+        margin: 0;
+    }
+
+    .text-accent {
+        color: #4cc9f0;
+    }
+
+    /* ANIMASI FADE HALUS SAAT EXPAND/COLLAPSE */
+    .animate-fade {
+        animation: fadeIn 0.25s ease-in-out forwards;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-5px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
