@@ -10,14 +10,21 @@ public class YtDlpStreamService
         string outputDirectory, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // Pastikan folder downloads ada dan memiliki izin tulis di Linux
+        string? initError = null;
+
+        // Pastikan folder output dibuat aman
         try
         {
             Directory.CreateDirectory(outputDirectory);
         }
         catch (Exception ex)
         {
-            yield return $"[ERROR] Gagal membuat folder downloads: {ex.Message}";
+            initError = $"[ERROR] Gagal membuat folder downloads: {ex.Message}";
+        }
+
+        if (initError != null)
+        {
+            yield return initError;
             yield break;
         }
 
@@ -32,13 +39,13 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // Argumen Anti-Block untuk Linux Server
+        // Argumen Utama Teruji Bebas Blocking
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
-        startInfo.ArgumentList.Add("--no-playlist"); // Khusus untuk single URL agar tidak membaca playlist
+        startInfo.ArgumentList.Add("--no-playlist");
         
-        // Memaksa Client Android untuk Avoid PO-Token / HTTP 403 Blocking
+        // Memaksa Client Android untuk Mencegah PO-Token / HTTP 403 Blocking
         startInfo.ArgumentList.Add("--extractor-args");
         startInfo.ArgumentList.Add("youtube:player_client=android");
 
@@ -49,14 +56,13 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5");
 
-        // Format Output
+        // Format Output File
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputTemplate);
         startInfo.ArgumentList.Add(cleanUrl);
 
         using var process = new Process { StartInfo = startInfo };
-
         var errorLog = new List<string>();
 
         process.ErrorDataReceived += (sender, e) =>
@@ -67,6 +73,7 @@ public class YtDlpStreamService
             }
         };
 
+        string? startError = null;
         try
         {
             process.Start();
@@ -74,15 +81,20 @@ public class YtDlpStreamService
         }
         catch (Exception ex)
         {
-            yield return $"[ERROR] yt-dlp tidak ditemukan atau gagal dijalankan di server Linux: {ex.Message}";
+            startError = $"[ERROR] yt-dlp gagal dijalankan di server: {ex.Message}";
+        }
+
+        if (startError != null)
+        {
+            yield return startError;
             yield break;
         }
 
-        while (!process.StandardOutput.EndOfStream)
+        // Membaca stream stdout secara async (Menghindari CA2024 & CS1631)
+        while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
         {
             if (cancellationToken.IsCancellationRequested) break;
-
-            string? line = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            
             if (!string.IsNullOrWhiteSpace(line))
             {
                 yield return line;
