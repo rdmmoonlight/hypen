@@ -69,20 +69,20 @@ public partial class Index : IAsyncDisposable
     // ------------------------------------------------------------
     // WEB TERMINAL STREAMING ACTIONS
     // ------------------------------------------------------------
-    protected async Task StartTerminalDownload()
+    protected async Task StartTerminalDownload(string targetUrl)
     {
-        if (string.IsNullOrWhiteSpace(ytUrl)) return;
+        if (string.IsNullOrWhiteSpace(targetUrl)) return;
 
         showTerminal = true;
         isLoading = true;
         terminalLogs.Clear();
-        terminalLogs.Add($"[INIT] Memulai koneksi stream terminal untuk: {ytUrl}");
+        terminalLogs.Add($"[INIT] Memulai koneksi stream terminal untuk: {targetUrl}");
         await UpdateStatusAsync("Memproses terminal stream di server...");
 
         try
         {
-            // Panggil fungsi JS startTerminalStream di App.razor
-            await JS.InvokeVoidAsync("startTerminalStream", ytUrl, objRef);
+            // Memanggil JS startTerminalStream di App.razor untuk membuka EventSource / SSE
+            await JS.InvokeVoidAsync("startTerminalStream", targetUrl, objRef);
         }
         catch (Exception ex)
         {
@@ -102,6 +102,7 @@ public partial class Index : IAsyncDisposable
             isLoading = false;
             await UpdateStatusAsync("Konversi MP3 selesai!");
             ytUrl = "";
+            playlistUrl = "";
             await LoadLibrary();
         }
         else if (logLine.Contains("[ERROR]"))
@@ -217,40 +218,12 @@ public partial class Index : IAsyncDisposable
     // ------------------------------------------------------------
     protected async Task ConvertVideo()
     {
-        await StartTerminalDownload();
+        await StartTerminalDownload(ytUrl);
     }
 
     protected async Task ConvertPlaylist()
     {
-        if (string.IsNullOrWhiteSpace(playlistUrl)) return;
-
-        try
-        {
-            isLoading = true;
-            totalQueueCount = 0;
-            await UpdateStatusAsync("Mengimpor & mengonversi playlist YouTube...");
-
-            var result = await SongService.ConvertPlaylistAsync(playlistUrl);
-            if (result != null)
-            {
-                await UpdateStatusAsync($"Berhasil mengimpor {result.TotalAdded} lagu ke library!");
-                playlistUrl = "";
-                await LoadLibrary();
-            }
-            else
-            {
-                await UpdateStatusAsync("Gagal mengimpor playlist.", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            await UpdateStatusAsync($"Error: {ex.Message}", true);
-        }
-        finally
-        {
-            isLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
+        await StartTerminalDownload(playlistUrl);
     }
 
     protected async Task DeleteSingle(int id)
