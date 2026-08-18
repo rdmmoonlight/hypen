@@ -1,17 +1,27 @@
 @namespace Hypen.Web.Components
 
-<aside style="width: 300px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between;">
+<aside style="width: 260px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 20px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between;">
     <div>
         <!-- Brand Title -->
         <div style="margin-bottom: 25px;">
             <h3 class="nebula-title" style="font-size: 1.4rem; color: #4cc9f0; margin-bottom: 4px;">Hypen Vault</h3>
-            <span style="font-size: 0.8rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Downloader Portal</span>
+            <span style="font-size: 0.8rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Audio Portal</span>
         </div>
 
-        <!-- Single Video Convert Section -->
-        <div style="margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <!-- Navigation Links -->
+        <nav style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 25px;">
+            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula">
+                🎵 Pustaka Musik
+            </NavLink>
+            <NavLink href="downloader" class="nav-item-nebula">
+                ⚡ Downloader Ekstraksi
+            </NavLink>
+        </nav>
+
+        <!-- Single Video Extract Section -->
+        <div style="margin-bottom: 20px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
             <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
-                Import Single Track
+                Ekstrak Track Tunggal
             </label>
             <input type="text" 
                    value="@YtUrl" 
@@ -23,14 +33,14 @@
                     @onclick="OnConvertVideo" 
                     disabled="@IsLoading" 
                     style="width: 100%; padding: 8px;">
-                @(IsLoading ? "Memproses..." : "+ Extract Audio")
+                @(IsLoading ? "Mengekstraksi..." : "⚡ Ekstrak Audio")
             </button>
         </div>
 
-        <!-- Playlist Convert Section -->
+        <!-- Playlist Extract Section -->
         <div style="margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
             <label style="font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; display: block; color: #fff;">
-                Import YouTube Playlist
+                Ekstrak Playlist
             </label>
             <input type="text" 
                    value="@PlaylistUrl" 
@@ -42,7 +52,7 @@
                     @onclick="OnConvertPlaylist" 
                     disabled="@IsLoading" 
                     style="width: 100%; padding: 8px;">
-                @(IsLoading ? "Memproses..." : "+ Import Playlist")
+                @(IsLoading ? "Mengekstraksi..." : "📜 Ekstrak Playlist")
             </button>
         </div>
     </div>
@@ -50,7 +60,7 @@
     <!-- Info Footer -->
     <div style="padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
         <p style="font-size: 0.78rem; color: #c5c6c7; line-height: 1.4; margin: 0;">
-            💡 Audio yang diekstrak tersimpan di database Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
+            💡 Audio hasil ekstraksi otomatis tersimpan di Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
         </p>
     </div>
 </aside>
