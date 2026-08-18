@@ -1,5 +1,12 @@
 @inherits LayoutComponentBase
+@using Hypen.Web.Components
 
-<div class="page">
-    @Body
+<div style="display: flex; min-height: 100vh; background: #0b0c10; color: #c5c6c7;">
+    <!-- Sidebar Utama -->
+    <Sidebar />
+
+    <!-- Area Konten Utama Halaman (/library atau /downloader) -->
+    <main style="flex-grow: 1; padding: 16px; overflow-x: auto;">
+        @Body
+    </main>
 </div>
