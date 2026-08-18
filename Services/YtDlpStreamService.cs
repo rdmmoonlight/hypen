@@ -28,8 +28,6 @@ public class YtDlpStreamService
         }
 
         string cleanUrl = youtubeUrl.Trim();
-
-        // Konversi otomatis link YouTube Music ke YouTube Umum
         if (cleanUrl.Contains("music.youtube.com"))
         {
             cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com");
@@ -53,31 +51,38 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- ANTI-BOT SLEEP / RATE LIMITING (Mencegah Blokir di Playlist Panjang) ---
-        startInfo.ArgumentList.Add("--sleep-requests");
-        startInfo.ArgumentList.Add("1");           // Jeda 1 detik antar request API
-        startInfo.ArgumentList.Add("--min-sleep-interval");
-        startInfo.ArgumentList.Add("2");           // Minimal jeda 2 detik antar lagu
-        startInfo.ArgumentList.Add("--max-sleep-interval");
-        startInfo.ArgumentList.Add("5");           // Maksimal jeda 5 detik secara random
+        // --- AUTHENTICATION VIA COOKIE (PENTING) ---
+        string cookiePath = "/app/cookies.txt";
+        if (File.Exists(cookiePath))
+        {
+            startInfo.ArgumentList.Add("--cookies");
+            startInfo.ArgumentList.Add(cookiePath);
+        }
+        else
+        {
+            // Fallback: Jika tidak ada cookie, tetap gunakan client ios agar tidak langsung blokir
+            startInfo.ArgumentList.Add("--extractor-args");
+            startInfo.ArgumentList.Add("youtube:player_client=ios");
+        }
 
-        // --- STRATEGI SURVIVAL (GEO-BYPASS & CLIENT IOS) ---
+        // --- ANTI-BOT SLEEP & GEO-BYPASS ---
+        startInfo.ArgumentList.Add("--sleep-requests");
+        startInfo.ArgumentList.Add("1");
+        startInfo.ArgumentList.Add("--min-sleep-interval");
+        startInfo.ArgumentList.Add("2");
+        startInfo.ArgumentList.Add("--max-sleep-interval");
+        startInfo.ArgumentList.Add("5");
         startInfo.ArgumentList.Add("--geo-bypass");
         startInfo.ArgumentList.Add("--geo-bypass-country");
         startInfo.ArgumentList.Add("US");
 
-        // User-Agent & Referer Desktop
+        // User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
         startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-        
         startInfo.ArgumentList.Add("--referer");
         startInfo.ArgumentList.Add("https://www.youtube.com/");
 
-        // Menggunakan client iOS
-        startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=ios");
-
-        // Playlist vs Single Track Logic
+        // Logic Output
         if (isPlaylist)
         {
             startInfo.ArgumentList.Add("--yes-playlist");
@@ -91,11 +96,9 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Format Paling Toleran untuk Cloud Server
+        // Format & Konversi
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("best/bestaudio");
-
-        // Konversi Audio ke MP3
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
@@ -105,67 +108,20 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add(cleanUrl);
 
         using var process = new Process { StartInfo = startInfo };
+        // ... (sisanya tetap sama: process.Start(), log, dll)
         var errorLog = new List<string>();
+        process.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) errorLog.Add(e.Data); };
 
-        process.ErrorDataReceived += (sender, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                errorLog.Add(e.Data);
-            }
-        };
+        try { process.Start(); process.BeginErrorReadLine(); } catch (Exception ex) { yield return $"[ERROR] Gagal: {ex.Message}"; yield break; }
 
-        string? startError = null;
-        try
+        while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
         {
-            process.Start();
-            process.BeginErrorReadLine();
-        }
-        catch (Exception ex)
-        {
-            startError = $"[ERROR] yt-dlp gagal dijalankan di server: {ex.Message}";
+            if (cancellationToken.IsCancellationRequested) { yield return "[CANCELLED]"; yield break; }
+            if (!string.IsNullOrWhiteSpace(line)) yield return line;
         }
 
-        if (startError != null)
-        {
-            yield return startError;
-            yield break;
-        }
-
-        try
-        {
-            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    yield return "[CANCELLED] Pemrosesan terminal dihentikan oleh pengguna.";
-                    yield break;
-                }
-                
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    yield return line;
-                }
-            }
-
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode == 0)
-            {
-                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
-            }
-            else
-            {
-                string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
-                yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
-            }
-        }
-        finally
-        {
-            if (!process.HasExited)
-            {
-                try { process.Kill(true); } catch { }
-            }
-        }
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode == 0) yield return "[COMPLETED] Audio berhasil!";
+        else yield return $"[ERROR] Kode {process.ExitCode}: {(errorLog.Count > 0 ? errorLog.Last() : "Unknown")}";
     }
 }
