@@ -42,8 +42,9 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--no-playlist");
+        startInfo.ArgumentList.Add("--ignore-config");
 
-        // Cek jika file cookie tersedia untuk bypass proteksi Bot YouTube di Cloud Server
+        // Cek jika file cookie tersedia
         string cookiePath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
         if (File.Exists(cookiePath))
         {
@@ -59,12 +60,17 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add("youtube:player_client=ios,mweb");
         }
 
-        // Konversi Audio ke MP3 VBR Quality 5
-        startInfo.ArgumentList.Add("-x");
+        // =========================================================================
+        // STRATEGI: Download Best Audio Terlebih Dahulu, Lalu Convert ke MP3
+        // =========================================================================
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("bestaudio"); // 1. Ambil kualitas audio mentah terbaik
+        
+        startInfo.ArgumentList.Add("-x");        // 2. Ekstrak audio saja
         startInfo.ArgumentList.Add("--audio-format");
-        startInfo.ArgumentList.Add("mp3");
+        startInfo.ArgumentList.Add("mp3");       // 3. Konversi ke format MP3
         startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("5");         // Kualitas VBR yang ramah server (130-160 kbps)
 
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
         startInfo.ArgumentList.Add("-o");
@@ -119,7 +125,7 @@ public class YtDlpStreamService
 
             if (process.ExitCode == 0)
             {
-                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
+                yield return "[COMPLETED] Audio berhasil di-download dan dikonversi ke MP3!";
             }
             else
             {
