@@ -43,6 +43,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
+        startInfo.ArgumentList.Add("--ignore-config");
         
         // Playlist vs Single Track Logic
         if (isPlaylist)
@@ -74,9 +75,16 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add("youtube:player_client=android");
         }
 
-        // Format Best Audio
+        // Format Seleksi Audio yang Lebih Stabil untuk YouTube Music (M4A/Best Audio)
         startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("ba/b");
+        startInfo.ArgumentList.Add("bestaudio[ext=m4a]/bestaudio/best");
+
+        // Konversi ke MP3
+        startInfo.ArgumentList.Add("-x");
+        startInfo.ArgumentList.Add("--audio-format");
+        startInfo.ArgumentList.Add("mp3");
+        startInfo.ArgumentList.Add("--audio-quality");
+        startInfo.ArgumentList.Add("5");
         
         startInfo.ArgumentList.Add(cleanUrl);
 
@@ -128,7 +136,7 @@ public class YtDlpStreamService
 
             if (process.ExitCode == 0)
             {
-                yield return "[COMPLETED] File audio berhasil diekstraksi!";
+                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
             }
             else
             {
