@@ -42,10 +42,20 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--no-playlist");
-        
-        // Memakai fallback client yang lebih tahan dari bot challenge YouTube di cloud server
-        startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=tv,android_creator,mweb");
+
+        // Cek jika file cookie tersedia
+        string cookiePath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
+        if (File.Exists(cookiePath))
+        {
+            startInfo.ArgumentList.Add("--cookiefile");
+            startInfo.ArgumentList.Add(cookiePath);
+        }
+        else
+        {
+            // Jika tidak ada cookie, gunakan fallback client iOS/MWeb
+            startInfo.ArgumentList.Add("--extractor-args");
+            startInfo.ArgumentList.Add("youtube:player_client=ios,mweb");
+        }
 
         // Konversi Audio ke MP3 VBR Quality 5
         startInfo.ArgumentList.Add("-x");
@@ -117,14 +127,9 @@ public class YtDlpStreamService
         }
         finally
         {
-            // Matikan paksa proses yt-dlp di Linux jika CancellationToken di-trigger atau method selesai
             if (!process.HasExited)
             {
-                try
-                {
-                    process.Kill(true);
-                }
-                catch { }
+                try { process.Kill(true); } catch { }
             }
         }
     }
