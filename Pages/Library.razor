@@ -1,0 +1,273 @@
+@page "/library"
+@page "/"
+@using Hypen.Web.Models
+@using Hypen.Web.Services
+@inject ISongService SongService
+@inject IJSRuntime JS
+
+<PageTitle>Hypen Music Vault Library</PageTitle>
+
+<div style="padding: 16px; background: #0b0c10; color: #c5c6c7; min-height: 100vh; font-size: 0.78rem;">
+
+    @if (!string.IsNullOrEmpty(statusMsg))
+    {
+        <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; font-size: 0.75rem; margin-bottom: 8px;">
+            @statusMsg
+        </p>
+    }
+
+    <!-- BATCH QUEUE PROGRESS BAR -->
+    @if (isLoading && totalQueueCount > 0)
+    {
+        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 6px; margin-bottom: 12px;">
+            <div style="background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; height: 8px; position: relative;">
+                <div style="width: @(progressPercentage)%; background: linear-gradient(90deg, #4cc9f0, #7209b7); height: 100%; transition: width 0.3s ease;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #c5c6c7; margin-top: 4px;">
+                <span>Progres Antrean Unduhan: @currentProcessedCount / @totalQueueCount Lagu</span>
+                <span>@progressPercentage%</span>
+            </div>
+        </div>
+    }
+
+    <!-- CONTROLS CONTAINER -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+        <input type="text"
+               @bind="searchQuery"
+               @bind:event="oninput"
+               placeholder="Cari judul lagu atau artis..."
+               style="padding: 5px 10px; width: 240px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 4px; font-size: 0.75rem;" />
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <label style="font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: #fff; user-select: none;">
+                <input type="checkbox" checked="@isSelectAllChecked" @onchange="ToggleSelectAll" />
+                Pilih Semua
+            </label>
+
+            <button class="btn-nebula btn-secondary" style="padding: 4px 10px; font-size: 0.72rem;" @onclick="DownloadSelected" disabled="@isLoading">
+                Download Selected
+            </button>
+            <button class="btn-nebula btn-danger" style="padding: 4px 10px; font-size: 0.72rem;" @onclick="DeleteSelected" disabled="@isLoading">
+                Hapus Selected
+            </button>
+        </div>
+    </div>
+
+    <!-- TABLE LIBRARY -->
+    <div style="background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem; line-height: 1.2;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); font-size: 0.72rem; text-transform: uppercase;">
+                    <th style="padding: 6px 8px; width: 35px; text-align: center;">
+                        <input type="checkbox" checked="@isSelectAllChecked" @onchange="ToggleSelectAll" />
+                    </th>
+                    <th style="padding: 6px 8px;">Judul Lagu</th>
+                    <th style="padding: 6px 8px;">Artis / Uploader</th>
+                    <th style="padding: 6px 8px; width: 120px; text-align: center;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (songs.Count == 0 && isLoading)
+                {
+                    <tr>
+                        <td colspan="4" style="padding: 16px; text-align: center; color: #66fcf1;">
+                            Memuat library musik...
+                        </td>
+                    </tr>
+                }
+                else if (!FilteredSongs.Any())
+                {
+                    <tr>
+                        <td colspan="4" style="padding: 16px; text-align: center; color: #c5c6c7;">
+                            Tidak ada lagu ditemukan.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var song in FilteredSongs)
+                    {
+                        <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
+                            <td style="padding: 4px 8px; text-align: center;">
+                                <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" />
+                            </td>
+                            <td style="padding: 4px 8px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;">
+                                @song.Title
+                            </td>
+                            <td style="padding: 4px 8px; color: #a0a5aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">
+                                @song.Artist
+                            </td>
+                            <td style="padding: 4px 8px; text-align: center;">
+                                <button class="btn-nebula btn-secondary" style="padding: 2px 8px; font-size: 0.68rem; margin-right: 2px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading">
+                                    Unduh
+                                </button>
+                                <button class="btn-nebula btn-danger" style="padding: 2px 8px; font-size: 0.68rem;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading">
+                                    Hapus
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+@code {
+    private List<CloudSongModel> songs = [];
+    private string searchQuery = "";
+    private string statusMsg = "";
+    private bool isLoading;
+    private bool isError;
+    private bool isSelectAllChecked;
+
+    private int totalQueueCount = 0;
+    private int currentProcessedCount = 0;
+    private int progressPercentage = 0;
+
+    private IEnumerable<CloudSongModel> FilteredSongs =>
+        string.IsNullOrWhiteSpace(searchQuery)
+            ? songs
+            : songs.Where(song =>
+                song.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLibrary();
+    }
+
+    private async Task LoadLibrary()
+    {
+        try
+        {
+            isLoading = true;
+            UpdateStatus("Memuat library...");
+
+            songs = await SongService.GetSongsAsync();
+            isSelectAllChecked = false;
+            UpdateStatus("");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal memuat library: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        isSelectAllChecked = e.Value is bool val && val;
+        foreach (var song in FilteredSongs)
+        {
+            song.IsSelected = isSelectAllChecked;
+        }
+    }
+
+    private void OnSongSelectChanged(CloudSongModel song, ChangeEventArgs e)
+    {
+        song.IsSelected = e.Value is bool val && val;
+        var list = FilteredSongs.ToList();
+        if (list.Count > 0)
+        {
+            isSelectAllChecked = list.All(s => s.IsSelected);
+        }
+    }
+
+    private async Task DownloadSingle(CloudSongModel song)
+    {
+        try
+        {
+            UpdateStatus($"Mempersiapkan unduhan: {song.Title}...");
+            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+            UpdateStatus("");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+        }
+    }
+
+    private async Task DownloadSelected()
+    {
+        var selected = songs.Where(song => song.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            UpdateStatus("Tidak ada lagu yang dipilih.", true);
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            totalQueueCount = selected.Count;
+            currentProcessedCount = 0;
+            progressPercentage = 0;
+            StateHasChanged();
+
+            foreach (var song in selected)
+            {
+                currentProcessedCount++;
+                progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
+                UpdateStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
+
+                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+                await Task.Delay(1200);
+            }
+
+            progressPercentage = 100;
+            UpdateStatus($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal mengunduh antrean: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+            totalQueueCount = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteSingle(int id)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
+        if (!confirmed) return;
+
+        if (await SongService.DeleteSongAsync(id))
+        {
+            await LoadLibrary();
+        }
+    }
+
+    private async Task DeleteSelected()
+    {
+        var selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
+        if (selectedIds.Length == 0)
+        {
+            UpdateStatus("Tidak ada lagu yang dipilih.", true);
+            return;
+        }
+
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu?");
+        if (!confirmed) return;
+
+        if (await SongService.DeleteBatchSongsAsync(selectedIds))
+        {
+            await LoadLibrary();
+        }
+    }
+
+    private void UpdateStatus(string msg, bool error = false)
+    {
+        statusMsg = msg;
+        isError = error;
+        StateHasChanged();
+    }
+}
