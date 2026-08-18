@@ -51,7 +51,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- AUTHENTICATION VIA COOKIE (PENTING) ---
+        // --- AUTHENTICATION VIA COOKIE ---
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
@@ -60,7 +60,6 @@ public class YtDlpStreamService
         }
         else
         {
-            // Fallback: Jika tidak ada cookie, tetap gunakan client ios agar tidak langsung blokir
             startInfo.ArgumentList.Add("--extractor-args");
             startInfo.ArgumentList.Add("youtube:player_client=ios");
         }
@@ -82,7 +81,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--referer");
         startInfo.ArgumentList.Add("https://www.youtube.com/");
 
-        // Logic Output
+        // Playlist vs Single Track Logic
         if (isPlaylist)
         {
             startInfo.ArgumentList.Add("--yes-playlist");
@@ -108,20 +107,67 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add(cleanUrl);
 
         using var process = new Process { StartInfo = startInfo };
-        // ... (sisanya tetap sama: process.Start(), log, dll)
         var errorLog = new List<string>();
-        process.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) errorLog.Add(e.Data); };
 
-        try { process.Start(); process.BeginErrorReadLine(); } catch (Exception ex) { yield return $"[ERROR] Gagal: {ex.Message}"; yield break; }
-
-        while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+        process.ErrorDataReceived += (sender, e) =>
         {
-            if (cancellationToken.IsCancellationRequested) { yield return "[CANCELLED]"; yield break; }
-            if (!string.IsNullOrWhiteSpace(line)) yield return line;
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                errorLog.Add(e.Data);
+            }
+        };
+
+        string? startError = null;
+        try
+        {
+            process.Start();
+            process.BeginErrorReadLine();
+        }
+        catch (Exception ex)
+        {
+            startError = $"[ERROR] yt-dlp gagal dijalankan di server: {ex.Message}";
         }
 
-        await process.WaitForExitAsync(cancellationToken);
-        if (process.ExitCode == 0) yield return "[COMPLETED] Audio berhasil!";
-        else yield return $"[ERROR] Kode {process.ExitCode}: {(errorLog.Count > 0 ? errorLog.Last() : "Unknown")}";
+        if (startError != null)
+        {
+            yield return startError;
+            yield break;
+        }
+
+        try
+        {
+            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    yield return "[CANCELLED] Pemrosesan terminal dihentikan oleh pengguna.";
+                    yield break;
+                }
+                
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    yield return line;
+                }
+            }
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode == 0)
+            {
+                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
+            }
+            else
+            {
+                string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
+                yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
+            }
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                try { process.Kill(true); } catch { }
+            }
+        }
     }
 }
