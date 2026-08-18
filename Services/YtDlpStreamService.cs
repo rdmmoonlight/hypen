@@ -53,18 +53,18 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- STRATEGI BYPASS BOT TANPA COOKIE ---
-        // 1. User-Agent Desktop Terbaru
+        // --- STRATEGI BYPASS BOT (IOS CLIENT SIGNATURE) ---
+        // 1. Menggunakan client iOS agar tidak mudah terkena blokir bot datacenter
+        startInfo.ArgumentList.Add("--extractor-args");
+        startInfo.ArgumentList.Add("youtube:player_client=ios");
+
+        // 2. User-Agent Safari iOS
         startInfo.ArgumentList.Add("--user-agent");
-        startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
+        startInfo.ArgumentList.Add("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1");
         
-        // 2. Referer resmi YouTube
+        // 3. Referer resmi YouTube
         startInfo.ArgumentList.Add("--referer");
         startInfo.ArgumentList.Add("https://www.youtube.com/");
-
-        // 3. Menggunakan client tv,mweb agar proteksi bot lebih longgar
-        startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=tv,mweb");
 
         // Playlist vs Single Track Logic
         if (isPlaylist)
