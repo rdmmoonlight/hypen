@@ -1,0 +1,78 @@
+@page "/library/sync"
+
+<PageTitle>YouTube Library Sync - Hypen Music Vault</PageTitle>
+
+<div style="padding: 24px; background: #0b0c10; color: #c5c6c7; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+    
+    <!-- HEADER -->
+    <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <h1 style="font-size: 1.8rem; color: #fff; margin: 0 0 8px 0; font-weight: 700;">🔄 YouTube Sync Engine</h1>
+        <p style="font-size: 0.85rem; color: #a0a5aa; margin: 0;">
+            Sinkronkan playlist YouTube Liked / Playlist kustom ke staging table <code>songs_raw</code> dan olah secara otomatis ke <code>songs_complete</code>.
+        </p>
+    </div>
+
+    <!-- STATUS ALERT -->
+    @if (!string.IsNullOrEmpty(statusMsg))
+    {
+        <div style="background: @(isError ? "rgba(247, 37, 133, 0.1)" : "rgba(76, 201, 240, 0.1)"); 
+                    border-left: 4px solid @(isError ? "#f72585" : "#4cc9f0"); 
+                    padding: 10px 14px; margin-bottom: 20px; border-radius: 4px;">
+            <p style="color: @(isError ? "#ff4d6d" : "#4cc9f0"); font-weight: 500; font-size: 0.82rem; margin: 0;">
+                @statusMsg
+            </p>
+        </div>
+    }
+
+    <!-- PANEL CONTROLS & FORM -->
+    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            
+            <div>
+                <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Playlist Target ID</label>
+                <input type="text" @bind="targetPlaylistId" placeholder="LL (Liked Songs) atau Playlist ID" 
+                       style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;" />
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Batas Maksimal Sync</label>
+                <select @bind="maxResults" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;">
+                    <option value="10">10 Lagu Terbaru</option>
+                    <option value="25">25 Lagu Terbaru</option>
+                    <option value="50">50 Lagu Terbaru</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button style="background: #4cc9f0; color: #000; font-weight: 600; border: none; padding: 10px 20px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
+                    @onclick="StartFullSync" disabled="@isProcessing">
+                @(isProcessing ? "Sedang Memproses..." : "🚀 Jalankan Sync Full (Raw + Cleanup)")
+            </button>
+
+            <button style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px 16px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
+                    @onclick="ProcessRawOnly" disabled="@isProcessing">
+                🧹 Olah Data Raw PENDING
+            </button>
+
+            <a href="/library" style="text-decoration: none; background: rgba(255,255,255,0.05); color: #c5c6c7; padding: 10px 16px; border-radius: 4px; font-size: 0.8rem; display: inline-block;">
+                ← Kembali ke Library
+            </a>
+        </div>
+    </div>
+
+    <!-- STATS METRICS -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
+            <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Status Staging Raw</span>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #fff; margin-top: 4px;">@pendingRawCount PENDING</div>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
+            <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Total Vault Olahan</span>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #4cc9f0; margin-top: 4px;">@completedSongsCount Lagu</div>
+        </div>
+    </div>
+
+</div>
