@@ -28,6 +28,13 @@ public class YtDlpStreamService
         }
 
         string cleanUrl = youtubeUrl.Trim();
+
+        // Konversi otomatis link YouTube Music ke YouTube Umum untuk menghindari format restriksi datacenter
+        if (cleanUrl.Contains("music.youtube.com"))
+        {
+            cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com");
+        }
+
         bool isPlaylist = cleanUrl.Contains("list=");
 
         var startInfo = new ProcessStartInfo
@@ -44,6 +51,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
+        startInfo.ArgumentList.Add("--force-overwrites");
         
         // Playlist vs Single Track Logic
         if (isPlaylist)
@@ -59,7 +67,7 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Cek file cookies.txt untuk bypass Bot Protection di Render
+        // Cek file cookies.txt
         string cookiePath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
         if (File.Exists(cookiePath))
         {
@@ -75,16 +83,11 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add("youtube:player_client=android");
         }
 
-        // PAKSA DOWNLOAD VIDEO TERBAIK JIKA AUDIO MURNI DIBLOKIR
-        // yt-dlp akan mencoba mengambil stream audio, jika gagal dia akan mengambil video & mengekstrak audionya
+        // Format Paling Toleran untuk Cloud Server (Mengatasi Requested format is not available)
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("best/bestaudio");
 
-        // Tambahkan ini untuk memaksa ffmpeg melakukan re-encode dari stream apa pun yang didapat
-        startInfo.ArgumentList.Add("--postprocessor-args");
-        startInfo.ArgumentList.Add("ffmpeg:-ar 44100 -ac 2 -b:a 128k");
-
-        // Konversi ke MP3
+        // Konversi Audio ke MP3
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
