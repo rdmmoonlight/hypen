@@ -12,6 +12,7 @@ public class YtDlpStreamService
     {
         Directory.CreateDirectory(outputDirectory);
 
+        // Sanitasi URL Sederhana
         string cleanUrl = youtubeUrl;
         if (cleanUrl.Contains("watch?v=") && cleanUrl.Contains("&list="))
         {
@@ -19,47 +20,92 @@ public class YtDlpStreamService
         }
 
         string cookiesPath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
-        string cookiesArg = File.Exists(cookiesPath) ? $"--cookies \"{cookiesPath}\"" : "";
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
 
-        // Perintah real-time progress yt-dlp
-        string arguments = $"{cookiesArg} --no-playlist --no-cache-dir -x --audio-format mp3 --audio-quality 5 -o \"{outputTemplate}\" \"{cleanUrl}\"";
-
-        var process = new Process
+        var startInfo = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
+            FileName = "yt-dlp",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        if (File.Exists(cookiesPath))
+        {
+            startInfo.ArgumentList.Add("--cookies");
+            startInfo.ArgumentList.Add(cookiesPath);
+        }
+
+        // Argumen Utama
+        startInfo.ArgumentList.Add("--no-playlist");
+        startInfo.ArgumentList.Add("--no-warnings");
+        startInfo.ArgumentList.Add("--no-cache-dir");
+        startInfo.ArgumentList.Add("--newline"); // WAJIB: Agar stdout mengeluarkan newline '\n' untuk real-time streaming
+        startInfo.ArgumentList.Add("--progress");
+        startInfo.ArgumentList.Add("-x");
+        startInfo.ArgumentList.Add("--audio-format");
+        startInfo.ArgumentList.Add("mp3");
+        startInfo.ArgumentList.Add("--audio-quality");
+        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add(outputTemplate);
+        startInfo.ArgumentList.Add(cleanUrl);
+
+        using var process = new Process { StartInfo = startInfo };
+        
+        // Membaca StandardError secara asinkron di background agar tidak mengunci buffer
+        var errorOutput = new System.Text.StringBuilder();
+        process.ErrorDataReceived += (sender, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
             {
-                FileName = "yt-dlp",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
+                errorOutput.AppendLine(e.Data);
             }
         };
 
         process.Start();
+        process.BeginErrorReadLine(); // Mulai membaca stderr secara background
 
-        // Baca stdout per baris secara asynchronous dan kirim ke streamer
-        while (!process.StandardOutput.EndOfStream && !cancellationToken.IsCancellationRequested)
+        try
         {
-            string? line = await process.StandardOutput.ReadLineAsync(cancellationToken);
-            if (!string.IsNullOrWhiteSpace(line))
+            // Read stream baris demi baris
+            while (!process.StandardOutput.EndOfStream)
             {
-                yield return line;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string? line = await process.StandardOutput.ReadLineAsync(cancellationToken);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    yield return line;
+                }
+            }
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode == 0)
+            {
+                yield return "[COMPLETED] File berhasil dikonversi ke MP3!";
+            }
+            else
+            {
+                yield return $"[ERROR] Process exited with code {process.ExitCode}: {errorOutput}";
             }
         }
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        if (process.ExitCode == 0)
+        finally
         {
-            yield return "[COMPLETED] File berhasil dikonversi ke MP3!";
-        }
-        else
-        {
-            string error = await process.StandardError.ReadToEndAsync(cancellationToken);
-            yield return $"[ERROR] Process exited with code {process.ExitCode}: {error}";
+            // Hentikan proses secara paksa jika request dibatalkan klien di tengah jalan
+            if (!process.HasExited)
+            {
+                try
+                {
+                    process.Kill(true);
+                }
+                catch
+                {
+                    // Ignore exceptions jika proses sudah keburu mati
+                }
+            }
         }
     }
 }
