@@ -1,123 +1,291 @@
-@namespace Hypen.Web.Components
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
 
-<aside style="width: 240px; background: rgba(255, 255, 255, 0.03); border-right: 1px solid rgba(255, 255, 255, 0.08); padding: 18px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; position: sticky; top: 0; height: 100vh; box-sizing: border-box; z-index: 100;">
-    <div>
-        <!-- Brand Title -->
-        <div style="margin-bottom: 24px;">
-            <h3 class="nebula-title" style="font-size: 1.3rem; color: #4cc9f0; margin-bottom: 2px;">Hypen Vault</h3>
-            <span style="font-size: 0.75rem; color: #66fcf1; text-transform: uppercase; letter-spacing: 1px;">Audio Portal</span>
-        </div>
+<div class="sidebar-wrapper d-flex sidebar-sticky-neon">
+    
+    <!-- MAIN ICON DOCK (65px) -->
+    <nav id="sidebar-icons" class="sidebar-icons text-white d-flex flex-column align-items-center py-3">
 
-        <!-- Navigation Section -->
-        <nav style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #c5c6c7; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem;">
-                🎵 Pustaka Musik
-            </NavLink>
+        <!-- BRAND / HOME ICON -->
+        <NavLink href="/" Match="NavLinkMatch.All" class="brand-container text-center text-warning text-decoration-none mb-2" title="Aumo Finance Home" @onclick="CloseFlyout">
+            <i class="bi bi-house-door-fill fs-5"></i>
+        </NavLink>
 
-            <!-- Tombol Ikon Kotak Expandable -->
-            <button @onclick="ToggleExpand" 
-                    style="display: flex; align-items: center; justify-content: space-between; width: 100%; background: #1f2833; border: 1px solid #45a29e; color: #66fcf1; padding: 8px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: rgba(102, 252, 241, 0.15); border-radius: 3px; font-weight: bold; font-size: 0.75rem;">⚡</span>
-                    <span>Ekstrak Audio</span>
-                </div>
-                <span style="font-size: 0.7rem; transform: rotate(@(isExpanded ? "90deg" : "0deg")); transition: transform 0.2s ease;">▶</span>
-            </button>
-        </nav>
+        <!-- GLOWING WHITE DIVIDER -->
+        <hr class="hr-glow-white my-2 w-75">
 
-        <!-- Panel Input Popup / Expandable (Memanjang & Auto-Hide) -->
-        @if (isExpanded)
-        {
-            <div style="position: absolute; left: 245px; top: 70px; width: 300px; background: #0b0c10; border: 1px solid #45a29e; border-radius: 6px; padding: 14px; box-shadow: 0 0 16px rgba(0, 0, 0, 0.6); z-index: 1000; animation: fadeIn 0.15s ease-out;">
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px;">
-                    <span style="font-weight: 600; color: #4cc9f0; font-size: 0.8rem;">Ekstraksi Audio YouTube</span>
-                    <button style="background: transparent; border: none; color: #f72585; cursor: pointer; font-size: 0.8rem;" @onclick="() => isExpanded = false">✕</button>
-                </div>
+        <!-- MENU NAVIGATION LIST -->
+        <ul class="nav flex-column align-items-center w-100 flex-grow-1">
 
-                <!-- Single Track -->
-                <div style="margin-bottom: 14px;">
-                    <label style="font-size: 0.75rem; color: #fff; display: block; margin-bottom: 4px;">Track Tunggal:</label>
-                    <input type="text" 
-                           value="@YtUrl" 
-                           @oninput="OnYtUrlChanged" 
-                           placeholder="Link video YouTube..." 
-                           disabled="@IsLoading" 
-                           style="width: 100%; padding: 6px 8px; background: #1f2833; border: 1px solid rgba(69, 162, 158, 0.5); color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 6px;" />
-                    <button class="btn-nebula" 
-                            @onclick="HandleConvertVideo" 
-                            disabled="@IsLoading" 
-                            style="width: 100%; padding: 6px; font-size: 0.75rem;">
-                        @(IsLoading ? "Mengekstraksi..." : "Ekstrak Single Audio")
+            <li class="nav-item mb-2">
+                <NavLink href="/dashboard" class="nav-link icon-btn" title="Dashboard" @onclick="CloseFlyout">
+                    <i class="bi bi-columns-gap fs-5"></i>
+                </NavLink>
+            </li>
+
+            <!-- MENU AI ASSISTANT -->
+            <li class="nav-item mb-2">
+                <NavLink href="/ai-assistant" class="nav-link icon-btn" title="AI Financial Assistant" @onclick="CloseFlyout">
+                    <i class="bi bi-robot fs-5"></i>
+                </NavLink>
+            </li>
+
+            <li class="nav-item mb-2">
+                <NavLink href="/journal-entry/create" class="nav-link icon-btn" title="Journal Entry" @onclick="CloseFlyout">
+                    <i class="bi bi-journal-plus fs-5"></i>
+                </NavLink>
+            </li>
+
+            <!-- MENU REPORTS (TOGGLE FLYOUT) -->
+            <li class="nav-item mb-2">
+                <button type="button" 
+                        @onclick="ToggleReportsFlyout" 
+                        class="nav-link icon-btn border-0 bg-transparent @(showReportsFlyout ? "active" : "")" 
+                        title="Reports">
+                    <i class="bi bi-folder fs-5"></i>
+                </button>
+            </li>
+
+            <li class="nav-item mb-2">
+                <NavLink href="/chart-of-accounts" class="nav-link icon-btn" title="Chart of Accounts" @onclick="CloseFlyout">
+                    <i class="bi bi-diagram-3 fs-5"></i>
+                </NavLink>
+            </li>
+
+            <li class="nav-item mb-2">
+                <NavLink href="/periods" class="nav-link icon-btn" title="Financial Periods" @onclick="CloseFlyout">
+                    <i class="bi bi-calendar3 fs-5"></i>
+                </NavLink>
+            </li>
+
+            <!-- MENU DOCUMENTS -->
+            <li class="nav-item mb-2">
+                <NavLink href="/documents" class="nav-link icon-btn" title="Economic Documents" @onclick="CloseFlyout">
+                    <i class="bi bi-file-earmark-text fs-5"></i>
+                </NavLink>
+            </li>
+
+            <li class="nav-item mb-2">
+                <NavLink href="/guardian" class="nav-link icon-btn" title="Guardian Security" @onclick="CloseFlyout">
+                    <i class="bi bi-shield-check fs-5"></i>
+                </NavLink>
+            </li>
+
+            <li class="nav-item mb-2">
+                <NavLink href="/tools" class="nav-link icon-btn" title="Tools" @onclick="CloseFlyout">
+                    <i class="bi bi-tools fs-5"></i>
+                </NavLink>
+            </li>
+
+        </ul>
+
+        <!-- AUTH MENU & PROFILE DROPDOWN WITH STATUS LED -->
+        <AuthorizeView>
+            <Authorized>
+                <div class="mt-auto dropup position-relative">
+                    <button class="nav-link icon-btn border-0 bg-transparent" 
+                            id="userDropdown" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false" 
+                            title="@context.User.Identity?.Name">
+                        <i class="bi bi-person-circle fs-5"></i>
                     </button>
-                </div>
+                    <!-- Status LED Micro Glow -->
+                    <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-dark rounded-circle" style="width: 7px; height: 7px; box-shadow: 0 0 6px #10b981;"></span>
 
-                <!-- Playlist Track -->
-                <div>
-                    <label style="font-size: 0.75rem; color: #fff; display: block; margin-bottom: 4px;">Playlist:</label>
-                    <input type="text" 
-                           value="@PlaylistUrl" 
-                           @oninput="OnPlaylistUrlChanged" 
-                           placeholder="Link playlist YouTube..." 
-                           disabled="@IsLoading" 
-                           style="width: 100%; padding: 6px 8px; background: #1f2833; border: 1px solid rgba(69, 162, 158, 0.5); color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 6px;" />
-                    <button class="btn-nebula btn-secondary" 
-                            @onclick="HandleConvertPlaylist" 
-                            disabled="@IsLoading" 
-                            style="width: 100%; padding: 6px; font-size: 0.75rem;">
-                        @(IsLoading ? "Mengekstraksi..." : "Ekstrak Playlist")
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow ms-2 mb-2 fs-7" aria-labelledby="userDropdown">
+                        <li class="dropdown-header text-truncate" style="max-width: 180px;">
+                            @(context.User.Identity?.Name ?? "User")
+                        </li>
+
+                        <li><hr class="dropdown-divider"></li>
+
+                        <li>
+                            <NavLink class="dropdown-item d-flex align-items-center" href="/settings" @onclick="CloseFlyout">
+                                <i class="bi bi-gear me-2"></i> Settings
+                            </NavLink>
+                        </li>
+
+                        <li>
+                            <form action="/auth/logout" method="post" class="d-inline">
+                                <AntiforgeryToken />
+                                <button type="submit" class="dropdown-item d-flex align-items-center text-danger border-0 bg-transparent w-100">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Sign Out
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="mt-auto">
+                    <NavLink href="/auth/login" class="nav-link icon-btn" title="Sign In" @onclick="CloseFlyout">
+                        <i class="bi bi-box-arrow-in-right fs-5"></i>
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+    </nav>
+
+    <!-- HOLOGRAM FLYOUT PANEL (REPORTS) -->
+    @if (showReportsFlyout)
+    {
+        <div id="reports-flyout" class="sidebar-flyout">
+
+            <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-end align-items-center">
+                <button type="button" @onclick="CloseFlyout" class="btn-close btn-close-white btn-sm" aria-label="Close"></button>
             </div>
-        }
-    </div>
 
-    <!-- Info Footer -->
-    <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-        <p style="font-size: 0.75rem; color: #c5c6c7; line-height: 1.35; margin: 0;">
-            💡 Audio hasil ekstraksi tersimpan di Vault dan siap diputar via <strong style="color: #4cc9f0;">Aplikasi Mobile Hypen</strong>.
-        </p>
-    </div>
-</aside>
+            <div class="list-group list-group-flush p-2 small">
+
+                <NavLink href="/reports/general-journal" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    General Journal
+                </NavLink>
+
+                <NavLink href="/reports/general-ledger" Match="NavLinkMatch.All" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    GL (Permanent Accounts)
+                </NavLink>
+
+                <NavLink href="/reports/general-ledger/true" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    GL (Temporary Accounts)
+                </NavLink>
+
+                <NavLink href="/reports/trial-balance" Match="NavLinkMatch.All" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Trial Balance
+                </NavLink>
+
+                <NavLink href="/reports/adjusting-journal" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Adjusting Journal
+                </NavLink>
+
+                <NavLink href="/reports/trial-balance/true" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Adjusted Trial Balance
+                </NavLink>
+
+                <NavLink href="/reports/worksheet" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Worksheet
+                </NavLink>
+
+                <NavLink href="/reports/income-statement" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Income Statement
+                </NavLink>
+
+                <NavLink href="/reports/retained-earnings" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Retained Earnings
+                </NavLink>
+
+                <NavLink href="/reports/statement-of-financial-position" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Financial Position
+                </NavLink>
+
+                <NavLink href="/reports/closing-journal" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Closing Journal
+                </NavLink>
+
+                <NavLink href="/reports/post-closing-trial-balance" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Post-Closing TB
+                </NavLink>
+
+                <NavLink href="/reports/cash-flow" class="list-group-item list-group-item-action py-2 px-3 rounded mb-1" @onclick="CloseFlyout">
+                    Cash Flow
+                </NavLink>
+
+            </div>
+        </div>
+    }
+
+</div>
 
 @code {
-    [Parameter] public string YtUrl { get; set; } = "";
-    [Parameter] public EventCallback<string> YtUrlChanged { get; set; }
+    private bool showReportsFlyout = false;
 
-    [Parameter] public string PlaylistUrl { get; set; } = "";
-    [Parameter] public EventCallback<string> PlaylistUrlChanged { get; set; }
-
-    [Parameter] public bool IsLoading { get; set; }
-
-    [Parameter] public EventCallback OnConvertVideo { get; set; }
-    [Parameter] public EventCallback OnConvertPlaylist { get; set; }
-
-    private bool isExpanded = false;
-
-    private void ToggleExpand()
+    private void ToggleReportsFlyout()
     {
-        isExpanded = !isExpanded;
+        showReportsFlyout = !showReportsFlyout;
     }
 
-    private async Task OnYtUrlChanged(ChangeEventArgs e)
+    private void CloseFlyout()
     {
-        await YtUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
-    }
-
-    private async Task OnPlaylistUrlChanged(ChangeEventArgs e)
-    {
-        await PlaylistUrlChanged.InvokeAsync(e.Value?.ToString() ?? "");
-    }
-
-    private async Task HandleConvertVideo()
-    {
-        isExpanded = false; // Auto-Hide setelah diklik
-        await OnConvertVideo.InvokeAsync();
-    }
-
-    private async Task HandleConvertPlaylist()
-    {
-        isExpanded = false; // Auto-Hide setelah diklik
-        await OnConvertPlaylist.InvokeAsync();
+        showReportsFlyout = false;
     }
 }
+
+<style>
+    /* STICKY CONTAINER & NEON WHITE BORDER EFEK */
+    .sidebar-sticky-neon {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        z-index: 1030;
+        background-color: #0d1117;
+        border-right: 2px solid #ffffff;
+        box-shadow: 
+            0 0 5px rgba(255, 255, 255, 0.9),
+            0 0 12px rgba(255, 255, 255, 0.6),
+            0 0 24px rgba(255, 255, 255, 0.3);
+    }
+
+    /* DOCK IKON UTAMA (65px) */
+    .sidebar-icons {
+        width: 65px;
+        height: 100vh;
+        background-color: #161b22;
+    }
+
+    /* HOLOGRAM FLYOUT PANEL */
+    .sidebar-flyout {
+        width: 230px;
+        height: 100vh;
+        overflow-y: auto;
+        background-color: rgba(22, 27, 34, 0.95);
+        backdrop-filter: blur(8px);
+        border-right: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 
+            inset -2px 0 8px rgba(255, 255, 255, 0.2),
+            6px 0 16px rgba(255, 255, 255, 0.15);
+    }
+
+    /* TOMBOL IKON NAVIGASI */
+    .icon-btn {
+        color: #8b949e;
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .icon-btn:hover, 
+    .icon-btn.active {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+
+    /* DIVIDER EFEK NEON PUTIH */
+    .hr-glow-white {
+        border: none !important;
+        height: 1px !important;
+        background-color: #ffffff !important;
+        opacity: 0.9 !important;
+        box-shadow: 0 0 6px rgba(255, 255, 255, 0.8), 
+                    0 0 12px rgba(255, 255, 255, 0.4) !important;
+    }
+
+    /* FLYOUT ITEM LINK HOVER */
+    .sidebar-flyout .list-group-item {
+        background-color: transparent;
+        color: #c9d1d9;
+        border: none;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .sidebar-flyout .list-group-item:hover,
+    .sidebar-flyout .list-group-item.active {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+    }
+</style>
