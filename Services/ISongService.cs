@@ -7,7 +7,10 @@ public interface ISongService
     Task<List<CloudSongModel>> GetSongsAsync();
     Task<ConvertResponse?> ConvertVideoAsync(string youtubeUrl);
     Task<PlaylistResponse?> ConvertPlaylistAsync(string playlistUrl);
-    Task<bool> DeleteSongAsync(int id);
-    Task<bool> DeleteBatchSongsAsync(int[] ids);
+    
+    // Diubah ke long & long[] untuk mendukung BIGINT database
+    Task<bool> DeleteSongAsync(long id);
+    Task<bool> DeleteBatchSongsAsync(long[] ids);
+    
     Task DownloadSongAsync(string audioUrl, string title);
 }
