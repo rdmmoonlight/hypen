@@ -8,10 +8,10 @@
 <div style="padding: 16px; background: #0b0c10; color: #c5c6c7; min-height: 100vh; font-size: 0.78rem;">
 
     <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-        <!-- Single Video Section -->
+        <!-- Single Track Section -->
         <div style="flex: 1; min-width: 280px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 6px;">
-            <h4 style="margin-top: 0; color: #66fcf1; font-size: 0.85rem;">Ekstrak Video Tunggal</h4>
-            <input type="text" @bind="ytUrl" placeholder="Masukkan URL Video YouTube..." style="width: 100%; padding: 6px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 8px;" />
+            <h4 style="margin-top: 0; color: #66fcf1; font-size: 0.85rem;">Ekstrak Video / Music Tunggal</h4>
+            <input type="text" @bind="ytUrl" placeholder="Masukkan URL YouTube / YouTube Music..." style="width: 100%; padding: 6px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 8px;" />
             <button class="btn-nebula btn-primary" style="padding: 4px 12px;" @onclick="ConvertVideo" disabled="@isLoading">
                 Ekstrak Audio
             </button>
@@ -34,7 +34,7 @@
         </p>
     }
 
-    <!-- WEB TERMINAL LOG STREAMING BOX -->
+    <!-- WEB TERMINAL LOG STREAMING BOX WITH KILL BUTTON -->
     @if (showTerminal)
     {
         <div style="background: #050608; border: 1px solid #45a29e; border-radius: 6px; padding: 10px; font-family: 'Consolas', 'Courier New', monospace; box-shadow: 0 0 12px rgba(102, 252, 241, 0.15);">
@@ -43,9 +43,20 @@
                     <span style="width: 8px; height: 8px; border-radius: 50%; background: @(isLoading ? "#4cc9f0" : "#00f5d4"); display: inline-block;"></span>
                     <span>>_ HYPEN TERMINAL PROCESSOR</span>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 8px; align-items: center;">
                     <span style="font-size: 0.7rem; color: #a0a5aa;">STATUS: @(isLoading ? "RUNNING..." : "FINISHED")</span>
-                    <button style="background: transparent; border: 1px solid #f72585; color: #f72585; border-radius: 3px; font-size: 0.65rem; padding: 1px 5px; cursor: pointer;" @onclick="() => showTerminal = false">Tutup Terminal</button>
+
+                    <!-- Tombol Kill Process (Hanya tampil saat sedang running) -->
+                    @if (isLoading)
+                    {
+                        <button style="background: #f72585; border: none; color: #fff; border-radius: 3px; font-size: 0.65rem; padding: 2px 8px; cursor: pointer; font-weight: bold;" @onclick="KillTerminalProcess">
+                            🛑 KILL PROCESS
+                        </button>
+                    }
+
+                    <button style="background: transparent; border: 1px solid #45a29e; color: #45a29e; border-radius: 3px; font-size: 0.65rem; padding: 2px 6px; cursor: pointer;" @onclick="() => showTerminal = false">
+                        Tutup Terminal
+                    </button>
                 </div>
             </div>
 
@@ -71,6 +82,7 @@
     private bool showTerminal;
     private List<string> terminalLogs = [];
     private DotNetObjectReference<Downloader>? objRef;
+    private CancellationTokenSource? cts;
 
     protected override void OnInitialized()
     {
@@ -83,6 +95,9 @@
     private async Task StartTerminalDownload(string targetUrl)
     {
         if (string.IsNullOrWhiteSpace(targetUrl)) return;
+
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
 
         showTerminal = true;
         isLoading = true;
@@ -102,6 +117,22 @@
         }
     }
 
+    private void KillTerminalProcess()
+    {
+        try
+        {
+            cts?.Cancel();
+            isLoading = false;
+            terminalLogs.Add("[KILLED] Mematikan proses yt-dlp secara paksa di server!");
+            UpdateStatus("Proses ekstraksi dihentikan secara paksa.", true);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            terminalLogs.Add($"[ERROR] Gagal mematikan proses: {ex.Message}");
+        }
+    }
+
     [JSInvokable]
     public async Task OnTerminalLogReceived(string logLine)
     {
@@ -114,10 +145,10 @@
             ytUrl = "";
             playlistUrl = "";
         }
-        else if (logLine.Contains("[ERROR]"))
+        else if (logLine.Contains("[ERROR]") || logLine.Contains("[CANCELLED]"))
         {
             isLoading = false;
-            UpdateStatus("Gagal mengekstraksi audio di terminal server.", true);
+            UpdateStatus("Gagal atau dihentikan di terminal server.", true);
         }
 
         await InvokeAsync(StateHasChanged);
@@ -125,7 +156,7 @@
 
     private string GetTerminalLogColor(string log)
     {
-        if (log.StartsWith("[ERROR]") || log.Contains("ERROR")) return "#f72585";
+        if (log.StartsWith("[ERROR]") || log.Contains("ERROR") || log.StartsWith("[KILLED]")) return "#f72585";
         if (log.StartsWith("[COMPLETED]") || log.Contains("100%")) return "#4cc9f0";
         if (log.StartsWith("[INIT]") || log.StartsWith("[download]")) return "#66fcf1";
         return "#c5c6c7";
@@ -140,6 +171,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        cts?.Cancel();
+        cts?.Dispose();
         objRef?.Dispose();
     }
 }
