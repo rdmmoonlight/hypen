@@ -99,7 +99,7 @@
             }
         };
 
-        // 3. Helper Real-Time SSE Terminal Streamer
+        // 3. Helper Real-Time SSE Terminal Streamer (Multi-File / Auto-ZIP Ready)
         let activeEventSource = null;
 
         window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
@@ -110,17 +110,22 @@
             const encodedUrl = encodeURIComponent(youtubeUrl);
             activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
 
-            let extractedFileName = null;
+            // Array untuk menampung seluruh file MP3 yang dihasilkan
+            const extractedFiles = [];
 
             activeEventSource.onmessage = (event) => {
                 const logLine = event.data;
 
-                // Tangkap lokasi file hasil ekstraksi dari log yt-dlp
+                // Tangkap setiap lokasi file MP3 dari log yt-dlp / ffmpeg
                 if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
                     const match = logLine.match(/Destination:\s*(.+)$/);
                     if (match && match[1]) {
                         const fullPath = match[1].trim();
-                        extractedFileName = fullPath.split('/').pop().split('\\').pop();
+                        const fileName = fullPath.split('/').pop().split('\\').pop();
+                        
+                        if (!extractedFiles.includes(fileName)) {
+                            extractedFiles.push(fileName);
+                        }
                     }
                 }
 
@@ -137,14 +142,18 @@
                     }
                 }, 50);
 
-                // Jika proses Selesai: Tutup Stream & Otomatis Picu Dialog Save File di Browser Windows
+                // Ketika proses [COMPLETED] diterima
                 if (logLine.includes('[COMPLETED]')) {
                     activeEventSource.close();
                     activeEventSource = null;
 
-                    if (extractedFileName) {
-                        const downloadUrl = `/downloads/${encodeURIComponent(extractedFileName)}`;
-                        window.downloadFileFromUrl(downloadUrl, extractedFileName);
+                    if (extractedFiles.length === 1) {
+                        // Jika hanya 1 file -> Unduh langsung .mp3
+                        const downloadUrl = `/downloads/${encodeURIComponent(extractedFiles[0])}`;
+                        window.downloadFileFromUrl(downloadUrl, extractedFiles[0]);
+                    } else if (extractedFiles.length > 1) {
+                        // Jika lebih dari 1 file -> Otomatis panggil API kompresi ZIP
+                        window.downloadZipFromController(extractedFiles);
                     }
                 } else if (logLine.includes('[ERROR]')) {
                     activeEventSource.close();
