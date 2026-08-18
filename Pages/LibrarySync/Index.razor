@@ -1,15 +1,20 @@
 @page "/library/sync"
 
-<PageTitle>YouTube Library Sync - Hypen Music Vault</PageTitle>
+<PageTitle>Sync Engine - Hypen Music Vault</PageTitle>
 
 <div style="padding: 24px; background: #0b0c10; color: #c5c6c7; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
     
     <!-- HEADER -->
-    <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-        <h1 style="font-size: 1.8rem; color: #fff; margin: 0 0 8px 0; font-weight: 700;">🔄 YouTube Sync Engine</h1>
-        <p style="font-size: 0.85rem; color: #a0a5aa; margin: 0;">
-            Sinkronkan playlist YouTube Liked / Playlist kustom ke staging table <code>songs_raw</code> dan olah secara otomatis ke <code>songs_complete</code>.
-        </p>
+    <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h1 style="font-size: 1.8rem; color: #fff; margin: 0 0 6px 0; font-weight: 700;">🔄 Hypen Vault Sync Engine</h1>
+            <p style="font-size: 0.85rem; color: #a0a5aa; margin: 0;">
+                Integrasi otomatis dari playlist YouTube atau parsing koleksi MP3 lokal ke tabel olahan <code>songs_complete</code>.
+            </p>
+        </div>
+        <a href="/library" style="text-decoration: none; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; transition: background 0.2s;">
+            ← Kembali ke Library
+        </a>
     </div>
 
     <!-- STATUS ALERT -->
@@ -24,55 +29,117 @@
         </div>
     }
 
-    <!-- PANEL CONTROLS & FORM -->
-    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
-            
-            <div>
-                <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Playlist Target ID</label>
-                <input type="text" @bind="targetPlaylistId" placeholder="LL (Liked Songs) atau Playlist ID" 
-                       style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;" />
-            </div>
-
-            <div>
-                <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Batas Maksimal Sync</label>
-                <select @bind="maxResults" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;">
-                    <option value="10">10 Lagu Terbaru</option>
-                    <option value="25">25 Lagu Terbaru</option>
-                    <option value="50">50 Lagu Terbaru</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- ACTION BUTTONS -->
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button style="background: #4cc9f0; color: #000; font-weight: 600; border: none; padding: 10px 20px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
-                    @onclick="StartFullSync" disabled="@isProcessing">
-                @(isProcessing ? "Sedang Memproses..." : "🚀 Jalankan Sync Full (Raw + Cleanup)")
-            </button>
-
-            <button style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px 16px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
-                    @onclick="ProcessRawOnly" disabled="@isProcessing">
-                🧹 Olah Data Raw PENDING
-            </button>
-
-            <a href="/library" style="text-decoration: none; background: rgba(255,255,255,0.05); color: #c5c6c7; padding: 10px 16px; border-radius: 4px; font-size: 0.8rem; display: inline-block;">
-                ← Kembali ke Library
-            </a>
-        </div>
+    <!-- TAB SWITCHER -->
+    <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <button style="background: transparent; border: none; padding: 10px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: @(activeTab == "youtube" ? "#4cc9f0" : "#a0a5aa"); border-bottom: 2px solid @(activeTab == "youtube" ? "#4cc9f0" : "transparent");" 
+                @onclick='() => SwitchTab("youtube")'>
+            🔴 YouTube Sync
+        </button>
+        <button style="background: transparent; border: none; padding: 10px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: @(activeTab == "local" ? "#4cc9f0" : "#a0a5aa"); border-bottom: 2px solid @(activeTab == "local" ? "#4cc9f0" : "transparent");" 
+                @onclick='() => SwitchTab("local")'>
+            📁 Local MP3 Sync
+        </button>
     </div>
 
-    <!-- STATS METRICS -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
-            <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Status Staging Raw</span>
-            <div style="font-size: 1.5rem; font-weight: bold; color: #fff; margin-top: 4px;">@pendingRawCount PENDING</div>
+    <!-- TAB 1: YOUTUBE SYNC -->
+    @if (activeTab == "youtube")
+    {
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Playlist Target ID</label>
+                    <input type="text" @bind="targetPlaylistId" placeholder="LL (Liked Songs) atau Playlist ID" 
+                           style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 6px; text-transform: uppercase;">Batas Maksimal Sync</label>
+                    <select @bind="maxResults" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; font-size: 0.85rem;">
+                        <option value="10">10 Lagu Terbaru</option>
+                        <option value="25">25 Lagu Terbaru</option>
+                        <option value="50">50 Lagu Terbaru</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button style="background: #4cc9f0; color: #000; font-weight: 600; border: none; padding: 10px 20px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
+                        @onclick="StartFullYouTubeSync" disabled="@isProcessing">
+                    @(isProcessing ? "Sedang Memproses..." : "🚀 Jalankan YouTube Sync Full (Raw + Complete)")
+                </button>
+
+                <button style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 10px 16px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
+                        @onclick="ProcessRawOnly" disabled="@isProcessing">
+                    🧹 Olah Staging Raw PENDING
+                </button>
+            </div>
         </div>
 
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
-            <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Total Vault Olahan</span>
-            <div style="font-size: 1.5rem; font-weight: bold; color: #4cc9f0; margin-top: 4px;">@completedSongsCount Lagu</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
+                <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Staging Raw Pending</span>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #fff; margin-top: 4px;">@pendingRawCount Data</div>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 16px;">
+                <span style="font-size: 0.7rem; color: #a0a5aa; text-transform: uppercase;">Total Vault Complete</span>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #4cc9f0; margin-top: 4px;">@completedSongsCount Lagu</div>
+            </div>
         </div>
-    </div>
+    }
+
+    <!-- TAB 2: LOCAL MP3 SYNC -->
+    @if (activeTab == "local")
+    {
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 0.75rem; color: #a0a5aa; margin-bottom: 8px; text-transform: uppercase;">Pilih File MP3 dari Komputer/Device</label>
+                <InputFile OnChange="HandleFileSelection" multiple accept=".mp3" style="color: #fff; font-size: 0.85rem;" />
+            </div>
+
+            @if (extractedList.Count > 0)
+            {
+                <div style="margin-top: 16px;">
+                    <button style="background: #4cc9f0; color: #000; font-weight: 600; border: none; padding: 10px 20px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
+                            @onclick="ProcessAndEntryLocalToDb" disabled="@isProcessing">
+                        @(isProcessing ? "Sedang Mengolah..." : $"🚀 Enrich & Entry {extractedList.Count(i => i.IsSelected)} Lagu ke Vault Complete")
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (extractedList.Count > 0)
+        {
+            <div style="background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #a0a5aa; font-size: 0.75rem; text-transform: uppercase;">
+                            <th style="padding: 10px; width: 40px; text-align: center;"><input type="checkbox" @onchange="ToggleSelectAllLocal" checked="@isAllLocalSelected" /></th>
+                            <th style="padding: 10px;">Nama File Asli</th>
+                            <th style="padding: 10px;">Clean Artis</th>
+                            <th style="padding: 10px;">Clean Judul</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in extractedList)
+                        {
+                            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
+                                <td style="padding: 10px; text-align: center;">
+                                    <input type="checkbox" @bind="item.IsSelected" />
+                                </td>
+                                <td style="padding: 10px; color: #a0a5aa; font-size: 0.75rem;">@item.FileName</td>
+                                <td style="padding: 10px;">
+                                    <input type="text" @bind="item.CleanArtist" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 90%;" />
+                                </td>
+                                <td style="padding: 10px;">
+                                    <input type="text" @bind="item.CleanTitle" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 90%;" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
 
 </div>
