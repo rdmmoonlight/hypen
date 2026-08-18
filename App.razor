@@ -75,12 +75,12 @@
         };
 
         // 2. Helper Download Multiple Files (ZIP via Controller)
-        window.downloadZipFromController = async (fileNames) => {
+        window.downloadZipFromController = async (relativePaths) => {
             try {
                 const response = await fetch('/api/download/download-to-client', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(fileNames)
+                    body: JSON.stringify(relativePaths)
                 });
 
                 if (!response.ok) throw new Error('Gagal mengunduh file dari server.');
@@ -89,7 +89,7 @@
                 const blobUrl = window.URL.createObjectURL(blob);
                 const anchor = document.createElement('a');
                 anchor.href = blobUrl;
-                anchor.download = fileNames.length === 1 ? fileNames[0] : `audio_files_${Date.now()}.zip`;
+                anchor.download = `hypen_playlist_${Date.now()}.zip`;
                 document.body.appendChild(anchor);
                 anchor.click();
                 document.body.removeChild(anchor);
@@ -99,7 +99,7 @@
             }
         };
 
-        // 3. Helper Real-Time SSE Terminal Streamer (Multi-File / Auto-ZIP Ready)
+        // 3. Helper Real-Time SSE Terminal Streamer
         let activeEventSource = null;
 
         window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
@@ -110,21 +110,31 @@
             const encodedUrl = encodeURIComponent(youtubeUrl);
             activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
 
-            // Array untuk menampung seluruh file MP3 yang dihasilkan
+            // Array menampung relative path dari folder /downloads/
             const extractedFiles = [];
 
             activeEventSource.onmessage = (event) => {
                 const logLine = event.data;
 
-                // Tangkap setiap lokasi file MP3 dari log yt-dlp / ffmpeg
+                // Tangkap lokasi file hasil ekstraksi (Termasuk Subfolder Playlist)
                 if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
                     const match = logLine.match(/Destination:\s*(.+)$/);
                     if (match && match[1]) {
                         const fullPath = match[1].trim();
-                        const fileName = fullPath.split('/').pop().split('\\').pop();
                         
-                        if (!extractedFiles.includes(fileName)) {
-                            extractedFiles.push(fileName);
+                        // Ekstrak path setelah folder downloads
+                        let relativePath = fullPath;
+                        if (fullPath.includes('/downloads/')) {
+                            relativePath = fullPath.split('/downloads/')[1];
+                        } else if (fullPath.includes('\\downloads\\')) {
+                            relativePath = fullPath.split('\\downloads\\')[1];
+                        }
+
+                        // Normalisasi pemisah path agar aman di Linux / Windows
+                        relativePath = relativePath.replace(/\\/g, '/');
+
+                        if (!extractedFiles.includes(relativePath)) {
+                            extractedFiles.push(relativePath);
                         }
                     }
                 }
@@ -148,11 +158,13 @@
                     activeEventSource = null;
 
                     if (extractedFiles.length === 1) {
-                        // Jika hanya 1 file -> Unduh langsung .mp3
-                        const downloadUrl = `/downloads/${encodeURIComponent(extractedFiles[0])}`;
-                        window.downloadFileFromUrl(downloadUrl, extractedFiles[0]);
+                        // Single File
+                        const rawRelPath = extractedFiles[0];
+                        const downloadUrl = `/downloads/${encodeURIComponent(rawRelPath)}`;
+                        const fileNameOnly = rawRelPath.split('/').pop();
+                        window.downloadFileFromUrl(downloadUrl, fileNameOnly);
                     } else if (extractedFiles.length > 1) {
-                        // Jika lebih dari 1 file -> Otomatis panggil API kompresi ZIP
+                        // Multi-File / Playlist -> Panggil API Controller untuk dibungkus ZIP
                         window.downloadZipFromController(extractedFiles);
                     }
                 } else if (logLine.includes('[ERROR]')) {
