@@ -34,6 +34,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 
 # Copy hasil publish dotnet dari stage build
 COPY --from=build /app/publish .
+COPY cookies.txt /app/cookies.txt
 
 # Set Port & Environment untuk Render / Cloud Hosting
 ENV ASPNETCORE_URLS=http://+:8080
