@@ -1,5 +1,5 @@
 .\yt-dlp --no-warnings --yes-playlist --no-cache-dir --extractor-args "youtube:player_client=android" -f "ba/b" -o "./downloads/%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s" "https://www.youtube.com/playlist?list=PL7J8VgGPi_6xdCdC8yWxScJg_Sp-1wakF"
 
-.\yt-dlp --yes-playlist --no-cache-dir --extractor-args "youtube:player_client=android" -f "ba/b" -o "./downloads/%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s" "URL_PLAYLIST"
+.\yt-dlp --yes-playlist --no-cache-dir --extractor-args "youtube:player_client=android" -x --audio-format mp3 --audio-quality 0 -o "./downloads/%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s" "URL-PLAYLIST"
 
-.\yt-dlp --no-playlist --no-cache-dir --extractor-args "youtube:player_client=android" -f "ba/b" -o "./downloads/%(title)s.%(ext)s" "URL_VIDEO"
+.\yt-dlp --no-playlist --no-cache-dir --extractor-args "youtube:player_client=android" -x --audio-format mp3 --audio-quality 0 -o "./downloads/%(title)s.%(ext)s" "URL_VIDEO"
