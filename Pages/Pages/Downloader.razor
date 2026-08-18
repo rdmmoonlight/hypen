@@ -1,0 +1,145 @@
+@page "/downloader"
+@using Hypen.Web.Components
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Hypen Downloader</PageTitle>
+
+<div style="padding: 16px; background: #0b0c10; color: #c5c6c7; min-height: 100vh; font-size: 0.78rem;">
+
+    <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+        <!-- Single Video Section -->
+        <div style="flex: 1; min-width: 280px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 6px;">
+            <h4 style="margin-top: 0; color: #66fcf1; font-size: 0.85rem;">Ekstrak Video Tunggal</h4>
+            <input type="text" @bind="ytUrl" placeholder="Masukkan URL Video YouTube..." style="width: 100%; padding: 6px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 8px;" />
+            <button class="btn-nebula btn-primary" style="padding: 4px 12px;" @onclick="ConvertVideo" disabled="@isLoading">
+                Ekstrak Audio
+            </button>
+        </div>
+
+        <!-- Playlist Section -->
+        <div style="flex: 1; min-width: 280px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 6px;">
+            <h4 style="margin-top: 0; color: #66fcf1; font-size: 0.85rem;">Ekstrak Playlist</h4>
+            <input type="text" @bind="playlistUrl" placeholder="Masukkan URL Playlist YouTube..." style="width: 100%; padding: 6px; background: #1f2833; border: 1px solid #45a29e; color: #fff; border-radius: 3px; font-size: 0.75rem; margin-bottom: 8px;" />
+            <button class="btn-nebula btn-primary" style="padding: 4px 12px;" @onclick="ConvertPlaylist" disabled="@isLoading">
+                Ekstrak Playlist
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMsg))
+    {
+        <p style="color: @(isError ? "#f72585" : "#4cc9f0"); font-weight: 500; font-size: 0.75rem; margin-bottom: 10px;">
+            @statusMsg
+        </p>
+    }
+
+    <!-- WEB TERMINAL LOG STREAMING BOX -->
+    @if (showTerminal)
+    {
+        <div style="background: #050608; border: 1px solid #45a29e; border-radius: 6px; padding: 10px; font-family: 'Consolas', 'Courier New', monospace; box-shadow: 0 0 12px rgba(102, 252, 241, 0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(69, 162, 158, 0.3); padding-bottom: 6px; margin-bottom: 8px; color: #66fcf1; font-weight: bold; font-size: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: @(isLoading ? "#4cc9f0" : "#00f5d4"); display: inline-block;"></span>
+                    <span>>_ HYPEN TERMINAL PROCESSOR</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span style="font-size: 0.7rem; color: #a0a5aa;">STATUS: @(isLoading ? "RUNNING..." : "FINISHED")</span>
+                    <button style="background: transparent; border: 1px solid #f72585; color: #f72585; border-radius: 3px; font-size: 0.65rem; padding: 1px 5px; cursor: pointer;" @onclick="() => showTerminal = false">Tutup Terminal</button>
+                </div>
+            </div>
+
+            <div id="terminal-box" style="max-height: 320px; overflow-y: auto; color: #c5c6c7; font-size: 0.72rem; line-height: 1.35; white-space: pre-wrap; padding-right: 4px;">
+                @foreach (var log in terminalLogs)
+                {
+                    <div style="color: @GetTerminalLogColor(log);">
+                        @log
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private string ytUrl = "";
+    private string playlistUrl = "";
+    private string statusMsg = "";
+    private bool isLoading;
+    private bool isError;
+    private bool showTerminal;
+    private List<string> terminalLogs = [];
+    private DotNetObjectReference<Downloader>? objRef;
+
+    protected override void OnInitialized()
+    {
+        objRef = DotNetObjectReference.Create(this);
+    }
+
+    private async Task ConvertVideo() => await StartTerminalDownload(ytUrl);
+    private async Task ConvertPlaylist() => await StartTerminalDownload(playlistUrl);
+
+    private async Task StartTerminalDownload(string targetUrl)
+    {
+        if (string.IsNullOrWhiteSpace(targetUrl)) return;
+
+        showTerminal = true;
+        isLoading = true;
+        terminalLogs.Clear();
+        terminalLogs.Add($"[INIT] Memulai koneksi ekstraksi terminal untuk: {targetUrl}");
+        UpdateStatus("Mengekstraksi audio di server...");
+
+        try
+        {
+            await JS.InvokeVoidAsync("startTerminalStream", targetUrl, objRef);
+        }
+        catch (Exception ex)
+        {
+            terminalLogs.Add($"[ERROR] Gagal membuka terminal stream: {ex.Message}");
+            isLoading = false;
+            UpdateStatus($"Error: {ex.Message}", true);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnTerminalLogReceived(string logLine)
+    {
+        terminalLogs.Add(logLine);
+
+        if (logLine.Contains("[COMPLETED]"))
+        {
+            isLoading = false;
+            UpdateStatus("Ekstraksi audio selesai!");
+            ytUrl = "";
+            playlistUrl = "";
+        }
+        else if (logLine.Contains("[ERROR]"))
+        {
+            isLoading = false;
+            UpdateStatus("Gagal mengekstraksi audio di terminal server.", true);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetTerminalLogColor(string log)
+    {
+        if (log.StartsWith("[ERROR]") || log.Contains("ERROR")) return "#f72585";
+        if (log.StartsWith("[COMPLETED]") || log.Contains("100%")) return "#4cc9f0";
+        if (log.StartsWith("[INIT]") || log.StartsWith("[download]")) return "#66fcf1";
+        return "#c5c6c7";
+    }
+
+    private void UpdateStatus(string msg, bool error = false)
+    {
+        statusMsg = msg;
+        isError = error;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        objRef?.Dispose();
+    }
+}
