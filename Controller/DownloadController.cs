@@ -1,191 +1,75 @@
-@using Hypen.Web.Layout
-@using Microsoft.AspNetCore.Components.Web
-@using static Microsoft.AspNetCore.Components.Web.RenderMode
+using Microsoft.AspNetCore.Mvc;
+using System.IO;
+using System.IO.Compression;
 
-<!DOCTYPE html>
-<html lang="id">
+namespace Hypen.Web.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DownloadController : ControllerBase
+    {
+        private readonly string _downloadFolder;
 
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <base href="/" />
+        public DownloadController(IWebHostEnvironment env)
+        {
+            _downloadFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "downloads");
+        }
 
-    <title>Hypen Vault Downloader</title>
+        [HttpPost("download-to-client")]
+        public IActionResult DownloadFilesToUser([FromBody] List<string> relativePaths)
+        {
+            if (relativePaths == null || relativePaths.Count == 0)
+                return BadRequest("Tidak ada file yang dipilih.");
 
-    <!-- Favicon -->
-    <link rel="icon"
-          type="image/png"
-          href="https://raw.githubusercontent.com/rdmmoonlight/hypen/main/apps/mobile/Resources/AppIcon.png" />
+            var validFiles = new List<(string FullPath, string ZipEntryName)>();
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
-          rel="stylesheet" />
+            foreach (var relPath in relativePaths)
+            {
+                // Mencegah Path Traversal
+                var cleanRelPath = relPath.Replace("..", "").TrimStart('/', '\\');
+                var fullPath = Path.Combine(_downloadFolder, cleanRelPath);
 
-    <!-- Theme -->
-    <link rel="stylesheet" href="theme.css?v=9.0" />
-
-    <HeadOutlet @rendermode="InteractiveServer" />
-</head>
-
-<body>
-
-    <Routes @rendermode="InteractiveServer" />
-
-    <script src="_framework/blazor.web.js"></script>
-
-    <!-- Script Helper JS Download & Web Terminal Streaming -->
-    <script>
-        // 1. Helper Download Single File (Dengan Fallback Anti-Block)
-        window.downloadFileFromUrl = async (fileUrl, fileName) => {
-            const cleanFileName = fileName && fileName.toLowerCase().endsWith('.mp3')
-                ? fileName
-                : `${fileName || 'track'}.mp3`;
-
-            try {
-                const response = await fetch(fileUrl, { mode: 'cors' });
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-
-                const blob = await response.blob();
-                const mp3Blob = new Blob([blob], { type: 'audio/mpeg' });
-                const blobUrl = window.URL.createObjectURL(mp3Blob);
-
-                const anchor = document.createElement('a');
-                anchor.href = blobUrl;
-                anchor.download = cleanFileName;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-
-                window.URL.revokeObjectURL(blobUrl);
-            } catch (error) {
-                console.warn("Fetch Blob terhalang CORS/Security, beralih ke Direct Link Fallback...", error);
-
-                const fallbackAnchor = document.createElement('a');
-                fallbackAnchor.href = fileUrl;
-                fallbackAnchor.download = cleanFileName;
-                fallbackAnchor.target = '_blank';
-                fallbackAnchor.rel = 'noopener noreferrer';
-
-                document.body.appendChild(fallbackAnchor);
-                fallbackAnchor.click();
-                document.body.removeChild(fallbackAnchor);
-            }
-        };
-
-        // 2. Helper Download Multiple Files (ZIP via Controller)
-        window.downloadZipFromController = async (relativePaths) => {
-            try {
-                const response = await fetch('/api/download/download-to-client', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(relativePaths)
-                });
-
-                if (!response.ok) throw new Error('Gagal mengunduh file dari server.');
-
-                const blob = await response.blob();
-                const blobUrl = window.URL.createObjectURL(blob);
-                const anchor = document.createElement('a');
-                anchor.href = blobUrl;
-                anchor.download = `hypen_playlist_${Date.now()}.zip`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                window.URL.revokeObjectURL(blobUrl);
-            } catch (err) {
-                console.error("Gagal mengunduh ZIP:", err);
-            }
-        };
-
-        // 3. Helper Real-Time SSE Terminal Streamer
-        let activeEventSource = null;
-
-        window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
-            if (activeEventSource) {
-                activeEventSource.close();
+                if (System.IO.File.Exists(fullPath))
+                {
+                    var fileNameOnly = Path.GetFileName(fullPath);
+                    validFiles.Add((fullPath, fileNameOnly));
+                }
             }
 
-            const encodedUrl = encodeURIComponent(youtubeUrl);
-            activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
+            if (validFiles.Count == 0)
+                return NotFound("File tidak ditemukan di server.");
 
-            // Array menampung relative path dari folder /downloads/
-            const extractedFiles = [];
+            // Single File (.mp3)
+            if (validFiles.Count == 1)
+            {
+                var (fullPath, fileNameOnly) = validFiles[0];
+                var fileBytes = System.IO.File.ReadAllBytes(fullPath);
+                return File(fileBytes, "audio/mpeg", fileNameOnly);
+            }
 
-            activeEventSource.onmessage = (event) => {
-                const logLine = event.data;
+            // Multiple Files (.zip)
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+                {
+                    foreach (var (fullPath, zipEntryName) in validFiles)
+                    {
+                        var zipEntry = zipArchive.CreateEntry(zipEntryName, CompressionLevel.Optimal);
 
-                // Tangkap lokasi file hasil ekstraksi (Termasuk Subfolder Playlist)
-                if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
-                    const match = logLine.match(/Destination:\s*(.+)$/);
-                    if (match && match[1]) {
-                        const fullPath = match[1].trim();
-                        
-                        // Ekstrak path setelah folder downloads
-                        let relativePath = fullPath;
-                        if (fullPath.includes('/downloads/')) {
-                            relativePath = fullPath.split('/downloads/')[1];
-                        } else if (fullPath.includes('\\downloads\\')) {
-                            relativePath = fullPath.split('\\downloads\\')[1];
-                        }
-
-                        // Normalisasi pemisah path agar aman di Linux / Windows
-                        relativePath = relativePath.replace(/\\/g, '/');
-
-                        if (!extractedFiles.includes(relativePath)) {
-                            extractedFiles.push(relativePath);
+                        using (var entryStream = zipEntry.Open())
+                        using (var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        {
+                            fileStream.CopyTo(entryStream);
                         }
                     }
-                }
+                } // Stream ZIP selesai di-flush di sini
 
-                // Kirim log per baris ke C# [JSInvokable] OnTerminalLogReceived
-                if (dotNetHelper) {
-                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', logLine);
-                }
+                memoryStream.Position = 0;
+                byte[] zipBytes = memoryStream.ToArray();
 
-                // Auto Scroll Box Terminal ke Paling Bawah
-                setTimeout(() => {
-                    const terminalBox = document.getElementById('terminal-box');
-                    if (terminalBox) {
-                        terminalBox.scrollTop = terminalBox.scrollHeight;
-                    }
-                }, 50);
-
-                // Ketika proses [COMPLETED] diterima
-                if (logLine.includes('[COMPLETED]')) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-
-                    if (extractedFiles.length === 1) {
-                        // Single File
-                        const rawRelPath = extractedFiles[0];
-                        const downloadUrl = `/downloads/${encodeURIComponent(rawRelPath)}`;
-                        const fileNameOnly = rawRelPath.split('/').pop();
-                        window.downloadFileFromUrl(downloadUrl, fileNameOnly);
-                    } else if (extractedFiles.length > 1) {
-                        // Multi-File / Playlist -> Panggil API Controller untuk dibungkus ZIP
-                        window.downloadZipFromController(extractedFiles);
-                    }
-                } else if (logLine.includes('[ERROR]')) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-                }
-            };
-
-            activeEventSource.onerror = (error) => {
-                console.error("SSE Stream Error:", error);
-                if (dotNetHelper) {
-                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', '[ERROR] Stream terputus dari server.');
-                }
-                if (activeEventSource) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-                }
-            };
-        };
-    </script>
-
-</body>
-
-</html>
+                string zipFileName = $"hypen_playlist_{DateTime.Now:yyyyMMdd_HHmmss}.zip";
+                return File(zipBytes, "application/zip", zipFileName);
+            }
+        }
+    }
+}
