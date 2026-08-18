@@ -3,6 +3,7 @@ using Hypen.Web.Endpoints;
 using Hypen.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,13 +43,32 @@ builder.Services.AddScoped(sp =>
 // Registrasi Standard HttpClient untuk External API Call (iTunes / YouTube Metadata)
 builder.Services.AddHttpClient();
 
+// Konfigurasi dari environment variable (dibaca di sini, sebelum service diregistrasi,
+// supaya bisa disuntikkan lewat factory lambda ke service yang butuh)
+string dbConnectionStringConfig = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
+string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_ID") ?? "";
+string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
+string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
+
 // Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
 
 // Registrasi YouTube Sync & Processing Services (Engine ETL)
-builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
-builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
+builder.Services.AddScoped(sp => new YouTubeOAuthService(
+    dbConnectionStringConfig,
+    youtubeOAuthClientId,
+    youtubeOAuthClientSecret,
+    sp.GetRequiredService<IHttpClientFactory>()));
+
+builder.Services.AddScoped<IYouTubeSyncService>(sp => new YouTubeSyncService(
+    dbConnectionStringConfig,
+    sp.GetRequiredService<YouTubeOAuthService>(),
+    sp.GetRequiredService<IHttpClientFactory>()));
+
+builder.Services.AddScoped<ISongProcessorService>(sp => new SongProcessorService(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+    dbConnectionStringConfig));
 
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
@@ -86,8 +106,6 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapStaticAssets();
 app.UseAntiforgery();
 
-string dbConnectionString = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
-
 // 3. Health Check & Endpoint Extensions
 app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 
@@ -98,8 +116,16 @@ app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () =>
 app.MapControllers();
 
 // Map Minimal API Endpoints
-app.MapSongEndpoints(dbConnectionString);
-app.MapConvertEndpoints(dbConnectionString);
+app.MapSongEndpoints(dbConnectionStringConfig);
+app.MapConvertEndpoints(dbConnectionStringConfig);
+
+// Map OAuth login/callback untuk akses playlist privat YouTube (Liked Videos)
+var oauthServiceForEndpoints = new YouTubeOAuthService(
+    dbConnectionStringConfig,
+    youtubeOAuthClientId,
+    youtubeOAuthClientSecret,
+    app.Services.GetRequiredService<IHttpClientFactory>());
+app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServiceForEndpoints);
 
 // 4. Blazor UI Routing
 app.MapRazorComponents<App>()
