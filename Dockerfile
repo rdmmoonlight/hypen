@@ -28,9 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Download Executable yt-dlp biner terbaru & beri izin eksekusi (+x)
+# Download Executable yt-dlp biner terbaru, beri izin eksekusi, dan pastikan selalu update ke versi paling fresh
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp
+    && chmod a+rx /usr/local/bin/yt-dlp \
+    && yt-dlp -U
 
 # Copy hasil publish dotnet dari stage build
 COPY --from=build /app/publish .
