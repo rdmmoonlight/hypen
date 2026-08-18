@@ -95,9 +95,11 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Format & Konversi
-        startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("best/bestaudio");
+        // --- STABILITAS FORMAT (Tanpa -f agar yt-dlp memilih otomatis) ---
+        startInfo.ArgumentList.Add("--prefer-ffmpeg");
+        startInfo.ArgumentList.Add("--add-metadata");
+
+        // Konversi Audio ke MP3
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
