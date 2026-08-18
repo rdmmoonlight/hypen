@@ -2,14 +2,23 @@
 @using Hypen.Web.Components
 
 <div class="page-layout">
-    <!-- Sidebar Utama -->
-    <Sidebar />
+    <!-- Sidebar Utama dengan Event Listener -->
+    <Sidebar OnToggle="HandleSidebarToggle" />
 
     <!-- Area Konten Utama Halaman (/library atau /downloader) -->
-    <main class="main-content">
+    <main class="main-content @(isSidebarExpanded ? "expanded" : "collapsed")">
         @Body
     </main>
 </div>
+
+@code {
+    private bool isSidebarExpanded = true;
+
+    private void HandleSidebarToggle(bool isExpanded)
+    {
+        isSidebarExpanded = isExpanded;
+    }
+}
 
 <style>
     .page-layout {
@@ -24,13 +33,16 @@
         padding: 16px;
         overflow-x: auto;
         
-        /* MENDORONG KONTEN AGAR TIDAK TERTUTUP SIDEBAR FIXED */
-        margin-left: 240px; /* Lebar default saat sidebar expanded */
+        /* TRANSISI PERGERAKAN MARGIN HALUS */
         transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* KETIKA SIDEBAR COLLAPSED (76px) */
-    ::deep .hypen-sidebar.collapsed ~ .main-content {
-        margin-left: 76px;
+    /* LEBAR MARGIN KONTEN MENYESUAIKAN STATE SIDEBAR */
+    .main-content.expanded {
+        margin-left: 240px; /* Ikut lebar sidebar saat terbuka */
+    }
+
+    .main-content.collapsed {
+        margin-left: 76px;  /* Ikut lebar sidebar saat diciutkan */
     }
 </style>
