@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Hypen.Web.Helpers;
 
@@ -9,79 +10,107 @@ public static class YtDlpHelper
     {
         Directory.CreateDirectory(outputDirectory);
 
-        string cookiesPath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
-        string cookiesArg = File.Exists(cookiesPath) ? $"--cookies \"{cookiesPath}\"" : "";
-        string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
+        // 1. Validasi & Sanitasi URL (Cegah Command Injection & Playlist Leak)
+        if (!Uri.TryCreate(youtubeUrl, UriKind.Absolute, out var parsedUri) || 
+            (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException("URL YouTube tidak valid.");
+        }
 
-        // Bersihkan parameter playlist jika link lagu tunggal
-        string cleanUrl = youtubeUrl;
+        string cleanUrl = parsedUri.ToString();
         if (cleanUrl.Contains("watch?v=") && cleanUrl.Contains("&list="))
         {
             cleanUrl = cleanUrl.Split("&list=")[0];
         }
 
-        // Optimasi Render Free Tier (512MB RAM):
-        // 1. --no-cache-dir    : Bebaskan cache yt-dlp dari RAM/Disk container.
-        // 2. --audio-quality 5 : Menggunakan VBR ~130-160kbps (jauh lebih ringan CPU/RAM dibanding quality 0).
-        // 3. --max-filesize 50M: Mencegah OOM jika user memasukkan video durasi sangat panjang.
-        string arguments = $"{cookiesArg} --no-playlist --no-warnings --no-cache-dir --max-filesize 50M -x --audio-format mp3 --audio-quality 5 -j -o \"{outputTemplate}\" \"{cleanUrl}\"";
+        string cookiesPath = Path.Combine(Directory.GetCurrentDirectory(), "cookies.txt");
+        string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
 
-        var process = new Process
+        // 2. Gunakan ProcessStartInfo.ArgumentList untuk keamanan penuh (tanpa manual string escaping)
+        var startInfo = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "yt-dlp",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
+            FileName = "yt-dlp",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
 
+        if (File.Exists(cookiesPath))
+        {
+            startInfo.ArgumentList.Add("--cookies");
+            startInfo.ArgumentList.Add(cookiesPath);
+        }
+
+        // Argumen optimasi (Free Tier Render 512MB RAM)
+        startInfo.ArgumentList.Add("--no-playlist");
+        startInfo.ArgumentList.Add("--no-warnings");
+        startInfo.ArgumentList.Add("--no-cache-dir");
+        startInfo.ArgumentList.Add("--max-filesize");
+        startInfo.ArgumentList.Add("50M");
+        startInfo.ArgumentList.Add("-x");
+        startInfo.ArgumentList.Add("--audio-format");
+        startInfo.ArgumentList.Add("mp3");
+        startInfo.ArgumentList.Add("--audio-quality");
+        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("-j"); // Dump JSON metadata
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add(outputTemplate);
+        startInfo.ArgumentList.Add(cleanUrl);
+
+        using var process = new Process { StartInfo = startInfo };
         process.Start();
 
-        // Timeout 45 detik agar proses tidak menggantung selamanya
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-        
-        string output = "";
-        string error = "";
+        // 3. Baca stdout dan stderr secara bersamaan (Mencegah Deadlock Buffer)
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)); // Naikkan ke 60 detik untuk pertimbangan FFmpeg konversi
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+        var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
 
         try
         {
-            output = await process.StandardOutput.ReadToEndAsync(cts.Token);
-            error = await process.StandardError.ReadToEndAsync(cts.Token);
+            await Task.WhenAll(stdoutTask, stderrTask);
             await process.WaitForExitAsync(cts.Token);
         }
         catch (OperationCanceledException)
         {
             try { process.Kill(true); } catch { }
-            throw new Exception("Proses konversi timeout (lebih dari 45 detik).");
+            throw new Exception("Proses konversi timeout (lebih dari 60 detik).");
         }
         finally
         {
-            // Paksa pembersihan RAM setelah subprocess yt-dlp selesai
+            // Pembersihan memori opsional
             GC.Collect();
-            GC.WaitForPendingFinalizers();
         }
+
+        string output = await stdoutTask;
+        string error = await stderrTask;
 
         if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
         {
-            logger.LogError("[YT-DLP ERROR] {Error}", error);
+            logger.LogError("[YT-DLP ERROR] ExitCode: {Code}, Error: {Error}", process.ExitCode, error);
             throw new Exception($"Gagal memproses YouTube audio: {error}");
         }
 
-        using var doc = JsonDocument.Parse(output);
+        // 4. Parsing JSON Metadata secara Aman
+        using var doc = JsonDocument.Parse(output.Trim());
         var root = doc.RootElement;
 
         string id = root.TryGetProperty("id", out var idElem) ? idElem.GetString() ?? "" : "";
         string title = root.TryGetProperty("title", out var titleElem) ? titleElem.GetString() ?? "Hypen Track" : "Hypen Track";
         string artist = root.TryGetProperty("uploader", out var upElem) ? upElem.GetString() ?? "YouTube Import" : "YouTube Import";
         string thumbnail = root.TryGetProperty("thumbnail", out var thumbElem) ? thumbElem.GetString() ?? $"https://img.youtube.com/vi/{id}/hqdefault.jpg" : $"https://img.youtube.com/vi/{id}/hqdefault.jpg";
-        int duration = root.TryGetProperty("duration", out var durElem) ? durElem.GetInt32() : 0;
+        int duration = root.TryGetProperty("duration", out var durElem) && durElem.ValueKind == JsonValueKind.Number ? durElem.GetInt32() : 0;
 
         string localMp3FileName = $"{id}.mp3";
         string fullMp3Path = Path.Combine(outputDirectory, localMp3FileName);
+
+        // Verifikasi fisik bahwa file MP3 benar-benar berhasil dibuat oleh FFmpeg
+        if (!File.Exists(fullMp3Path))
+        {
+            logger.LogError("[YT-DLP ERROR] Output MP3 tidak ditemukan di path: {Path}", fullMp3Path);
+            throw new FileNotFoundException("File audio hasil ekstraksi tidak ditemukan.");
+        }
 
         return new YtDlpMetadata(id, title, artist, thumbnail, fullMp3Path, localMp3FileName, duration);
     }
