@@ -1,7 +1,9 @@
 using System.Text.RegularExpressions;
 using System.Text.Json;
 
-public class SongProcessorService
+namespace Hypen.Web.Services;
+
+public class SongProcessorService : ISongProcessorService
 {
     private readonly HttpClient _http;
 
@@ -10,8 +12,12 @@ public class SongProcessorService
         _http = http;
     }
 
-    public async Task ProcessPendingSongsAsync()
+    public async Task<int> ProcessPendingSongsAsync()
     {
+        // TODO: fitur ini belum diimplementasikan penuh — tabel songs_raw / songs_complete
+        // belum ada di database (belum ada migration/skema). Sementara return 0 agar
+        // halaman Library Sync tetap bisa jalan tanpa error, sampai skema & koneksi DB
+        // untuk fitur ini digarap.
         // 1. Ambil data songs_raw yang status = 'PENDING'
         // SELECT * FROM songs_raw WHERE sync_status = 'PENDING' LIMIT 10;
         
@@ -24,6 +30,9 @@ public class SongProcessorService
 
         // 4. INSERT INTO songs_complete (...)
         // 5. UPDATE songs_raw SET sync_status = 'PROCESSED' WHERE id = raw.Id
+
+        await Task.CompletedTask;
+        return 0;
     }
 
     private (string Artist, string Title) CleanTitle(string rawTitle, string channelTitle)
