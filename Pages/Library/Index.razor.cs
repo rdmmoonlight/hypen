@@ -171,7 +171,8 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected async Task DeleteSingle(int id)
+    // Disesuaikan ke tipe long
+    protected async Task DeleteSingle(long id)
     {
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
         if (!confirmed) return;
@@ -182,9 +183,10 @@ public partial class Index : ComponentBase
         }
     }
 
+    // Array dikirim sebagai long[]
     protected async Task DeleteSelected()
     {
-        var selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
+        long[] selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
         if (selectedIds.Length == 0)
         {
             UpdateStatus("Tidak ada lagu yang dipilih.", true);
