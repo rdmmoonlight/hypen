@@ -10,7 +10,16 @@ public class YtDlpStreamService
         string outputDirectory, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(outputDirectory);
+        // Pastikan folder downloads ada dan memiliki izin tulis di Linux
+        try
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+        catch (Exception ex)
+        {
+            yield return $"[ERROR] Gagal membuat folder downloads: {ex.Message}";
+            yield break;
+        }
 
         string cleanUrl = youtubeUrl.Trim();
 
@@ -23,12 +32,13 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // Argumen Utama Teruji Bebas Blocking
+        // Argumen Anti-Block untuk Linux Server
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
-        startInfo.ArgumentList.Add("--newline"); // Wajib untuk real-time streaming per baris
+        startInfo.ArgumentList.Add("--newline");
+        startInfo.ArgumentList.Add("--no-playlist"); // Khusus untuk single URL agar tidak membaca playlist
         
-        // Memaksa Client Android untuk Mencegah PO-Token / HTTP 403 Blocking
+        // Memaksa Client Android untuk Avoid PO-Token / HTTP 403 Blocking
         startInfo.ArgumentList.Add("--extractor-args");
         startInfo.ArgumentList.Add("youtube:player_client=android");
 
@@ -39,7 +49,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5");
 
-        // Format Template Output File
+        // Format Output
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputTemplate);
@@ -47,49 +57,48 @@ public class YtDlpStreamService
 
         using var process = new Process { StartInfo = startInfo };
 
-        // Handle error buffer di background agar tidak deadlock
-        var errorOutput = new System.Text.StringBuilder();
+        var errorLog = new List<string>();
+
         process.ErrorDataReceived += (sender, e) =>
         {
-            if (!string.IsNullOrEmpty(e.Data))
+            if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                errorOutput.AppendLine(e.Data);
+                errorLog.Add(e.Data);
             }
         };
 
-        process.Start();
-        process.BeginErrorReadLine();
-
         try
         {
-            while (!process.StandardOutput.EndOfStream)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
+            process.Start();
+            process.BeginErrorReadLine();
+        }
+        catch (Exception ex)
+        {
+            yield return $"[ERROR] yt-dlp tidak ditemukan atau gagal dijalankan di server Linux: {ex.Message}";
+            yield break;
+        }
 
-                string? line = await process.StandardOutput.ReadLineAsync(cancellationToken);
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    yield return line;
-                }
-            }
+        while (!process.StandardOutput.EndOfStream)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
 
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode == 0)
+            string? line = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(line))
             {
-                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
-            }
-            else
-            {
-                yield return $"[ERROR] Process exited with code {process.ExitCode}: {errorOutput}";
+                yield return line;
             }
         }
-        finally
+
+        await process.WaitForExitAsync(cancellationToken);
+
+        if (process.ExitCode == 0)
         {
-            if (!process.HasExited)
-            {
-                try { process.Kill(true); } catch { }
-            }
+            yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
+        }
+        else
+        {
+            string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
+            yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
         }
     }
 }
