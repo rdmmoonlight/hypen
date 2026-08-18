@@ -12,7 +12,6 @@ public class YtDlpStreamService
     {
         Directory.CreateDirectory(outputDirectory);
 
-        // Clean & Extract Basic URL
         string cleanUrl = youtubeUrl.Trim();
 
         var startInfo = new ProcessStartInfo
@@ -24,23 +23,23 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // Kunci Perintah Sukses dari Lokal:
+        // Argumen Utama Teruji Bebas Blocking
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
-        startInfo.ArgumentList.Add("--newline"); // Agar stream stdout terdeteksi per baris real-time
+        startInfo.ArgumentList.Add("--newline"); // Wajib untuk real-time streaming per baris
         
-        // Memaksa Client Android untuk Avoid PO-Token / HTTP 403 Blocking
+        // Memaksa Client Android untuk Mencegah PO-Token / HTTP 403 Blocking
         startInfo.ArgumentList.Add("--extractor-args");
         startInfo.ArgumentList.Add("youtube:player_client=android");
 
-        // Konversi ke MP3 Kualitas VBR 5 (~130-160 kbps, Sangat Ramah CPU/RAM Server)
+        // Konversi Ekstraksi Audio ke MP3 VBR Quality 5
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5");
 
-        // Format Template Output
+        // Format Template Output File
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputTemplate);
@@ -48,7 +47,7 @@ public class YtDlpStreamService
 
         using var process = new Process { StartInfo = startInfo };
 
-        // Handle stderr di background pipe agar tidak terjadi buffer deadlock
+        // Handle error buffer di background agar tidak deadlock
         var errorOutput = new System.Text.StringBuilder();
         process.ErrorDataReceived += (sender, e) =>
         {
@@ -63,7 +62,6 @@ public class YtDlpStreamService
 
         try
         {
-            // Stream stdout baris demi baris ke Web Terminal
             while (!process.StandardOutput.EndOfStream)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -79,7 +77,7 @@ public class YtDlpStreamService
 
             if (process.ExitCode == 0)
             {
-                yield return "[COMPLETED] File berhasil dikonversi ke MP3!";
+                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
             }
             else
             {
@@ -88,7 +86,6 @@ public class YtDlpStreamService
         }
         finally
         {
-            // Pastikan subproses mati jika user menutup request / disconnect browser
             if (!process.HasExited)
             {
                 try { process.Kill(true); } catch { }
