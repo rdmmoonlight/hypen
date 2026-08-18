@@ -13,12 +13,12 @@ COPY . .
 RUN dotnet publish "Hypen.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # ==========================================
-# 2. Stage Runtime + Dependencies (Node.js + FFmpeg + yt-dlp)
+# 2. Stage Runtime + Dependencies (Node.js + Deno + FFmpeg + yt-dlp)
 # ==========================================
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Install Python 3, Node.js (sebagai JS Runtime untuk yt-dlp), FFmpeg, & Curl
+# Install Python 3, Node.js, FFmpeg, Curl, & Ca-certificates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -26,9 +26,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Download Executable yt-dlp biner terbaru, beri izin eksekusi, dan pastikan selalu update ke versi paling fresh
+# Install Deno (JS Runtime optimal untuk EJS solver yt-dlp)
+RUN curl -fsSL https://deno.land/install.sh | sh \
+    && mv /root/.deno/bin/deno /usr/local/bin/deno \
+    && chmod a+rx /usr/local/bin/deno
+
+# Download Executable yt-dlp biner terbaru, beri izin eksekusi, dan update ke versi paling fresh
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && yt-dlp -U
