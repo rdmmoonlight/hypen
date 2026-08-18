@@ -12,7 +12,6 @@ public class YtDlpStreamService
     {
         string? initError = null;
 
-        // Pastikan folder output dibuat aman
         try
         {
             Directory.CreateDirectory(outputDirectory);
@@ -39,24 +38,22 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // Argumen Utama Teruji Bebas Blocking
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--no-playlist");
         
-        // Memaksa Client Android untuk Mencegah PO-Token / HTTP 403 Blocking
+        // Memakai fallback client yang lebih tahan dari bot challenge YouTube di cloud server
         startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=android");
+        startInfo.ArgumentList.Add("youtube:player_client=tv,android_creator,mweb");
 
-        // Konversi Ekstraksi Audio ke MP3 VBR Quality 5
+        // Konversi Audio ke MP3 VBR Quality 5
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5");
 
-        // Format Output File
         string outputTemplate = Path.Combine(outputDirectory, "%(id)s.%(ext)s");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputTemplate);
@@ -90,27 +87,45 @@ public class YtDlpStreamService
             yield break;
         }
 
-        // Membaca stream stdout secara async (Menghindari CA2024 & CS1631)
-        while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+        try
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            
-            if (!string.IsNullOrWhiteSpace(line))
+            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
             {
-                yield return line;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    yield return "[CANCELLED] Pemrosesan terminal dihentikan oleh pengguna.";
+                    yield break;
+                }
+                
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    yield return line;
+                }
+            }
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode == 0)
+            {
+                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
+            }
+            else
+            {
+                string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
+                yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
             }
         }
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        if (process.ExitCode == 0)
+        finally
         {
-            yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
-        }
-        else
-        {
-            string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
-            yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
+            // Matikan paksa proses yt-dlp di Linux jika CancellationToken di-trigger atau method selesai
+            if (!process.HasExited)
+            {
+                try
+                {
+                    process.Kill(true);
+                }
+                catch { }
+            }
         }
     }
 }
