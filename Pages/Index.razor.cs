@@ -76,12 +76,11 @@ public partial class Index : IAsyncDisposable
         showTerminal = true;
         isLoading = true;
         terminalLogs.Clear();
-        terminalLogs.Add($"[INIT] Memulai koneksi stream terminal untuk: {targetUrl}");
-        await UpdateStatusAsync("Memproses terminal stream di server...");
+        terminalLogs.Add($"[INIT] Memulai koneksi ekstraksi terminal untuk: {targetUrl}");
+        await UpdateStatusAsync("Mengekstraksi audio di server...");
 
         try
         {
-            // Memanggil JS startTerminalStream di App.razor untuk membuka EventSource / SSE
             await JS.InvokeVoidAsync("startTerminalStream", targetUrl, objRef);
         }
         catch (Exception ex)
@@ -100,7 +99,7 @@ public partial class Index : IAsyncDisposable
         if (logLine.Contains("[COMPLETED]"))
         {
             isLoading = false;
-            await UpdateStatusAsync("Konversi MP3 selesai!");
+            await UpdateStatusAsync("Ekstraksi audio selesai!");
             ytUrl = "";
             playlistUrl = "";
             await LoadLibrary();
@@ -108,7 +107,7 @@ public partial class Index : IAsyncDisposable
         else if (logLine.Contains("[ERROR]"))
         {
             isLoading = false;
-            await UpdateStatusAsync("Gagal memproses audio di terminal server.", true);
+            await UpdateStatusAsync("Gagal mengekstraksi audio di terminal server.", true);
         }
 
         await InvokeAsync(StateHasChanged);
