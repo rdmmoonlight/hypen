@@ -24,5 +24,9 @@ public class MusicBrainzSearchResult
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = "Single";
     public int? ReleaseYear { get; set; }
+    
+    // Penambahan Metadata Negara Awal / Rilis
+    public string Country { get; set; } = "Unknown";
+    
     public string? CoverArtUrl { get; set; }
 }
