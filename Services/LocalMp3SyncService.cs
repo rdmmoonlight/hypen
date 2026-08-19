@@ -1,8 +1,9 @@
 using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
 using TagLib;
+using Hypen.Web.Data;
 using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
@@ -11,14 +12,16 @@ public class LocalMp3SyncService
 {
     private readonly HttpClient _http;
     private readonly IMusicBrainzService _musicBrainzService;
-    private readonly string _connectionString;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
-    public LocalMp3SyncService(HttpClient http, IMusicBrainzService musicBrainzService, IConfiguration config)
+    public LocalMp3SyncService(
+        HttpClient http, 
+        IMusicBrainzService musicBrainzService, 
+        IDbContextFactory<AppDbContext> dbContextFactory)
     {
         _http = http;
         _musicBrainzService = musicBrainzService;
-        _connectionString = config.GetConnectionString("NEON_DB_CONNECTION") 
-            ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
+        _dbContextFactory = dbContextFactory;
     }
 
     // =========================================================================
@@ -115,15 +118,14 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 2. STAGING INGESTION: Wajib simpan data mentah ke TABEL `songs_raw`
+    // 2. STAGING INGESTION: Simpan data mentah ke `songs_raw` via ORM
     // =========================================================================
     public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items)
     {
         var selectedItems = items.Where(i => i.IsSelected).ToList();
         if (selectedItems.Count == 0) return 0;
 
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
 
         int insertedCount = 0;
 
@@ -131,21 +133,28 @@ public class LocalMp3SyncService
         {
             string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
 
-            string query = @"
-                INSERT INTO songs_raw (
-                    youtube_video_id, title, artist, country, audio_url, status
-                ) VALUES (
-                    @ytId, @title, @artist, @country, @audioUrl, 'PENDING'
-                ) ON CONFLICT (youtube_video_id) DO NOTHING;";
+            // Cek pencegahan duplikasi ID unik via ORM
+            bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == fakeYtId);
+            if (exists) continue;
 
-            await using var cmd = new NpgsqlCommand(query, conn);
-            cmd.Parameters.AddWithValue("ytId", fakeYtId);
-            cmd.Parameters.AddWithValue("title", item.CleanTitle);
-            cmd.Parameters.AddWithValue("artist", item.CleanArtist);
-            cmd.Parameters.AddWithValue("country", string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country);
-            cmd.Parameters.AddWithValue("audioUrl", $"/downloads/{item.FileName}");
+            var rawEntity = new RawSongModel
+            {
+                YoutubeVideoId = fakeYtId,
+                Title = item.CleanTitle,
+                Artist = item.CleanArtist,
+                Country = string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country,
+                AudioUrl = $"/downloads/{item.FileName}",
+                Status = "PENDING",
+                SyncStatus = "PENDING"
+            };
 
-            insertedCount += await cmd.ExecuteNonQueryAsync();
+            await context.SongsRaw.AddAsync(rawEntity);
+            insertedCount++;
+        }
+
+        if (insertedCount > 0)
+        {
+            await context.SaveChangesAsync();
         }
 
         return insertedCount;
@@ -256,66 +265,69 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 4. PROMOTION TAHAP AKHIR: Pindahkan dari `songs_raw` ke `songs_complete`
+    // 4. PROMOTION TAHAP AKHIR: Pindahkan dari `songs_raw` ke `songs_complete` via ORM
     // =========================================================================
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync();
-        await using var tx = await conn.BeginTransactionAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         try
         {
-            // 1. Dapatkan video_id dan audio_url dari songs_raw
-            string getRawQuery = "SELECT youtube_video_id, audio_url FROM songs_raw WHERE id = @rawId;";
-            await using var getCmd = new NpgsqlCommand(getRawQuery, conn, tx);
-            getCmd.Parameters.AddWithValue("rawId", rawId);
+            // 1. Ambil data asal dari songs_raw via ORM
+            var rawItem = await context.SongsRaw.FindAsync(rawId);
+            if (rawItem == null) return false;
 
-            await using var reader = await getCmd.ExecuteReaderAsync();
-            if (!await reader.ReadAsync()) return false;
+            string ytId = rawItem.YoutubeVideoId ?? "";
+            string audioUrl = rawItem.AudioUrl ?? "";
 
-            string ytId = reader.GetString(0);
-            string audioUrl = reader.IsDBNull(1) ? "" : reader.GetString(1);
-            await reader.CloseAsync();
+            // 2. ORM Upsert Check ke songs_complete
+            var existingComplete = await context.SongsComplete
+                .FirstOrDefaultAsync(c => c.YoutubeVideoId == ytId);
 
-            // 2. Insert/Upsert ke songs_complete (termasuk kolom country)
-            string insertQuery = @"
-                INSERT INTO songs_complete (
-                    youtube_video_id, title, artist, album, release_year, country, album_cover_url, audio_url, is_downloaded
-                ) VALUES (
-                    @ytId, @title, @artist, @album, @year, @country, @cover, @audioUrl, true
-                ) ON CONFLICT (youtube_video_id) DO UPDATE SET
-                    title = EXCLUDED.title,
-                    artist = EXCLUDED.artist,
-                    album = EXCLUDED.album,
-                    release_year = EXCLUDED.release_year,
-                    country = EXCLUDED.country,
-                    album_cover_url = EXCLUDED.album_cover_url;";
+            string albumName = string.IsNullOrWhiteSpace(validatedData.Album) ? "Single" : validatedData.Album;
+            string countryName = string.IsNullOrWhiteSpace(validatedData.Country) ? "Unknown" : validatedData.Country;
 
-            await using var insertCmd = new NpgsqlCommand(insertQuery, conn, tx);
-            insertCmd.Parameters.AddWithValue("ytId", ytId);
-            insertCmd.Parameters.AddWithValue("title", validatedData.CleanTitle);
-            insertCmd.Parameters.AddWithValue("artist", validatedData.CleanArtist);
-            insertCmd.Parameters.AddWithValue("album", string.IsNullOrWhiteSpace(validatedData.Album) ? "Single" : validatedData.Album);
-            insertCmd.Parameters.AddWithValue("year", (object?)validatedData.ReleaseYear ?? DBNull.Value);
-            insertCmd.Parameters.AddWithValue("country", string.IsNullOrWhiteSpace(validatedData.Country) ? "Unknown" : validatedData.Country);
-            insertCmd.Parameters.AddWithValue("cover", validatedData.AlbumCoverUrl ?? "");
-            insertCmd.Parameters.AddWithValue("audioUrl", audioUrl);
+            if (existingComplete != null)
+            {
+                existingComplete.Title = validatedData.CleanTitle;
+                existingComplete.Artist = validatedData.CleanArtist;
+                existingComplete.Album = albumName;
+                existingComplete.ReleaseYear = validatedData.ReleaseYear;
+                existingComplete.Country = countryName;
+                existingComplete.AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "";
+            }
+            else
+            {
+                var newComplete = new CompleteSongModel
+                {
+                    RawId = rawId,
+                    YoutubeVideoId = ytId,
+                    Title = validatedData.CleanTitle,
+                    Artist = validatedData.CleanArtist,
+                    Album = albumName,
+                    ReleaseYear = validatedData.ReleaseYear,
+                    Country = countryName,
+                    AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "",
+                    AudioUrl = audioUrl,
+                    IsDownloaded = true
+                };
 
-            await insertCmd.ExecuteNonQueryAsync();
+                await context.SongsComplete.AddAsync(newComplete);
+            }
 
-            // 3. Update status songs_raw menjadi PROCESSED
-            string updateRawQuery = "UPDATE songs_raw SET status = 'PROCESSED' WHERE id = @rawId;";
-            await using var updateCmd = new NpgsqlCommand(updateRawQuery, conn, tx);
-            updateCmd.Parameters.AddWithValue("rawId", rawId);
-            await updateCmd.ExecuteNonQueryAsync();
+            // 3. Update status di songs_raw via Tracking Entity EF Core
+            rawItem.Status = "PROCESSED";
+            rawItem.SyncStatus = "PROCESSED";
 
-            await tx.CommitAsync();
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
             return true;
         }
         catch
         {
-            await tx.RollbackAsync();
+            await transaction.RollbackAsync();
             throw;
         }
     }
