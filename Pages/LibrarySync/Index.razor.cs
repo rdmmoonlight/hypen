@@ -22,15 +22,13 @@ public partial class Index : ComponentBase
     protected bool isError;
     protected bool isProcessing;
 
-    // TAB 1: INGESTION - YOUTUBE STATE
+    // TAB 1: INGESTION STATE
     protected string targetPlaylistId = "LL";
     protected int maxResults = 25;
-
-    // TAB 1: INGESTION - LOCAL MP3 STATE
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllLocalSelected = true;
 
-    // TAB 2: STAGING STATE (SONGS_RAW -> EDIT/MATCH -> COMPLETE)
+    // TAB 2: STAGING STATE
     protected List<RawSongModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
@@ -55,7 +53,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // TAB 1: EKSTRAKSI / INGESTION (YOUTUBE & LOCAL MP3) -> SONGS_RAW
+    // TAB 1: EKSTRAKSI / INGESTION (YOUTUBE & LOCAL MP3)
     // =========================================================================
 
     protected async Task StartYouTubeIngestionToRaw()
@@ -145,7 +143,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // TAB 2: STAGING (1. SMART MATCH -> 2. EDIT -> 3. UPLOAD TO COMPLETE)
+    // TAB 2: STAGING (1. SMART MATCH -> 2. EDIT MANUAL -> 3. UPLOAD TO COMPLETE)
     // =========================================================================
 
     private async Task LoadStagingData()
@@ -165,7 +163,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    // LANKAH 1: SMART MATCH (Mencari data internet tanpa langsung men-promote)
+    // LANGKAH 1: SMART MATCH (Mengekstrak metadata internet ke UI untuk diedit)
     protected async Task SmartMatchSingleRaw(RawSongModel raw)
     {
         try
@@ -181,11 +179,14 @@ public partial class Index : ComponentBase
 
             await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
 
-            // Perbarui data lokal stagingList untuk ditinjau / diedit pengguna
+            // Tumpuk atribut hasil match ke objek staging
             raw.Artist = modelToMatch.CleanArtist;
             raw.Title = modelToMatch.CleanTitle;
+            if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
+            if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
+            if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
 
-            UpdateStatus($"Smart Match selesai untuk '{raw.Title}'. Silakan tinjau/edit sebelum upload.");
+            UpdateStatus($"Smart Match selesai untuk '{raw.Title}'. Silakan tinjau/edit seluruh atribut sebelum upload.");
         }
         catch (Exception ex)
         {
@@ -222,6 +223,9 @@ public partial class Index : ComponentBase
 
                 raw.Artist = modelToMatch.CleanArtist;
                 raw.Title = modelToMatch.CleanTitle;
+                if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
+                if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
+                if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
             }
 
             UpdateStatus($"Smart Match massal selesai. Anda dapat memeriksa dan mengedit data sebelum di-upload.");
@@ -237,7 +241,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    // LANGKAH 3: UPLOAD KE COMPLETE TABLE (Memakai data yang telah diedit/diprof)
+    // LANGKAH 3: UPLOAD KE COMPLETE TABLE (Mengirim atribut yang sudah diedit user)
     protected async Task UploadSingleRawToComplete(RawSongModel raw)
     {
         try
@@ -248,7 +252,11 @@ public partial class Index : ComponentBase
             var validatedModel = new LocalMp3ExtractModel
             {
                 CleanArtist = raw.Artist,
-                CleanTitle = raw.Title
+                CleanTitle = raw.Title,
+                Album = raw.Album,
+                ReleaseYear = raw.ReleaseYear,
+                AlbumCoverUrl = raw.AlbumCoverUrl,
+                Country = raw.Country
             };
 
             bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, validatedModel);
@@ -288,7 +296,11 @@ public partial class Index : ComponentBase
                 var validatedModel = new LocalMp3ExtractModel
                 {
                     CleanArtist = item.Artist,
-                    CleanTitle = item.Title
+                    CleanTitle = item.Title,
+                    Album = item.Album,
+                    ReleaseYear = item.ReleaseYear,
+                    AlbumCoverUrl = item.AlbumCoverUrl,
+                    Country = item.Country
                 };
 
                 await LocalSyncService.PromoteRawToCompleteAsync(item.Id, validatedModel);
