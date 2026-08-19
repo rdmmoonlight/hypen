@@ -98,21 +98,42 @@ public partial class Index : ComponentBase
     }
 
     // ==========================================
-    // LOGIKA LOCAL MP3 SYNC
+    // LOGIKA LOCAL MP3 SYNC (ID3 TAG PARSING)
     // ==========================================
 
-    protected void HandleFileSelection(InputFileChangeEventArgs e)
+    protected async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
         extractedList.Clear();
         var files = e.GetMultipleFiles(100);
 
-        foreach (var file in files)
+        try
         {
-            var model = LocalSyncService.ExtractMetadataFromFileName(file.Name);
-            extractedList.Add(model);
-        }
+            isProcessing = true;
+            int scanned = 0;
 
-        UpdateStatus($"{extractedList.Count} file MP3 lokal ter-scan. Silakan periksa atau koreksi Artis & Judul sebelum di-entry.");
+            foreach (var file in files)
+            {
+                scanned++;
+                UpdateStatus($"[{scanned}/{files.Count}] Membaca ID3 Tag & Cover Art dari: '{file.Name}'...");
+
+                // Batas file size 50 MB per MP3
+                await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50);
+                
+                var model = await LocalSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
+                extractedList.Add(model);
+            }
+
+            UpdateStatus($"{extractedList.Count} file MP3 berhasil di-scan. Metadata ID3 Tag & gambar sampul telah diekstrak.");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Error saat membaca file MP3: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
     }
 
     protected async Task ProcessAndEntryLocalToDb()
@@ -128,7 +149,7 @@ public partial class Index : ComponentBase
             foreach (var item in selected)
             {
                 count++;
-                UpdateStatus($"[{count}/{selected.Count}] Mengambil Album Cover via iTunes untuk: '{item.CleanTitle}'...");
+                UpdateStatus($"[{count}/{selected.Count}] Mengecek metadata tambahan via iTunes untuk: '{item.CleanTitle}'...");
                 await LocalSyncService.EnrichMetadataAsync(item);
             }
 
