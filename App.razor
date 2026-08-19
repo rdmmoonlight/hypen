@@ -23,11 +23,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600&display=swap"
           rel="stylesheet" />
 
-    <!-- Bootstrap Icons (Diperlukan untuk Sidebar Navigation) -->
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
-    <!-- Theme -->
+    <!-- Theme Global -->
     <link rel="stylesheet" href="theme.css?v=9.0" />
+
+    <!-- 🔥 WAJIB: Blazor CSS Isolation Bundle (Agar file .razor.css termuat) -->
+    <link rel="stylesheet" href="Hypen.Web.styles.css" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
@@ -113,19 +116,16 @@
             const encodedUrl = encodeURIComponent(youtubeUrl);
             activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
 
-            // Array menampung relative path dari folder /downloads/
             const extractedFiles = [];
 
             activeEventSource.onmessage = (event) => {
                 const logLine = event.data;
 
-                // Tangkap lokasi file hasil ekstraksi (Termasuk Subfolder Playlist)
                 if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
                     const match = logLine.match(/Destination:\s*(.+)$/);
                     if (match && match[1]) {
                         const fullPath = match[1].trim();
                         
-                        // Ekstrak path setelah folder downloads
                         let relativePath = fullPath;
                         if (fullPath.includes('/downloads/')) {
                             relativePath = fullPath.split('/downloads/')[1];
@@ -133,7 +133,6 @@
                             relativePath = fullPath.split('\\downloads\\')[1];
                         }
 
-                        // Normalisasi pemisah path agar aman di Linux / Windows
                         relativePath = relativePath.replace(/\\/g, '/');
 
                         if (!extractedFiles.includes(relativePath)) {
@@ -142,12 +141,10 @@
                     }
                 }
 
-                // Kirim log per baris ke C# [JSInvokable] OnTerminalLogReceived
                 if (dotNetHelper) {
                     dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', logLine);
                 }
 
-                // Auto Scroll Box Terminal ke Paling Bawah
                 setTimeout(() => {
                     const terminalBox = document.getElementById('terminal-box');
                     if (terminalBox) {
@@ -155,19 +152,16 @@
                     }
                 }, 50);
 
-                // Ketika proses [COMPLETED] diterima
                 if (logLine.includes('[COMPLETED]')) {
                     activeEventSource.close();
                     activeEventSource = null;
 
                     if (extractedFiles.length === 1) {
-                        // Single File
                         const rawRelPath = extractedFiles[0];
                         const downloadUrl = `/downloads/${encodeURIComponent(rawRelPath)}`;
                         const fileNameOnly = rawRelPath.split('/').pop();
                         window.downloadFileFromUrl(downloadUrl, fileNameOnly);
                     } else if (extractedFiles.length > 1) {
-                        // Multi-File / Playlist -> Panggil API Controller untuk dibungkus ZIP
                         window.downloadZipFromController(extractedFiles);
                     }
                 } else if (logLine.includes('[ERROR]')) {
