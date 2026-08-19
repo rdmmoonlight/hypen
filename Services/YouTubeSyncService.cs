@@ -24,7 +24,6 @@ public class YouTubeSyncService : IYouTubeSyncService
 
     public async Task<int> SyncPlaylistToRawAsync(string playlistId, int maxResults)
     {
-        // "LL" (Liked Videos) hanya bisa diakses via OAuth milik akun pemiliknya, bukan API Key publik.
         string accessToken = await _oauthService.GetFreshAccessTokenAsync();
 
         var http = _httpClientFactory.CreateClient();
@@ -76,21 +75,14 @@ public class YouTubeSyncService : IYouTubeSyncService
 
         foreach (var song in fetched)
         {
-            // Cek duplikasi via ORM
             bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == song.VideoId);
             if (exists) continue;
-
-            string thumbnailUrl = $"https://i.ytimg.com/vi/{song.VideoId}/hqdefault.jpg";
 
             var rawEntity = new RawSongModel
             {
                 YoutubeVideoId = song.VideoId,
-                RawTitle = song.Title,
                 Title = song.Title,
-                RawChannelTitle = song.ChannelTitle,
                 Artist = song.ChannelTitle,
-                RawThumbnailUrl = thumbnailUrl,
-                SyncStatus = "PENDING",
                 Status = "PENDING"
             };
 
@@ -109,8 +101,7 @@ public class YouTubeSyncService : IYouTubeSyncService
     public async Task<int> GetPendingRawCountAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        return await context.SongsRaw
-            .CountAsync(s => s.SyncStatus == "PENDING" || s.Status == "PENDING");
+        return await context.SongsRaw.CountAsync(s => s.Status == "PENDING");
     }
 
     public async Task<int> GetCompletedCountAsync()
