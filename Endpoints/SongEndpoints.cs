@@ -96,9 +96,9 @@ public static class SongEndpoints
         });
 
         // ------------------------------------------------------------
-        // DELETE BATCH SONGS (Menggunakan BatchDeleteRequest dengan long[])
+        // DELETE BATCH SONGS (Explicit Namespace DTO untuk Mencegah CS0104)
         // ------------------------------------------------------------
-        app.MapPost("/api/songs/delete-batch", async ([FromBody] BatchDeleteRequest req, ILogger<Program> logger) =>
+        app.MapPost("/api/songs/delete-batch", async ([FromBody] Hypen.Web.Models.BatchDeleteRequest req, ILogger<Program> logger) =>
         {
             if (string.IsNullOrWhiteSpace(dbConnectionString) || req?.Ids == null || req.Ids.Length == 0)
                 return Results.BadRequest();
