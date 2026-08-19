@@ -23,7 +23,7 @@ public class CloudSongModel
         set => YoutubeVideoId = value; 
     }
 
-    // MusicBrainz Identifiers (Persiapan Integrasi MusicBrainz)
+    // MusicBrainz Identifiers
     public string MusicBrainzId { get; set; } = string.Empty; // Recording MBID
     public string Mbid 
     { 
@@ -73,19 +73,4 @@ public class RawSongModel
     public string AudioUrl { get; set; } = string.Empty;
     public string Status { get; set; } = "PENDING";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-}
-
-// Model Ekstraksi & Extraction State untuk Local MP3 Sync
-public class LocalMp3ExtractModel
-{
-    public string FileName { get; set; } = string.Empty;
-    public string RawArtist { get; set; } = string.Empty;
-    public string RawTitle { get; set; } = string.Empty;
-    public string CleanArtist { get; set; } = string.Empty;
-    public string CleanTitle { get; set; } = string.Empty;
-    public string Album { get; set; } = "Single";
-    public int? ReleaseYear { get; set; }
-    public string AlbumCoverUrl { get; set; } = string.Empty;
-    public string MusicBrainzId { get; set; } = string.Empty; // MBID dari MusicBrainz
-    public bool IsSelected { get; set; } = true;
 }
