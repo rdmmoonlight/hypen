@@ -23,107 +23,132 @@ public class YouTubeSyncService : IYouTubeSyncService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<int> SyncPlaylistToRawAsync(string playlistIdInput, int maxResults)
+    public async Task<int> SyncPlaylistToRawAsync(string input, int maxResults)
     {
-        if (string.IsNullOrWhiteSpace(playlistIdInput))
-            throw new ArgumentException("Playlist ID atau URL tidak boleh kosong.", nameof(playlistIdInput));
+        if (string.IsNullOrWhiteSpace(input))
+            throw new ArgumentException("Input URL atau ID tidak boleh kosong.", nameof(input));
 
-        // 1. Clean & Extract ID Playlist
-        string cleanPlaylistId = ExtractPlaylistId(playlistIdInput);
-        bool isLikedVideos = IsLikedVideosQuery(cleanPlaylistId);
+        input = input.Trim();
 
-        Console.WriteLine($"[YouTubeSync] Processing Input: '{playlistIdInput}' | Clean ID: '{cleanPlaylistId}' | IsLikedVideos: {isLikedVideos}");
+        // 1. Deteksi Jenis Input (Video Satuan vs Liked Videos vs Playlist)
+        string? singleVideoId = ExtractSingleVideoId(input);
+        bool isLikedVideos = IsLikedVideosQuery(input);
+        string cleanPlaylistId = ExtractPlaylistId(input);
 
-        // 2. Ambil OAuth Token
         string accessToken = await _oauthService.GetFreshAccessTokenAsync();
 
         var http = _httpClientFactory.CreateClient();
         http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
         var fetched = new List<(string VideoId, string Title, string ChannelTitle)>();
-        string? pageToken = null;
 
-        int targetMaxResults = Math.Clamp(maxResults, 1, 500);
-
-        do
+        // =========================================================================
+        // SKENARIO A: SINGLE VIDEO (Link/ID Lagu Satuan, misal music.youtube.com/watch?v=...)
+        // =========================================================================
+        if (!string.IsNullOrEmpty(singleVideoId) && !input.Contains("list=", StringComparison.OrdinalIgnoreCase))
         {
-            int remaining = targetMaxResults - fetched.Count;
-            if (remaining <= 0) break;
+            Console.WriteLine($"[YouTubeSync] Routing: Single Video ID '{singleVideoId}'");
             
-            int pageSize = Math.Clamp(remaining, 1, 50);
-            string url;
-
-            // 3. Routing Endpoint: Liked Videos vs Playlist Standard
-            if (isLikedVideos)
-            {
-                // Menggunakan endpoint resmi YouTube untuk 'Liked Videos'
-                url = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults={pageSize}";
-            }
-            else
-            {
-                // Endpoint standar playlist
-                url = $"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={Uri.EscapeDataString(cleanPlaylistId)}&maxResults={pageSize}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(pageToken))
-                url += $"&pageToken={Uri.EscapeDataString(pageToken)}";
-
-            Console.WriteLine($"[YouTubeSync] Fetching API: {url}");
-
-            using var response = await http.GetAsync(url);
+            string videoUrl = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={singleVideoId}";
+            using var response = await http.GetAsync(videoUrl);
             string body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"[YouTubeSync Error] Code: {(int)response.StatusCode} | Body: {body}");
                 throw new InvalidOperationException($"YouTube API error ({(int)response.StatusCode}): {body}");
-            }
 
-            if (isLikedVideos)
+            var parsed = JsonSerializer.Deserialize<VideosListResponse>(body, JsonOpts);
+            var item = parsed?.Items?.FirstOrDefault();
+
+            if (item != null && !string.IsNullOrEmpty(item.Id))
             {
+                fetched.Add((
+                    item.Id,
+                    item.Snippet?.Title ?? "Untitled",
+                    item.Snippet?.ChannelTitle ?? "Unknown Artist"
+                ));
+            }
+        }
+        // =========================================================================
+        // SKENARIO B: LIKED VIDEOS (LL / LM / liked)
+        // =========================================================================
+        else if (isLikedVideos)
+        {
+            Console.WriteLine("[YouTubeSync] Routing: Liked Videos");
+            string? pageToken = null;
+            int targetMaxResults = Math.Clamp(maxResults, 1, 500);
+
+            do
+            {
+                int pageSize = Math.Clamp(targetMaxResults - fetched.Count, 1, 50);
+                string url = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults={pageSize}";
+                if (!string.IsNullOrWhiteSpace(pageToken)) url += $"&pageToken={pageToken}";
+
+                using var response = await http.GetAsync(url);
+                string body = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new InvalidOperationException($"YouTube API error ({(int)response.StatusCode}): {body}");
+
                 var parsed = JsonSerializer.Deserialize<VideosListResponse>(body, JsonOpts);
                 if (parsed?.Items == null || parsed.Items.Count == 0) break;
 
                 foreach (var item in parsed.Items)
                 {
                     if (string.IsNullOrWhiteSpace(item.Id)) continue;
-
-                    fetched.Add((
-                        item.Id,
-                        item.Snippet?.Title ?? "Untitled",
-                        item.Snippet?.ChannelTitle ?? "Unknown Artist"
-                    ));
+                    fetched.Add((item.Id, item.Snippet?.Title ?? "Untitled", item.Snippet?.ChannelTitle ?? "Unknown Artist"));
                 }
+
                 pageToken = parsed.NextPageToken;
             }
-            else
+            while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
+        }
+        // =========================================================================
+        // SKENARIO C: PLAYLIST STANDARD (PL...)
+        // =========================================================================
+        else
+        {
+            Console.WriteLine($"[YouTubeSync] Routing: Playlist ID '{cleanPlaylistId}'");
+            string? pageToken = null;
+            int targetMaxResults = Math.Clamp(maxResults, 1, 500);
+
+            do
             {
+                int pageSize = Math.Clamp(targetMaxResults - fetched.Count, 1, 50);
+                string url = $"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={Uri.EscapeDataString(cleanPlaylistId)}&maxResults={pageSize}";
+                if (!string.IsNullOrWhiteSpace(pageToken)) url += $"&pageToken={pageToken}";
+
+                using var response = await http.GetAsync(url);
+                string body = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new InvalidOperationException($"YouTube API error ({(int)response.StatusCode}): {body}");
+
                 var parsed = JsonSerializer.Deserialize<PlaylistItemsResponse>(body, JsonOpts);
                 if (parsed?.Items == null || parsed.Items.Count == 0) break;
 
                 foreach (var item in parsed.Items)
                 {
-                    var videoId = item.Snippet?.ResourceId?.VideoId;
-                    if (string.IsNullOrWhiteSpace(videoId)) continue;
+                    var vId = item.Snippet?.ResourceId?.VideoId;
+                    if (string.IsNullOrWhiteSpace(vId)) continue;
 
                     fetched.Add((
-                        videoId,
+                        vId,
                         item.Snippet?.Title ?? "Untitled",
                         item.Snippet?.VideoOwnerChannelTitle ?? item.Snippet?.ChannelTitle ?? "Unknown Artist"
                     ));
                 }
+
                 pageToken = parsed.NextPageToken;
             }
+            while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
         }
-        while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
 
         if (fetched.Count == 0) return 0;
 
-        // 4. Batch Database Insert (Mencegah Query N+1 & Duplikasi)
+        // 2. Simpan Ke Database (Pencegahan Duplikasi)
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         
         var fetchedVideoIds = fetched.Select(f => f.VideoId).Distinct().ToList();
-        
         var existingVideoIds = await context.SongsRaw
             .Where(r => fetchedVideoIds.Contains(r.YoutubeVideoId!))
             .Select(r => r.YoutubeVideoId!)
@@ -168,28 +193,40 @@ public class YouTubeSyncService : IYouTubeSyncService
         return await context.SongsComplete.CountAsync();
     }
 
+    /// <summary>
+    /// Ekstrak ID Video jika input berupa URL YouTube Music / YouTube / ID Video 11 karakter
+    /// </summary>
+    private static string? ExtractSingleVideoId(string input)
+    {
+        // Parameter v= di URL (misal: music.youtube.com/watch?v=AWggPLXeOkU&si=...)
+        var matchUrl = Regex.Match(input, @"[?&]v=([^&]+)", RegexOptions.IgnoreCase);
+        if (matchUrl.Success) return matchUrl.Groups[1].Value.Trim();
+
+        // Short link (youtu.be/AWggPLXeOkU)
+        var matchShort = Regex.Match(input, @"youtu\.be/([^?&]+)", RegexOptions.IgnoreCase);
+        if (matchShort.Success) return matchShort.Groups[1].Value.Trim();
+
+        // Jika user langsung memasukkan ID video 11 karakter (misal: AWggPLXeOkU)
+        if (Regex.IsMatch(input, @"^[a-zA-Z0-9_-]{11}$")) return input;
+
+        return null;
+    }
+
     private static string ExtractPlaylistId(string input)
     {
-        input = input.Trim();
-
-        // Ambil nilai parameter list= jika berupa URL
         if (input.Contains("list=", StringComparison.OrdinalIgnoreCase))
         {
             var match = Regex.Match(input, @"[?&]list=([^&]+)", RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                return match.Groups[1].Value.Trim();
-            }
+            if (match.Success) return match.Groups[1].Value.Trim();
         }
-
         return input;
     }
 
-    private static bool IsLikedVideosQuery(string playlistId)
+    private static bool IsLikedVideosQuery(string input)
     {
-        return playlistId.Equals("LL", StringComparison.OrdinalIgnoreCase) ||
-               playlistId.Equals("LM", StringComparison.OrdinalIgnoreCase) ||
-               playlistId.Equals("liked", StringComparison.OrdinalIgnoreCase);
+        return input.Equals("LL", StringComparison.OrdinalIgnoreCase) ||
+               input.Equals("LM", StringComparison.OrdinalIgnoreCase) ||
+               input.Equals("liked", StringComparison.OrdinalIgnoreCase);
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -197,7 +234,6 @@ public class YouTubeSyncService : IYouTubeSyncService
         PropertyNameCaseInsensitive = true
     };
 
-    // DTO untuk Endpoint PlaylistItems
     private class PlaylistItemsResponse
     {
         [JsonPropertyName("nextPageToken")]
@@ -213,7 +249,6 @@ public class YouTubeSyncService : IYouTubeSyncService
         public SnippetDto? Snippet { get; set; }
     }
 
-    // DTO untuk Endpoint Videos (Liked Videos)
     private class VideosListResponse
     {
         [JsonPropertyName("nextPageToken")]
