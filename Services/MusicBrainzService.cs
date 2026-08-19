@@ -17,7 +17,6 @@ public class MusicBrainzService : IMusicBrainzService
         _http = http;
         _logger = logger;
 
-        // MusicBrainz WAJIB menyertakan User-Agent yang valid (App/Version contact-info)
         if (!_http.DefaultRequestHeaders.Contains("User-Agent"))
         {
             _http.DefaultRequestHeaders.Add("User-Agent", "HypenVaultEngine/2.1.0 ( https://github.com/hypen-vault )");
@@ -33,7 +32,6 @@ public class MusicBrainzService : IMusicBrainzService
             string cleanArtist = CleanSearchQuery(artist);
             string cleanTitle = CleanSearchQuery(title);
 
-            // Buat query pencarian khusus Lucene syntax MusicBrainz
             string luceneQuery = $"recording:\"{cleanTitle}\" AND artist:\"{cleanArtist}\"";
             string url = $"https://musicbrainz.org/ws/2/recording/?query={Uri.EscapeDataString(luceneQuery)}&fmt=json&limit=1";
 
@@ -44,17 +42,16 @@ public class MusicBrainzService : IMusicBrainzService
                 return null;
             }
 
-            var json = await response.ContentReadFromJsonAsync<JsonElement>();
+            // PERBAIKAN: Gunakan response.Content.ReadFromJsonAsync
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (!json.TryGetProperty("recordings", out var recordings) || recordings.GetArrayLength() == 0)
             {
-                // Fallback: Coba pencarian teks bebas jika Lucene strict query tidak menemukan hasil
                 return await SearchFallbackAsync($"{cleanArtist} {cleanTitle}");
             }
 
             var first = recordings[0];
             var result = ParseRecordingJson(first);
 
-            // Jika menemukan Release MBID, coba tarik Cover Art dari Cover Art Archive
             if (!string.IsNullOrEmpty(result.ReleaseMbid))
             {
                 result.CoverArtUrl = await GetCoverArtUrlAsync(result.ReleaseMbid);
@@ -77,18 +74,17 @@ public class MusicBrainzService : IMusicBrainzService
 
         try
         {
-            // Tembak Cover Art Archive Index API
             string url = $"https://coverartarchive.org/release/{releaseMbid}";
             var response = await _http.GetAsync(url);
 
             if (!response.IsSuccessStatusCode) return null;
 
-            var json = await response.ContentReadFromJsonAsync<JsonElement>();
+            // PERBAIKAN: Gunakan response.Content.ReadFromJsonAsync
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (json.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
             {
                 var firstImage = images[0];
 
-                // Prioritaskan ukuran 500px/large thumbnail
                 if (firstImage.TryGetProperty("thumbnails", out var thumbnails) && 
                     thumbnails.TryGetProperty("500", out var thumb500))
                 {
@@ -143,7 +139,6 @@ public class MusicBrainzService : IMusicBrainzService
         if (element.TryGetProperty("title", out var titleProp))
             result.Title = titleProp.GetString() ?? "";
 
-        // Extrak Artis
         if (element.TryGetProperty("artist-credit", out var artists) && artists.GetArrayLength() > 0)
         {
             if (artists[0].TryGetProperty("name", out var artistNameProp))
@@ -152,7 +147,6 @@ public class MusicBrainzService : IMusicBrainzService
             }
         }
 
-        // Extrak Release (Album) & Year
         if (element.TryGetProperty("releases", out var releases) && releases.GetArrayLength() > 0)
         {
             var firstRelease = releases[0];
@@ -187,7 +181,6 @@ public class MusicBrainzService : IMusicBrainzService
                     .Trim();
     }
 
-    // Memastikan pemanggilan API mematuhi Rate Limit MusicBrainz (Batas 1 Request / Detik)
     private static async Task EnforceRateLimitAsync()
     {
         await _rateLimiter.WaitAsync();
