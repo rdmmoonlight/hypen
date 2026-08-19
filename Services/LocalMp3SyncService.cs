@@ -25,7 +25,7 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 1. TAHAP PERTAMA: EXTRACTION LOKAL (STREAM / ID3 TAG & FILENAME WRAPPING)
+    // 1. EXTRACTION LOKAL (STREAM / ID3 TAG & FILENAME WRAPPING)
     // =========================================================================
     public async Task<LocalMp3ExtractModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
     {
@@ -44,6 +44,7 @@ public class LocalMp3SyncService
             string tagTitle = tFile.Tag.Title?.Trim() ?? "";
             string tagAlbum = tFile.Tag.Album?.Trim() ?? "";
             uint tagYear = tFile.Tag.Year;
+            int durationSeconds = (int)tFile.Properties.Duration.TotalSeconds;
 
             // Fallback parsing nama file jika tag ID3 kosong
             var fileFallback = ExtractMetadataFromFileName(originalFileName);
@@ -72,7 +73,8 @@ public class LocalMp3SyncService
                 Album = album,
                 ReleaseYear = year,
                 Country = "Unknown",
-                AlbumCoverUrl = embeddedCoverBase64
+                AlbumCoverUrl = embeddedCoverBase64,
+                DurationSeconds = durationSeconds > 0 ? durationSeconds : null
             };
         }
         catch
@@ -89,7 +91,6 @@ public class LocalMp3SyncService
         }
     }
 
-    // Fallback Parser dari String Nama File
     public LocalMp3ExtractModel ExtractMetadataFromFileName(string fileName)
     {
         string cleanName = Regex.Replace(fileName, @"(?i)\.mp3$", "").Trim();
@@ -118,7 +119,7 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 2. STAGING INGESTION: Simpan data mentah ke `songs_raw` via ORM
+    // 2. STAGING INGESTION: Simpan seluruh atribut mentah ke `songs_raw`
     // =========================================================================
     public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items)
     {
@@ -126,14 +127,12 @@ public class LocalMp3SyncService
         if (selectedItems.Count == 0) return 0;
 
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-
         int insertedCount = 0;
 
         foreach (var item in selectedItems)
         {
             string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
 
-            // Cek pencegahan duplikasi ID unik via ORM
             bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == fakeYtId);
             if (exists) continue;
 
@@ -142,8 +141,12 @@ public class LocalMp3SyncService
                 YoutubeVideoId = fakeYtId,
                 Title = item.CleanTitle,
                 Artist = item.CleanArtist,
+                Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album,
+                ReleaseYear = item.ReleaseYear,
                 Country = string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country,
+                AlbumCoverUrl = item.AlbumCoverUrl,
                 AudioUrl = $"/downloads/{item.FileName}",
+                DurationSeconds = item.DurationSeconds,
                 Status = "PENDING"
             };
 
@@ -160,17 +163,22 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 3. HYBRID SMART INTERNET MATCHING (ITUNES ➔ MUSICBRAINZ FALLBACK)
+    // 3. HYBRID SMART MATCHING (ITUNES + MUSICBRAINZ DEDICATED COUNTRY FETCH)
     // =========================================================================
     public async Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
     {
-        // TAHAP 1: Coba iTunes API (Fast & High-Res Artwork)
+        // 1. Ekstrak Metadata dari iTunes API (Artwork & Album)
         bool iTunesSuccess = await TryMatchiTunesAsync(item);
 
-        // TAHAP 2: Jika iTunes gagal/kosong, Fallback ke MusicBrainz API & Cover Art Archive
+        // 2. Jika iTunes gagal total, fallback pencarian penuh ke MusicBrainz
         if (!iTunesSuccess)
         {
             await TryMatchMusicBrainzAsync(item);
+        }
+        else if (string.IsNullOrWhiteSpace(item.Country) || item.Country == "Unknown")
+        {
+            // 3. iTunes Berhasil tetapi tidak punya data Country -> Lakukan pencarian khusus Country ke MusicBrainz
+            await FetchCountryFromMusicBrainzAsync(item);
         }
     }
 
@@ -211,12 +219,17 @@ public class LocalMp3SyncService
                     item.AlbumCoverUrl = artProp.GetString()?.Replace("100x100bb", "600x600bb") ?? item.AlbumCoverUrl;
                 }
 
+                if (first.TryGetProperty("trackTimeMillis", out var timeProp))
+                {
+                    item.DurationSeconds = (int)(timeProp.GetInt64() / 1000);
+                }
+
                 return true;
             }
         }
         catch
         {
-            // Silent fail & teruskan ke MusicBrainz
+            // Silent fail & lanjutkan ke provider berikutnya
         }
 
         return false;
@@ -252,7 +265,27 @@ public class LocalMp3SyncService
         }
         catch
         {
-            // Silent fail: Jika kedua API gagal, tetap pertahankan metadata wrapping mentah
+            // Silent fail
+        }
+    }
+
+    private async Task FetchCountryFromMusicBrainzAsync(LocalMp3ExtractModel item)
+    {
+        try
+        {
+            var mbResult = await _musicBrainzService.SearchRecordingAsync(item.CleanArtist, item.CleanTitle);
+            if (mbResult != null && !string.IsNullOrWhiteSpace(mbResult.Country))
+            {
+                item.Country = mbResult.Country;
+                if (string.IsNullOrWhiteSpace(item.MusicBrainzId))
+                {
+                    item.MusicBrainzId = mbResult.RecordingMbid;
+                }
+            }
+        }
+        catch
+        {
+            // Silent fail
         }
     }
 
@@ -264,7 +297,7 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 4. PROMOTION TAHAP AKHIR: Pindahkan dari `songs_raw` ke `songs_complete` via ORM
+    // 4. PROMOTION TAHAP AKHIR: Pindahkan dari `songs_raw` ke `songs_complete`
     // =========================================================================
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
@@ -273,14 +306,12 @@ public class LocalMp3SyncService
 
         try
         {
-            // 1. Ambil data asal dari songs_raw via ORM
             var rawItem = await context.SongsRaw.FindAsync(rawId);
             if (rawItem == null) return false;
 
             string ytId = rawItem.YoutubeVideoId ?? "";
             string audioUrl = rawItem.AudioUrl ?? "";
 
-            // 2. ORM Upsert Check ke songs_complete (CloudSongModel)
             var existingComplete = await context.SongsComplete
                 .FirstOrDefaultAsync(c => c.YoutubeVideoId == ytId);
 
@@ -295,6 +326,11 @@ public class LocalMp3SyncService
                 existingComplete.ReleaseYear = validatedData.ReleaseYear;
                 existingComplete.Country = countryName;
                 existingComplete.AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "";
+                existingComplete.DurationSeconds = validatedData.DurationSeconds ?? existingComplete.DurationSeconds;
+                if (!string.IsNullOrWhiteSpace(validatedData.MusicBrainzId))
+                {
+                    existingComplete.MusicBrainzId = validatedData.MusicBrainzId;
+                }
             }
             else
             {
@@ -302,6 +338,7 @@ public class LocalMp3SyncService
                 {
                     RawId = rawId,
                     YoutubeVideoId = ytId,
+                    MusicBrainzId = validatedData.MusicBrainzId,
                     Title = validatedData.CleanTitle,
                     Artist = validatedData.CleanArtist,
                     Album = albumName,
@@ -309,13 +346,14 @@ public class LocalMp3SyncService
                     Country = countryName,
                     AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "",
                     AudioUrl = audioUrl,
+                    DurationSeconds = validatedData.DurationSeconds ?? 0,
                     IsDownloaded = true
                 };
 
                 await context.SongsComplete.AddAsync(newComplete);
             }
 
-            // 3. Update status di songs_raw via Tracking Entity EF Core
+            // Update status di songs_raw
             rawItem.Status = "PROCESSED";
 
             await context.SaveChangesAsync();
