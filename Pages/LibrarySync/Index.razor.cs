@@ -30,7 +30,7 @@ public partial class Index : ComponentBase
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllLocalSelected = true;
 
-    // TAB 2: STAGING STATE (SONGS_RAW -> READY FOR COMPLETE)
+    // TAB 2: STAGING STATE (SONGS_RAW -> EDIT/MATCH -> COMPLETE)
     protected List<RawSongModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
@@ -43,7 +43,6 @@ public partial class Index : ComponentBase
 
     protected async Task SwitchTab(string tab)
     {
-        // Membatasi pilihan tab hanya pada 2 state
         activeTab = tab == "staging" ? "staging" : "ingest";
         statusMsg = "";
 
@@ -98,7 +97,6 @@ public partial class Index : ComponentBase
                 scanned++;
                 UpdateStatus($"[{scanned}/{files.Count}] Mengurai metadata dari: '{file.Name}'...");
 
-                // Batas file size 50 MB per MP3
                 await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50);
                 
                 var model = await LocalSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
@@ -147,7 +145,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // TAB 2: STAGING (REVIEW, SMART MATCH & DIRECT UPLOAD TO COMPLETE TABLE)
+    // TAB 2: STAGING (1. SMART MATCH -> 2. EDIT -> 3. UPLOAD TO COMPLETE)
     // =========================================================================
 
     private async Task LoadStagingData()
@@ -167,26 +165,96 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected async Task PromoteSingleRawToComplete(RawSongModel raw)
+    // LANKAH 1: SMART MATCH (Mencari data internet tanpa langsung men-promote)
+    protected async Task SmartMatchSingleRaw(RawSongModel raw)
     {
         try
         {
             isProcessing = true;
-            UpdateStatus($"1. Memvalidasi metadata via iTunes API untuk: '{raw.Title}'...");
+            UpdateStatus($"Memulai Smart Match untuk: '{raw.Title}'...");
 
-            var modelToValidate = new LocalMp3ExtractModel
+            var modelToMatch = new LocalMp3ExtractModel
             {
                 CleanArtist = raw.Artist,
                 CleanTitle = raw.Title
             };
-            await LocalSyncService.SmartMatchFromInternetAsync(modelToValidate);
 
-            UpdateStatus($"2. Mengunggah '{modelToValidate.CleanTitle}' ke tabel utama (Complete Library)...");
-            
-            bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, modelToValidate);
+            await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
+
+            // Perbarui data lokal stagingList untuk ditinjau / diedit pengguna
+            raw.Artist = modelToMatch.CleanArtist;
+            raw.Title = modelToMatch.CleanTitle;
+
+            UpdateStatus($"Smart Match selesai untuk '{raw.Title}'. Silakan tinjau/edit sebelum upload.");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal Smart Match #{raw.Id}: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task SmartMatchAllPending()
+    {
+        if (stagingList.Count == 0) return;
+
+        try
+        {
+            isProcessing = true;
+            int count = 0;
+
+            foreach (var raw in stagingList)
+            {
+                count++;
+                UpdateStatus($"[{count}/{stagingList.Count}] Smart Match internet untuk: '{raw.Title}'...");
+
+                var modelToMatch = new LocalMp3ExtractModel
+                {
+                    CleanArtist = raw.Artist,
+                    CleanTitle = raw.Title
+                };
+
+                await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
+
+                raw.Artist = modelToMatch.CleanArtist;
+                raw.Title = modelToMatch.CleanTitle;
+            }
+
+            UpdateStatus($"Smart Match massal selesai. Anda dapat memeriksa dan mengedit data sebelum di-upload.");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal melakukan Smart Match Massal: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    // LANGKAH 3: UPLOAD KE COMPLETE TABLE (Memakai data yang telah diedit/diprof)
+    protected async Task UploadSingleRawToComplete(RawSongModel raw)
+    {
+        try
+        {
+            isProcessing = true;
+            UpdateStatus($"Mengunggah '{raw.Title}' oleh '{raw.Artist}' ke Complete Table...");
+
+            var validatedModel = new LocalMp3ExtractModel
+            {
+                CleanArtist = raw.Artist,
+                CleanTitle = raw.Title
+            };
+
+            bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, validatedModel);
             if (success)
             {
-                UpdateStatus($"Upload Berhasil! Data #{raw.Id} telah dipindahkan ke tabel Complete.");
+                UpdateStatus($"Berhasil Upload! Data #{raw.Id} resmi masuk ke Complete Library.");
             }
 
             await RefreshMetrics();
@@ -203,7 +271,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected async Task PromoteAllPendingToComplete()
+    protected async Task UploadAllToComplete()
     {
         if (stagingList.Count == 0) return;
 
@@ -215,15 +283,15 @@ public partial class Index : ComponentBase
             foreach (var item in stagingList.ToList())
             {
                 count++;
-                UpdateStatus($"[{count}/{stagingList.Count}] Validasi & Upload: '{item.Title}'...");
+                UpdateStatus($"[{count}/{stagingList.Count}] Mengunggah ke Complete: '{item.Title}'...");
 
-                var modelToValidate = new LocalMp3ExtractModel
+                var validatedModel = new LocalMp3ExtractModel
                 {
                     CleanArtist = item.Artist,
                     CleanTitle = item.Title
                 };
-                await LocalSyncService.SmartMatchFromInternetAsync(modelToValidate);
-                await LocalSyncService.PromoteRawToCompleteAsync(item.Id, modelToValidate);
+
+                await LocalSyncService.PromoteRawToCompleteAsync(item.Id, validatedModel);
             }
 
             UpdateStatus($"Selesai! Seluruh data Staging berhasil diunggah ke tabel Complete.");
