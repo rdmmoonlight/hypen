@@ -25,11 +25,19 @@
                 }
             </NavLink>
 
-            <NavLink href="library/sync" class="nav-item-nebula" title="Library Sync Engine">
+            <NavLink href="library/sync" class="nav-item-nebula" title="Library Extraction Engine">
                 <i class="bi bi-arrow-repeat fs-5"></i>
                 @if (isExpanded)
                 {
-                    <span class="nav-text animate-fade">Sync</span>
+                    <span class="nav-text animate-fade">Extraction Engine</span>
+                }
+            </NavLink>
+
+            <NavLink href="staging" class="nav-item-nebula" title="Staging Buffer Review">
+                <i class="bi bi-stack fs-5"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Staging Buffer</span>
                 }
             </NavLink>
 
