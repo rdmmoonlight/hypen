@@ -4,9 +4,6 @@ using Microsoft.JSInterop;
 
 namespace Hypen.Web.Services;
 
-// DTO untuk permintaan hapus masal dengan tipe long[]
-public record BatchDeleteRequest(long[] Ids);
-
 public class SongService(HttpClient http, IJSRuntime js) : ISongService
 {
     private readonly HttpClient _http = http;
@@ -42,6 +39,7 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
 
     public async Task<bool> DeleteBatchSongsAsync(long[] ids)
     {
+        // Menggunakan BatchDeleteRequest dari Hypen.Web.Models
         var response = await _http.PostAsJsonAsync("/api/songs/delete-batch", new BatchDeleteRequest(ids));
         return response.IsSuccessStatusCode;
     }
