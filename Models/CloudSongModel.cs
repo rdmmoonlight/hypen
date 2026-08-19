@@ -36,6 +36,7 @@ public class CloudSongModel
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = "Single";
     public int? ReleaseYear { get; set; }
+    public string Country { get; set; } = "Unknown"; // Penambahan Metadata Negara
     public string AlbumCoverUrl { get; set; } = string.Empty;
 
     // Backward Compatibility Alias untuk AlbumCoverUrl
@@ -63,13 +64,14 @@ public class CloudSongModel
     public bool IsSelected { get; set; }
 }
 
-// Model Penampung Data Mentah dari Tabel songs_raw (Penyelesaian Error CS0246)
+// Model Penampung Data Mentah dari Tabel songs_raw
 public class RawSongModel
 {
     public long Id { get; set; }
     public string YoutubeVideoId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
+    public string Country { get; set; } = "Unknown"; // Penambahan Metadata Negara (Raw)
     public string AudioUrl { get; set; } = string.Empty;
     public string Status { get; set; } = "PENDING";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
