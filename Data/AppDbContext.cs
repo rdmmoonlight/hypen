@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
 
     public DbSet<RawSongModel> SongsRaw { get; set; } = default!;
     public DbSet<CompleteSongModel> SongsComplete { get; set; } = default!;
+    public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -91,6 +92,27 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsDownloaded)
                 .HasColumnName("is_downloaded")
                 .HasDefaultValue(false);
+        });
+
+        // =========================================================================
+        // 3. MAPPING TABEL: youtube_oauth_tokens
+        // =========================================================================
+        modelBuilder.Entity<YouTubeOAuthTokenModel>(entity =>
+        {
+            entity.ToTable("youtube_oauth_tokens");
+
+            // Primary Key
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            // Mapping Kolom
+            entity.Property(e => e.RefreshToken)
+                .HasColumnName("refresh_token")
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .HasDefaultValueSql("NOW()");
         });
     }
 }
