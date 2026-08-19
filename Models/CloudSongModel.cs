@@ -7,75 +7,82 @@ public enum CloudProvider
     MusicBrainz
 }
 
+/// <summary>
+/// Model Master Library Utama (Tabel: songs_complete)
+/// </summary>
 public class CloudSongModel
 {
-    // Primary Key (BIGINT di PostgreSQL/Neon)
+    // Primary Key & Foreign Keys
     public long Id { get; set; }
     public long? RawId { get; set; }
     
-    // Identifikasi Source
-    public string YoutubeVideoId { get; set; } = string.Empty;
-    
-    // Backward Compatibility Alias untuk YoutubeVideoId
-    public string YoutubeId 
+    // External Identifiers
+    public string? YoutubeVideoId { get; set; }
+    public string? MusicBrainzId { get; set; }
+
+    // Header Atribut Utama (Sama Persis dengan RawSongModel)
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string? Album { get; set; } = "Single";
+    public int? ReleaseYear { get; set; }
+    public string? Country { get; set; } = "Unknown";
+    public string? AlbumCoverUrl { get; set; }
+    public string? AudioUrl { get; set; }
+    public int? DurationSeconds { get; set; }
+
+    // Status Master Library
+    public bool IsDownloaded { get; set; } = false;
+
+    // Backward Compatibility Aliases
+    public string? YoutubeId 
     { 
         get => YoutubeVideoId; 
         set => YoutubeVideoId = value; 
     }
 
-    // MusicBrainz Identifiers
-    public string MusicBrainzId { get; set; } = string.Empty; // Recording MBID
-    public string Mbid 
+    public string? Mbid 
     { 
         get => MusicBrainzId; 
         set => MusicBrainzId = value; 
     }
 
-    // Metadata Olahan Rapi (songs_complete)
-    public string Title { get; set; } = string.Empty;
-    public string Artist { get; set; } = string.Empty;
-    public string Album { get; set; } = "Single";
-    public int? ReleaseYear { get; set; }
-    public string Country { get; set; } = "Unknown"; // Metadata Negara
-    public string AlbumCoverUrl { get; set; } = string.Empty;
-
-    // Backward Compatibility Alias untuk AlbumCoverUrl
-    public string Cover 
+    public string? Cover 
     { 
         get => AlbumCoverUrl; 
         set => AlbumCoverUrl = value; 
     }
 
-    // Vault & Stream State
-    public string AudioUrl { get; set; } = string.Empty;
-    
-    private string _streamUrl = string.Empty;
-    public string StreamUrl 
+    private string? _streamUrl;
+    public string? StreamUrl 
     { 
         get => string.IsNullOrEmpty(_streamUrl) ? AudioUrl : _streamUrl; 
         set => _streamUrl = value; 
     }
 
-    public bool IsDownloaded { get; set; }
-    public int DurationSeconds { get; set; }
+    // UI Local State & Provider Info
     public CloudProvider Provider { get; set; } = CloudProvider.YouTube;
-
-    // UI Local State
     public bool IsSelected { get; set; }
 }
 
 /// <summary>
-/// Model Penampung Data Mentah dari Tabel songs_raw.
-/// Menggunakan `RawSongModel` & properti `Title` sesuai dengan struktur riil repository.
+/// Model Penampung Data Mentah Staging (Tabel: songs_raw)
 /// </summary>
 public class RawSongModel
 {
     public long Id { get; set; }
-    public string YoutubeVideoId { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty; // Non-nullable + default value (Lapis 1 & 2 Aman)
+    
+    // Header Atribut Utama (Sama Persis dengan CloudSongModel)
+    public string? YoutubeVideoId { get; set; }
+    public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
-    public string Country { get; set; } = "Unknown";
-    public string AudioUrl { get; set; } = string.Empty;
+    public string? Album { get; set; } = "Single";
+    public int? ReleaseYear { get; set; }
+    public string? Country { get; set; } = "Unknown";
+    public string? AlbumCoverUrl { get; set; }
+    public string? AudioUrl { get; set; }
+    public int? DurationSeconds { get; set; }
+
+    // Pipeline State
     public string Status { get; set; } = "PENDING";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
