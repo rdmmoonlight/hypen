@@ -1,6 +1,7 @@
 using System.Text.Json;
-using Microsoft.Extensions.Http;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
+using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
@@ -8,33 +9,46 @@ namespace Hypen.Web.Services;
 // seperti "Liked Videos" / LL, yang tidak bisa diakses hanya dengan API Key).
 public class YouTubeOAuthService
 {
-    private readonly string _dbConnectionString;
     private readonly string _clientId;
     private readonly string _clientSecret;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
-    public YouTubeOAuthService(string dbConnectionString, string clientId, string clientSecret, IHttpClientFactory httpClientFactory)
+    public YouTubeOAuthService(
+        string clientId, 
+        string clientSecret, 
+        IHttpClientFactory httpClientFactory,
+        IDbContextFactory<AppDbContext> dbContextFactory)
     {
-        _dbConnectionString = dbConnectionString;
         _clientId = clientId;
         _clientSecret = clientSecret;
         _httpClientFactory = httpClientFactory;
+        _dbContextFactory = dbContextFactory;
     }
 
     public async Task SaveRefreshTokenAsync(string refreshToken)
     {
-        await using var conn = new NpgsqlConnection(_dbConnectionString);
-        await conn.OpenAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        const string sql = """
-            INSERT INTO youtube_oauth_tokens (id, refresh_token, updated_at)
-            VALUES (1, @token, NOW())
-            ON CONFLICT (id) DO UPDATE SET refresh_token = EXCLUDED.refresh_token, updated_at = NOW();
-            """;
+        var existingToken = await context.YouTubeOAuthTokens.FindAsync(1);
 
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("token", refreshToken);
-        await cmd.ExecuteNonQueryAsync();
+        if (existingToken != null)
+        {
+            existingToken.RefreshToken = refreshToken;
+            existingToken.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            var newToken = new YouTubeOAuthTokenModel
+            {
+                Id = 1,
+                RefreshToken = refreshToken,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await context.YouTubeOAuthTokens.AddAsync(newToken);
+        }
+
+        await context.SaveChangesAsync();
     }
 
     // Menukar authorization code (dari redirect callback Google) menjadi refresh token.
@@ -62,13 +76,12 @@ public class YouTubeOAuthService
 
     public async Task<string?> GetStoredRefreshTokenAsync()
     {
-        await using var conn = new NpgsqlConnection(_dbConnectionString);
-        await conn.OpenAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var tokenRecord = await context.YouTubeOAuthTokens
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == 1);
 
-        const string sql = "SELECT refresh_token FROM youtube_oauth_tokens WHERE id = 1;";
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        var result = await cmd.ExecuteScalarAsync();
-        return result as string;
+        return tokenRecord?.RefreshToken;
     }
 
     // Menukar refresh token tersimpan menjadi access token baru (access token berumur pendek, ~1 jam)
