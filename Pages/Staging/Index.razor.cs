@@ -4,7 +4,7 @@ using Hypen.Web.Services;
 
 namespace Hypen.Web.Pages.Staging;
 
-public partial class Staging : ComponentBase
+public partial class Index : ComponentBase
 {
     [Inject]
     protected ISongProcessorService ProcessorService { get; set; } = default!;
@@ -67,8 +67,8 @@ public partial class Staging : ComponentBase
 
             await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
 
-            raw.Artist = modelToMatch.CleanArtist;
-            raw.Title = modelToMatch.CleanTitle;
+            raw.Artist = modelToMatch.CleanArtist ?? string.Empty;
+            raw.Title = modelToMatch.CleanTitle ?? string.Empty;
             if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
             if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
             if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
@@ -108,8 +108,8 @@ public partial class Staging : ComponentBase
 
                 await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
 
-                raw.Artist = modelToMatch.CleanArtist;
-                raw.Title = modelToMatch.CleanTitle;
+                raw.Artist = modelToMatch.CleanArtist ?? string.Empty;
+                raw.Title = modelToMatch.CleanTitle ?? string.Empty;
                 if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
                 if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
                 if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
