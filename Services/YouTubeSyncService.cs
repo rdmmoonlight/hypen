@@ -1,28 +1,29 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Http;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
+using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
 public class YouTubeSyncService : IYouTubeSyncService
 {
-    private readonly string _dbConnectionString;
     private readonly YouTubeOAuthService _oauthService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
-    public YouTubeSyncService(string dbConnectionString, YouTubeOAuthService oauthService, IHttpClientFactory httpClientFactory)
+    public YouTubeSyncService(
+        YouTubeOAuthService oauthService, 
+        IHttpClientFactory httpClientFactory,
+        IDbContextFactory<AppDbContext> dbContextFactory)
     {
-        _dbConnectionString = dbConnectionString;
         _oauthService = oauthService;
         _httpClientFactory = httpClientFactory;
+        _dbContextFactory = dbContextFactory;
     }
 
     public async Task<int> SyncPlaylistToRawAsync(string playlistId, int maxResults)
     {
-        if (string.IsNullOrWhiteSpace(_dbConnectionString))
-            throw new InvalidOperationException("Koneksi database (NEON_DB_CONNECTION) belum diset.");
-
         // "LL" (Liked Videos) hanya bisa diakses via OAuth milik akun pemiliknya, bukan API Key publik.
         string accessToken = await _oauthService.GetFreshAccessTokenAsync();
 
@@ -70,30 +71,36 @@ public class YouTubeSyncService : IYouTubeSyncService
 
         if (fetched.Count == 0) return 0;
 
-        await using var conn = new NpgsqlConnection(_dbConnectionString);
-        await conn.OpenAsync();
-
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
         int insertedCount = 0;
+
         foreach (var song in fetched)
         {
-            // Thumbnail HQ standar YouTube — tidak perlu field terpisah dari API.
+            // Cek duplikasi via ORM
+            bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == song.VideoId);
+            if (exists) continue;
+
             string thumbnailUrl = $"https://i.ytimg.com/vi/{song.VideoId}/hqdefault.jpg";
 
-            const string sql = """
-                INSERT INTO songs_raw (youtube_video_id, raw_title, raw_channel_title, raw_thumbnail_url, playlist_id, sync_status)
-                VALUES (@vid, @title, @channel, @thumb, @playlist, 'PENDING')
-                ON CONFLICT (youtube_video_id) DO NOTHING;
-                """;
+            var rawEntity = new RawSongModel
+            {
+                YoutubeVideoId = song.VideoId,
+                RawTitle = song.Title,
+                Title = song.Title,
+                RawChannelTitle = song.ChannelTitle,
+                Artist = song.ChannelTitle,
+                RawThumbnailUrl = thumbnailUrl,
+                SyncStatus = "PENDING",
+                Status = "PENDING"
+            };
 
-            await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("vid", song.VideoId);
-            cmd.Parameters.AddWithValue("title", song.Title);
-            cmd.Parameters.AddWithValue("channel", (object?)song.ChannelTitle ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("thumb", thumbnailUrl);
-            cmd.Parameters.AddWithValue("playlist", playlistId);
+            await context.SongsRaw.AddAsync(rawEntity);
+            insertedCount++;
+        }
 
-            int affected = await cmd.ExecuteNonQueryAsync();
-            if (affected > 0) insertedCount++;
+        if (insertedCount > 0)
+        {
+            await context.SaveChangesAsync();
         }
 
         return insertedCount;
@@ -101,28 +108,15 @@ public class YouTubeSyncService : IYouTubeSyncService
 
     public async Task<int> GetPendingRawCountAsync()
     {
-        if (string.IsNullOrWhiteSpace(_dbConnectionString)) return 0;
-
-        await using var conn = new NpgsqlConnection(_dbConnectionString);
-        await conn.OpenAsync();
-
-        const string sql = "SELECT COUNT(*) FROM songs_raw WHERE sync_status = 'PENDING';";
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        var result = await cmd.ExecuteScalarAsync();
-        return Convert.ToInt32(result);
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.SongsRaw
+            .CountAsync(s => s.SyncStatus == "PENDING" || s.Status == "PENDING");
     }
 
     public async Task<int> GetCompletedCountAsync()
     {
-        if (string.IsNullOrWhiteSpace(_dbConnectionString)) return 0;
-
-        await using var conn = new NpgsqlConnection(_dbConnectionString);
-        await conn.OpenAsync();
-
-        const string sql = "SELECT COUNT(*) FROM songs_complete;";
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        var result = await cmd.ExecuteScalarAsync();
-        return Convert.ToInt32(result);
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.SongsComplete.CountAsync();
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
