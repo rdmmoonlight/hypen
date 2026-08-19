@@ -43,8 +43,7 @@ builder.Services.AddScoped(sp =>
 // Registrasi Standard HttpClient untuk External API Call (iTunes / YouTube Metadata)
 builder.Services.AddHttpClient();
 
-// Konfigurasi dari environment variable (dibaca di sini, sebelum service diregistrasi,
-// supaya bisa disuntikkan lewat factory lambda ke service yang butuh)
+// Konfigurasi dari environment variable
 string dbConnectionStringConfig = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
 string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_ID") ?? "";
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
@@ -69,6 +68,9 @@ builder.Services.AddScoped<IYouTubeSyncService>(sp => new YouTubeSyncService(
 builder.Services.AddScoped<ISongProcessorService>(sp => new SongProcessorService(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
     dbConnectionStringConfig));
+
+// REGISTRASI LOCAL MP3 SYNC SERVICE (Penyelesaian Error 500)
+builder.Services.AddScoped<LocalMp3SyncService>();
 
 // 2. Build Pipeline & Middleware
 var app = builder.Build();
