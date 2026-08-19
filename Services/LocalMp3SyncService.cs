@@ -10,11 +10,13 @@ namespace Hypen.Web.Services;
 public class LocalMp3SyncService
 {
     private readonly HttpClient _http;
+    private readonly IMusicBrainzService _musicBrainzService;
     private readonly string _connectionString;
 
-    public LocalMp3SyncService(HttpClient http, IConfiguration config)
+    public LocalMp3SyncService(HttpClient http, IMusicBrainzService musicBrainzService, IConfiguration config)
     {
         _http = http;
+        _musicBrainzService = musicBrainzService;
         _connectionString = config.GetConnectionString("NEON_DB_CONNECTION") 
             ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
     }
@@ -147,9 +149,21 @@ public class LocalMp3SyncService
     }
 
     // =========================================================================
-    // 3. TAHAP SMART INTERNET MATCHING (ITUNES METADATA ENRICHMENT)
+    // 3. HYBRID SMART INTERNET MATCHING (ITUNES ➔ MUSICBRAINZ FALLBACK)
     // =========================================================================
     public async Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
+    {
+        // TAHAP 1: Coba iTunes API (Fast & High-Res Artwork)
+        bool iTunesSuccess = await TryMatchiTunesAsync(item);
+
+        // TAHAP 2: Jika iTunes gagal/kosong, Fallback ke MusicBrainz API & Cover Art Archive
+        if (!iTunesSuccess)
+        {
+            await TryMatchMusicBrainzAsync(item);
+        }
+    }
+
+    private async Task<bool> TryMatchiTunesAsync(LocalMp3ExtractModel item)
     {
         try
         {
@@ -185,11 +199,46 @@ public class LocalMp3SyncService
                 {
                     item.AlbumCoverUrl = artProp.GetString()?.Replace("100x100bb", "600x600bb") ?? item.AlbumCoverUrl;
                 }
+
+                return true;
             }
         }
         catch
         {
-            // Fail silent jika offline / API limit
+            // Silent fail & teruskan ke MusicBrainz
+        }
+
+        return false;
+    }
+
+    private async Task TryMatchMusicBrainzAsync(LocalMp3ExtractModel item)
+    {
+        try
+        {
+            var mbResult = await _musicBrainzService.SearchRecordingAsync(item.CleanArtist, item.CleanTitle);
+            if (mbResult != null)
+            {
+                if (!string.IsNullOrWhiteSpace(mbResult.Artist))
+                    item.CleanArtist = mbResult.Artist;
+
+                if (!string.IsNullOrWhiteSpace(mbResult.Title))
+                    item.CleanTitle = mbResult.Title;
+
+                if (!string.IsNullOrWhiteSpace(mbResult.Album))
+                    item.Album = mbResult.Album;
+
+                if (mbResult.ReleaseYear.HasValue)
+                    item.ReleaseYear = mbResult.ReleaseYear;
+
+                if (!string.IsNullOrWhiteSpace(mbResult.CoverArtUrl))
+                    item.AlbumCoverUrl = mbResult.CoverArtUrl;
+
+                item.MusicBrainzId = mbResult.RecordingMbid;
+            }
+        }
+        catch
+        {
+            // Silent fail: Jika kedua API gagal, tetap pertahankan metadata wrapping mentah
         }
     }
 
