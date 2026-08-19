@@ -11,6 +11,7 @@ public class LocalMp3ExtractModel
     public string CleanTitle { get; set; } = string.Empty;
     public string Album { get; set; } = "Single";
     public int? ReleaseYear { get; set; }
+    public string Country { get; set; } = "Unknown"; // Penambahan Metadata Negara
     public string AlbumCoverUrl { get; set; } = string.Empty;
 
     // MusicBrainz Identifiers
