@@ -18,36 +18,17 @@ public class SongProcessorService : ISongProcessorService
         _dbContextFactory = dbContextFactory;
     }
 
-    // =========================================================================
-    // 1. GET PENDING RAW (Tanpa SQL)
-    // =========================================================================
     public async Task<List<RawSongModel>> GetPendingRawAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        var pendingList = await context.SongsRaw
+        return await context.SongsRaw
             .AsNoTracking()
-            .Where(s => s.Status == "PENDING" || s.SyncStatus == "PENDING")
+            .Where(s => s.Status == "PENDING")
             .OrderByDescending(s => s.Id)
             .ToListAsync();
-
-        // Penanganan fallback nilai null/kosong via LINQ
-        foreach (var song in pendingList)
-        {
-            song.Title = string.IsNullOrWhiteSpace(song.Title) ? song.RawTitle ?? "" : song.Title;
-            song.Artist = string.IsNullOrWhiteSpace(song.Artist) ? song.RawChannelTitle ?? "" : song.Artist;
-            song.YoutubeVideoId ??= "";
-            song.AudioUrl ??= "";
-            song.Status = "PENDING";
-            song.CreatedAt = DateTime.UtcNow;
-        }
-
-        return pendingList;
     }
 
-    // =========================================================================
-    // 2. DELETE RAW (Tanpa SQL)
-    // =========================================================================
     public async Task<bool> DeleteRawAsync(long rawId)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
@@ -60,15 +41,12 @@ public class SongProcessorService : ISongProcessorService
         return affected > 0;
     }
 
-    // =========================================================================
-    // 3. PROCESS PENDING SONGS (Tanpa SQL)
-    // =========================================================================
     public async Task<int> ProcessPendingSongsAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
         var pendingList = await context.SongsRaw
-            .Where(s => s.SyncStatus == "PENDING" || s.Status == "PENDING")
+            .Where(s => s.Status == "PENDING")
             .OrderBy(s => s.Id)
             .Take(10)
             .ToListAsync();
@@ -79,14 +57,9 @@ public class SongProcessorService : ISongProcessorService
         {
             try
             {
-                string rawTitle = string.IsNullOrWhiteSpace(raw.RawTitle) ? raw.Title ?? "" : raw.RawTitle;
-                string rawChannel = string.IsNullOrWhiteSpace(raw.RawChannelTitle) ? raw.Artist ?? "" : raw.RawChannelTitle;
-
-                var (artist, title) = CleanTitle(rawTitle, rawChannel);
+                var (artist, title) = CleanTitle(raw.Title, raw.Artist);
                 var (album, year, itunesCover) = await FetchItunesMetadataAsync(artist, title);
-                string coverUrl = !string.IsNullOrWhiteSpace(itunesCover) ? itunesCover : (raw.RawThumbnailUrl ?? "");
 
-                // ORM Upsert Check
                 var existingSong = await context.SongsComplete
                     .FirstOrDefaultAsync(c => c.YoutubeVideoId == raw.YoutubeVideoId);
 
@@ -95,32 +68,30 @@ public class SongProcessorService : ISongProcessorService
                     existingSong.Title = title;
                     existingSong.Artist = artist;
                     existingSong.Album = album;
-                    existingSong.AlbumCoverUrl = coverUrl;
+                    existingSong.AlbumCoverUrl = itunesCover;
                     existingSong.ReleaseYear = year;
                 }
                 else
                 {
-                    context.SongsComplete.Add(new CompleteSongModel
+                    context.SongsComplete.Add(new CloudSongModel
                     {
                         RawId = raw.Id,
                         YoutubeVideoId = raw.YoutubeVideoId ?? "",
                         Title = title,
                         Artist = artist,
                         Album = album,
-                        AlbumCoverUrl = coverUrl,
-                        ReleaseYear = year
+                        AlbumCoverUrl = itunesCover,
+                        ReleaseYear = year,
+                        Country = raw.Country
                     });
                 }
 
-                raw.SyncStatus = "PROCESSED";
                 raw.Status = "PROCESSED";
-
                 await context.SaveChangesAsync();
                 processedCount++;
             }
             catch
             {
-                raw.SyncStatus = "FAILED";
                 raw.Status = "FAILED";
                 await context.SaveChangesAsync();
             }
