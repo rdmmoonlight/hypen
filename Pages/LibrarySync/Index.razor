@@ -9,7 +9,7 @@
         <div>
             <h1 style="font-size: 1.8rem; color: #fff; margin: 0 0 6px 0; font-weight: 700;">🔄 Hypen Staging Sync Engine</h1>
             <p style="font-size: 0.85rem; color: #a0a5aa; margin: 0;">
-                Pipeline ringkas: Ekstraksi → Staging RAW (Smart Match & Edit) → Upload ke Complete Table.
+                Pipeline ringkas: Ekstraksi → Staging RAW (Smart Match & Edit Semua Atribut) → Upload ke Complete Table.
             </p>
         </div>
         <a href="/library" style="text-decoration: none; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; transition: background 0.2s;">
@@ -129,14 +129,14 @@
     }
 
     <!-- ========================================================================= -->
-    <!-- TAB 2: STAGING REVIEW (MATCH -> EDIT -> UPLOAD TO COMPLETE) -->
+    <!-- TAB 2: STAGING REVIEW (MATCH -> EDIT SEMUA ATRIBUT -> UPLOAD TO COMPLETE) -->
     <!-- ========================================================================= -->
     @if (activeTab == "staging")
     {
         <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
                 <h3 style="color: #fff; font-size: 0.95rem; margin: 0 0 4px 0;">Buffer Staging RAW</h3>
-                <p style="font-size: 0.78rem; color: #a0a5aa; margin: 0;">Lakukan <b>Smart Match</b> untuk menarik metadata, lakukan <b>Edit</b> pada tabel jika diperlukan, lalu klik <b>Upload</b> untuk menerbitkan lagu.</p>
+                <p style="font-size: 0.78rem; color: #a0a5aa; margin: 0;">Jalankan <b>Smart Match</b> untuk autofill metadata, Anda dapat <b>mengedit seluruh kolom atribut</b> di bawah, lalu klik <b>Upload</b>.</p>
             </div>
             <div style="display: flex; gap: 8px;">
                 <button style="background: rgba(76, 201, 240, 0.2); color: #4cc9f0; border: 1px solid rgba(76, 201, 240, 0.4); font-weight: 600; padding: 8px 16px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" 
@@ -158,48 +158,87 @@
         }
         else
         {
-            <div style="background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+            <div style="background: rgba(255, 255, 255, 0.02); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.08); overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem; min-width: 1100px;">
                     <thead>
-                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #a0a5aa; font-size: 0.75rem; text-transform: uppercase;">
-                            <th style="padding: 10px; width: 60px;">ID RAW</th>
-                            <th style="padding: 10px;">Judul (Dapat Diedit)</th>
-                            <th style="padding: 10px;">Artis (Dapat Diedit)</th>
-                            <th style="padding: 10px; width: 120px;">Negara</th>
-                            <th style="padding: 10px; text-align: center; width: 260px;">Aksi Berurutan</th>
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #a0a5aa; font-size: 0.72rem; text-transform: uppercase;">
+                            <th style="padding: 10px; width: 50px;">Cover</th>
+                            <th style="padding: 10px; width: 180px;">Judul</th>
+                            <th style="padding: 10px; width: 150px;">Artis</th>
+                            <th style="padding: 10px; width: 140px;">Album</th>
+                            <th style="padding: 10px; width: 80px;">Tahun</th>
+                            <th style="padding: 10px; width: 90px;">Negara</th>
+                            <th style="padding: 10px; width: 70px;">Durasi(s)</th>
+                            <th style="padding: 10px; width: 180px;">Cover URL</th>
+                            <th style="padding: 10px; text-align: center; width: 170px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var row in stagingList)
                         {
                             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.03);">
-                                <td style="padding: 10px; color: #a0a5aa;">#@row.Id</td>
-                                <td style="padding: 10px;">
-                                    <input type="text" @bind="row.Title" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 95%;" />
+                                <!-- COVER THUMBNAIL PREVIEW -->
+                                <td style="padding: 8px; text-align: center;">
+                                    @if (!string.IsNullOrEmpty(row.AlbumCoverUrl))
+                                    {
+                                        <img src="@row.AlbumCoverUrl" alt="Cover" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px;" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: #a0a5aa;">No Cover</div>
+                                    }
                                 </td>
-                                <td style="padding: 10px;">
-                                    <input type="text" @bind="row.Artist" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 95%;" />
+
+                                <!-- EDITABLE TITLE -->
+                                <td style="padding: 8px;">
+                                    <input type="text" @bind="row.Title" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
                                 </td>
-                                <td style="padding: 10px;">
-                                    <input type="text" @bind="row.Country" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #4cc9f0; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; width: 80%;" />
+
+                                <!-- EDITABLE ARTIST -->
+                                <td style="padding: 8px;">
+                                    <input type="text" @bind="row.Artist" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
                                 </td>
-                                <td style="padding: 10px; text-align: center;">
+
+                                <!-- EDITABLE ALBUM -->
+                                <td style="padding: 8px;">
+                                    <input type="text" @bind="row.Album" placeholder="Single" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
+                                </td>
+
+                                <!-- EDITABLE RELEASE YEAR -->
+                                <td style="padding: 8px;">
+                                    <input type="number" @bind="row.ReleaseYear" placeholder="2024" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
+                                </td>
+
+                                <!-- EDITABLE COUNTRY -->
+                                <td style="padding: 8px;">
+                                    <input type="text" @bind="row.Country" placeholder="ID" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #4cc9f0; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
+                                </td>
+
+                                <!-- EDITABLE DURATION SECONDS -->
+                                <td style="padding: 8px;">
+                                    <input type="number" @bind="row.DurationSeconds" placeholder="0" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 6px; border-radius: 4px; font-size: 0.78rem; width: 100%;" />
+                                </td>
+
+                                <!-- EDITABLE ALBUM COVER URL -->
+                                <td style="padding: 8px;">
+                                    <input type="text" @bind="row.AlbumCoverUrl" placeholder="https://..." style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: #a0a5aa; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; width: 100%;" />
+                                </td>
+
+                                <!-- ACTION BUTTONS -->
+                                <td style="padding: 8px; text-align: center;">
                                     <div style="display: flex; gap: 4px; justify-content: center;">
-                                        <!-- TOMBOL 1: MATCH -->
                                         <button style="background: rgba(76, 201, 240, 0.2); color: #4cc9f0; border: 1px solid rgba(76, 201, 240, 0.4); padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" 
                                                 title="Cari metadata otomatis di Internet"
                                                 @onclick="() => SmartMatchSingleRaw(row)" disabled="@isProcessing">
                                             🔍 Match
                                         </button>
                                         
-                                        <!-- TOMBOL 2: UPLOAD -->
                                         <button style="background: #4cc9f0; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer;" 
                                                 title="Upload data hasil edit ke Complete Table"
                                                 @onclick="() => UploadSingleRawToComplete(row)" disabled="@isProcessing">
                                             🚀 Upload
                                         </button>
                                         
-                                        <!-- TOMBOL 3: UNDO/DELETE -->
                                         <button style="background: rgba(247, 37, 133, 0.2); color: #ff4d6d; border: 1px solid rgba(247, 37, 133, 0.3); padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" 
                                                 title="Hapus baris ini dari Staging"
                                                 @onclick="() => DeleteRawItem(row.Id)" disabled="@isProcessing">
