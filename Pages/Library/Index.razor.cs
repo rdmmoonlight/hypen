@@ -29,7 +29,8 @@ public partial class Index : ComponentBase
             ? songs
             : songs.Where(song =>
                 song.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,41 +60,7 @@ public partial class Index : ComponentBase
     }
 
     // ==========================================
-    // AKSI PLAYLIST
-    // ==========================================
-
-    protected void PlaySong(CloudSongModel song)
-    {
-        UpdateStatus($"Mengirim '{song.Title}' ke pemutar...");
-    }
-
-    protected void AddToQueue(CloudSongModel song)
-    {
-        UpdateStatus($"'{song.Title}' ditambahkan ke antrean putar.");
-    }
-
-    protected void PlayAll()
-    {
-        var listToPlay = FilteredSongs.ToList();
-        if (listToPlay.Count == 0) return;
-
-        UpdateStatus($"Memulai pemutaran {listToPlay.Count} lagu...");
-    }
-
-    protected void AddSelectedToQueue()
-    {
-        var selected = songs.Where(s => s.IsSelected).ToList();
-        if (selected.Count == 0)
-        {
-            UpdateStatus("Pilih minimal satu lagu untuk ditambahkan ke antrean.", true);
-            return;
-        }
-
-        UpdateStatus($"{selected.Count} lagu pilihan ditambahkan ke antrean putar.");
-    }
-
-    // ==========================================
-    // MANAJEMEN FILE & UI
+    // MANAJEMEN FILE & SELEKSI
     // ==========================================
 
     protected void ToggleSelectAll(ChangeEventArgs e)
@@ -171,7 +138,6 @@ public partial class Index : ComponentBase
         }
     }
 
-    // Disesuaikan ke tipe long
     protected async Task DeleteSingle(long id)
     {
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
@@ -183,7 +149,6 @@ public partial class Index : ComponentBase
         }
     }
 
-    // Array dikirim sebagai long[]
     protected async Task DeleteSelected()
     {
         long[] selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
