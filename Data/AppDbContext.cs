@@ -8,7 +8,10 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<RawSongModel> SongsRaw { get; set; } = default!;
-    public DbSet<CompleteSongModel> SongsComplete { get; set; } = default!;
+    
+    // REVISI: Menggunakan CloudSongModel sesuai definisi di folder Models
+    public DbSet<CloudSongModel> SongsComplete { get; set; } = default!;
+    
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -58,9 +61,9 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // 2. MAPPING TABEL: songs_complete
+        // 2. MAPPING TABEL: songs_complete (Menggunakan CloudSongModel)
         // =========================================================================
-        modelBuilder.Entity<CompleteSongModel>(entity =>
+        modelBuilder.Entity<CloudSongModel>(entity =>
         {
             entity.ToTable("songs_complete");
 
