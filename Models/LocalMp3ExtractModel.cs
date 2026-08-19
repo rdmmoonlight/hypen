@@ -13,6 +13,9 @@ public class LocalMp3ExtractModel
     public int? ReleaseYear { get; set; }
     public string AlbumCoverUrl { get; set; } = string.Empty;
 
+    // MusicBrainz Identifiers
+    public string MusicBrainzId { get; set; } = string.Empty;
+
     public bool IsSelected { get; set; } = true;
     public bool IsProcessed { get; set; }
 }
