@@ -39,7 +39,6 @@ public class CloudSongModel
     // Vault & Stream State
     public string AudioUrl { get; set; } = string.Empty;
     
-    // Helper getter agar StreamUrl otomatis merujuk ke AudioUrl jika kosong
     private string _streamUrl = string.Empty;
     public string StreamUrl 
     { 
@@ -51,13 +50,6 @@ public class CloudSongModel
     public int DurationSeconds { get; set; }
     public CloudProvider Provider { get; set; } = CloudProvider.YouTube;
 
-    // UI Local State (Tolak ukur seleksi checkbox di Library UI)
+    // UI Local State
     public bool IsSelected { get; set; }
 }
-
-// DTO Requests terpusat di Models untuk mencegah ambiguitas namespace (CS0104)
-public record BatchDeleteRequest(long[] Ids);
-public record ConvertRequest(string Url);
-public record PlaylistRequest(string Url);
-public record ConvertResponse(string Mp3FileName, string Title, string Artist);
-public record PlaylistResponse(int TotalSongs, List<ConvertResponse> Songs);
