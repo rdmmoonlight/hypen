@@ -7,8 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Entity Framework Core & PostgreSQL ORM -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
     <!-- Backend / Application -->
-    <PackageReference Include="Npgsql" Version="8.0.3" />
+    <PackageReference Include="Npgsql" Version="9.0.0" />
     <PackageReference Include="YoutubeExplode" Version="6.3.16" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
