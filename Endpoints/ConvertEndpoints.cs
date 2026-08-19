@@ -25,7 +25,6 @@ public static class ConvertEndpoints
             if (string.IsNullOrWhiteSpace(url)) 
                 return Results.BadRequest("URL YouTube wajib diisi.");
 
-            // Set Header agar browser membaca HTTP stream per baris (SSE)
             httpContext.Response.Headers.Append("Content-Type", "text/event-stream");
             httpContext.Response.Headers.Append("Cache-Control", "no-cache");
             httpContext.Response.Headers.Append("Connection", "keep-alive");
@@ -36,7 +35,6 @@ public static class ConvertEndpoints
             {
                 await foreach (var logLine in streamService.StreamDownloadAsync(url, downloadsFolder, ct))
                 {
-                    // Format SSE: "data: <isi_log>\n\n"
                     await httpContext.Response.WriteAsync($"data: {logLine}\n\n", ct);
                     await httpContext.Response.Body.FlushAsync(ct);
                 }
@@ -92,7 +90,7 @@ public static class ConvertEndpoints
                 string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                 string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
 
-                // Simpan / Update ke Database via ORM EF Core
+                // Simpan / Update ke Database via CloudSongModel ORM
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
                 var existingSong = await context.SongsComplete
@@ -112,7 +110,7 @@ public static class ConvertEndpoints
                 }
                 else
                 {
-                    var newSong = new CompleteSongModel
+                    var newSong = new CloudSongModel
                     {
                         YoutubeVideoId = ytdlpResult.YoutubeId,
                         Title = ytdlpResult.Title,
@@ -194,7 +192,7 @@ public static class ConvertEndpoints
                         }
                         else
                         {
-                            var newSong = new CompleteSongModel
+                            var newSong = new CloudSongModel
                             {
                                 YoutubeVideoId = ytdlpResult.YoutubeId,
                                 Title = ytdlpResult.Title,
