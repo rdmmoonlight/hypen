@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Npgsql;
+using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
@@ -15,6 +17,73 @@ public class SongProcessorService : ISongProcessorService
         _dbConnectionString = dbConnectionString;
     }
 
+    // =========================================================================
+    // 1. GET PENDING RAW (Untuk Menampilkan Antrean Staging RAW di UI)
+    // =========================================================================
+    public async Task<List<RawSongModel>> GetPendingRawAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_dbConnectionString))
+            return new List<RawSongModel>();
+
+        var result = new List<RawSongModel>();
+        await using var conn = new NpgsqlConnection(_dbConnectionString);
+        await conn.OpenAsync();
+
+        // Mengakomodasi kolom status atau sync_status
+        string query = @"
+            SELECT id, 
+                   COALESCE(youtube_video_id, '') AS youtube_video_id, 
+                   COALESCE(title, raw_title, '') AS title, 
+                   COALESCE(artist, raw_channel_title, '') AS artist, 
+                   COALESCE(audio_url, '') AS audio_url, 
+                   'PENDING' AS status,
+                   created_at
+            FROM songs_raw
+            WHERE (status = 'PENDING' OR sync_status = 'PENDING')
+            ORDER BY id DESC;";
+
+        await using var cmd = new NpgsqlCommand(query, conn);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            result.Add(new RawSongModel
+            {
+                Id = reader.GetInt64(0),
+                YoutubeVideoId = reader.GetString(1),
+                Title = reader.GetString(2),
+                Artist = reader.GetString(3),
+                AudioUrl = reader.GetString(4),
+                Status = reader.GetString(5),
+                CreatedAt = reader.IsDBNull(6) ? DateTime.UtcNow : reader.GetDateTime(6)
+            });
+        }
+
+        return result;
+    }
+
+    // =========================================================================
+    // 2. DELETE RAW (Untuk Fitur Undo / Batal Sync dari Staging RAW)
+    // =========================================================================
+    public async Task<bool> DeleteRawAsync(long rawId)
+    {
+        if (string.IsNullOrWhiteSpace(_dbConnectionString))
+            return false;
+
+        await using var conn = new NpgsqlConnection(_dbConnectionString);
+        await conn.OpenAsync();
+
+        const string query = "DELETE FROM songs_raw WHERE id = @rawId;";
+        await using var cmd = new NpgsqlCommand(query, conn);
+        cmd.Parameters.AddWithValue("rawId", rawId);
+
+        int affected = await cmd.ExecuteNonQueryAsync();
+        return affected > 0;
+    }
+
+    // =========================================================================
+    // 3. PROCESS PENDING SONGS (Automated Background Worker Processing)
+    // =========================================================================
     public async Task<int> ProcessPendingSongsAsync()
     {
         if (string.IsNullOrWhiteSpace(_dbConnectionString))
@@ -26,9 +95,13 @@ public class SongProcessorService : ISongProcessorService
         var pending = new List<(long Id, string YoutubeVideoId, string RawTitle, string RawChannelTitle, string RawThumbnailUrl)>();
 
         const string selectSql = """
-            SELECT id, youtube_video_id, raw_title, raw_channel_title, raw_thumbnail_url
+            SELECT id, 
+                   COALESCE(youtube_video_id, '') AS youtube_video_id, 
+                   COALESCE(raw_title, title, '') AS raw_title, 
+                   COALESCE(raw_channel_title, artist, '') AS raw_channel_title, 
+                   COALESCE(raw_thumbnail_url, '') AS raw_thumbnail_url
             FROM songs_raw
-            WHERE sync_status = 'PENDING'
+            WHERE (sync_status = 'PENDING' OR status = 'PENDING')
             ORDER BY id
             LIMIT 10;
             """;
@@ -42,8 +115,8 @@ public class SongProcessorService : ISongProcessorService
                     reader.GetInt64(0),
                     reader.GetString(1),
                     reader.GetString(2),
-                    reader.IsDBNull(3) ? "" : reader.GetString(3),
-                    reader.IsDBNull(4) ? "" : reader.GetString(4)
+                    reader.GetString(3),
+                    reader.GetString(4)
                 ));
             }
         }
@@ -61,7 +134,12 @@ public class SongProcessorService : ISongProcessorService
                 const string insertSql = """
                     INSERT INTO songs_complete (raw_id, youtube_video_id, title, artist, album, album_cover_url, release_year)
                     VALUES (@rawId, @vid, @title, @artist, @album, @cover, @year)
-                    ON CONFLICT (youtube_video_id) DO NOTHING;
+                    ON CONFLICT (youtube_video_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        artist = EXCLUDED.artist,
+                        album = EXCLUDED.album,
+                        album_cover_url = EXCLUDED.album_cover_url,
+                        release_year = EXCLUDED.release_year;
                     """;
 
                 await using (var insertCmd = new NpgsqlCommand(insertSql, conn))
@@ -76,7 +154,7 @@ public class SongProcessorService : ISongProcessorService
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
-                const string updateSql = "UPDATE songs_raw SET sync_status = 'PROCESSED' WHERE id = @id;";
+                const string updateSql = "UPDATE songs_raw SET sync_status = 'PROCESSED', status = 'PROCESSED' WHERE id = @id;";
                 await using (var updateCmd = new NpgsqlCommand(updateSql, conn))
                 {
                     updateCmd.Parameters.AddWithValue("id", raw.Id);
@@ -87,7 +165,7 @@ public class SongProcessorService : ISongProcessorService
             }
             catch
             {
-                const string failSql = "UPDATE songs_raw SET sync_status = 'FAILED' WHERE id = @id;";
+                const string failSql = "UPDATE songs_raw SET sync_status = 'FAILED', status = 'FAILED' WHERE id = @id;";
                 await using var failCmd = new NpgsqlCommand(failSql, conn);
                 failCmd.Parameters.AddWithValue("id", raw.Id);
                 await failCmd.ExecuteNonQueryAsync();
