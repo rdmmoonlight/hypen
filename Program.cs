@@ -52,6 +52,7 @@ string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAU
 // Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
+builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
 // Registrasi YouTube Sync & Processing Services (Engine ETL)
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
