@@ -1,9 +1,10 @@
 using Hypen.Web;
+using Hypen.Web.Data;
 using Hypen.Web.Endpoints;
 using Hypen.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,34 +44,37 @@ builder.Services.AddScoped(sp =>
 // Registrasi Standard HttpClient untuk External API Call (iTunes / YouTube Metadata)
 builder.Services.AddHttpClient();
 
-// Konfigurasi dari environment variable
-string dbConnectionStringConfig = Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
+// Konfigurasi Environment Variables
+string dbConnectionStringConfig = builder.Configuration.GetConnectionString("NEON_DB_CONNECTION")
+    ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") 
+    ?? "";
+
 string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_ID") ?? "";
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
 string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
+
+// =========================================================================
+// REGISTRASI ORM ENTITY FRAMEWORK CORE
+// =========================================================================
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseNpgsql(dbConnectionStringConfig));
 
 // Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
-// Registrasi YouTube Sync & Processing Services (Engine ETL)
+// Registrasi YouTube Sync & Processing Services (EF Core Dependency Injection)
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
-    dbConnectionStringConfig,
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
-    sp.GetRequiredService<IHttpClientFactory>()));
+    sp.GetRequiredService<IHttpClientFactory>(),
+    sp.GetRequiredService<IDbContextFactory<AppDbContext>>()));
 
-builder.Services.AddScoped<IYouTubeSyncService>(sp => new YouTubeSyncService(
-    dbConnectionStringConfig,
-    sp.GetRequiredService<YouTubeOAuthService>(),
-    sp.GetRequiredService<IHttpClientFactory>()));
+builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
+builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
-builder.Services.AddScoped<ISongProcessorService>(sp => new SongProcessorService(
-    sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
-    dbConnectionStringConfig));
-
-// REGISTRASI LOCAL MP3 SYNC SERVICE (Penyelesaian Error 500)
+// Registrasi Local MP3 Sync Service
 builder.Services.AddScoped<LocalMp3SyncService>();
 
 // 2. Build Pipeline & Middleware
@@ -97,7 +101,7 @@ string downloadsPath = Path.Combine(webRoot, "downloads");
 Directory.CreateDirectory(downloadsPath);
 
 // Konfigurasi Static Files (menyajikan file publik di /downloads)
-app.UseStaticFiles(); // Default static files
+app.UseStaticFiles();
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -115,19 +119,20 @@ app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
-// Map Controller Attribute-based routing (e.g. DownloadController -> /api/download)
+// Map Controller Attribute-based routing
 app.MapControllers();
 
-// Map Minimal API Endpoints
-app.MapSongEndpoints(dbConnectionStringConfig);
-app.MapConvertEndpoints(dbConnectionStringConfig);
+// Map Minimal API Endpoints (Memakai DI ORM tanpa parameter string)
+app.MapSongEndpoints();
+app.MapConvertEndpoints();
 
-// Map OAuth login/callback untuk akses playlist privat YouTube (Liked Videos)
+// Map OAuth Endpoints
 var oauthServiceForEndpoints = new YouTubeOAuthService(
-    dbConnectionStringConfig,
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
-    app.Services.GetRequiredService<IHttpClientFactory>());
+    app.Services.GetRequiredService<IHttpClientFactory>(),
+    app.Services.GetRequiredService<IDbContextFactory<AppDbContext>>());
+
 app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServiceForEndpoints);
 
 // 4. Blazor UI Routing
