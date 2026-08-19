@@ -68,6 +68,7 @@ public class LocalMp3SyncService
                 CleanTitle = title,
                 Album = album,
                 ReleaseYear = year,
+                Country = "Unknown",
                 AlbumCoverUrl = embeddedCoverBase64
             };
         }
@@ -108,7 +109,8 @@ public class LocalMp3SyncService
             RawTitle = title,
             CleanArtist = artist,
             CleanTitle = title,
-            Album = "Single"
+            Album = "Single",
+            Country = "Unknown"
         };
     }
 
@@ -131,15 +133,16 @@ public class LocalMp3SyncService
 
             string query = @"
                 INSERT INTO songs_raw (
-                    youtube_video_id, title, artist, audio_url, status
+                    youtube_video_id, title, artist, country, audio_url, status
                 ) VALUES (
-                    @ytId, @title, @artist, @audioUrl, 'PENDING'
+                    @ytId, @title, @artist, @country, @audioUrl, 'PENDING'
                 ) ON CONFLICT (youtube_video_id) DO NOTHING;";
 
             await using var cmd = new NpgsqlCommand(query, conn);
             cmd.Parameters.AddWithValue("ytId", fakeYtId);
             cmd.Parameters.AddWithValue("title", item.CleanTitle);
             cmd.Parameters.AddWithValue("artist", item.CleanArtist);
+            cmd.Parameters.AddWithValue("country", string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country);
             cmd.Parameters.AddWithValue("audioUrl", $"/downloads/{item.FileName}");
 
             insertedCount += await cmd.ExecuteNonQueryAsync();
@@ -230,6 +233,9 @@ public class LocalMp3SyncService
                 if (mbResult.ReleaseYear.HasValue)
                     item.ReleaseYear = mbResult.ReleaseYear;
 
+                if (!string.IsNullOrWhiteSpace(mbResult.Country))
+                    item.Country = mbResult.Country;
+
                 if (!string.IsNullOrWhiteSpace(mbResult.CoverArtUrl))
                     item.AlbumCoverUrl = mbResult.CoverArtUrl;
 
@@ -272,17 +278,18 @@ public class LocalMp3SyncService
             string audioUrl = reader.IsDBNull(1) ? "" : reader.GetString(1);
             await reader.CloseAsync();
 
-            // 2. Insert/Upsert ke songs_complete
+            // 2. Insert/Upsert ke songs_complete (termasuk kolom country)
             string insertQuery = @"
                 INSERT INTO songs_complete (
-                    youtube_video_id, title, artist, album, release_year, album_cover_url, audio_url, is_downloaded
+                    youtube_video_id, title, artist, album, release_year, country, album_cover_url, audio_url, is_downloaded
                 ) VALUES (
-                    @ytId, @title, @artist, @album, @year, @cover, @audioUrl, true
+                    @ytId, @title, @artist, @album, @year, @country, @cover, @audioUrl, true
                 ) ON CONFLICT (youtube_video_id) DO UPDATE SET
                     title = EXCLUDED.title,
                     artist = EXCLUDED.artist,
                     album = EXCLUDED.album,
                     release_year = EXCLUDED.release_year,
+                    country = EXCLUDED.country,
                     album_cover_url = EXCLUDED.album_cover_url;";
 
             await using var insertCmd = new NpgsqlCommand(insertQuery, conn, tx);
@@ -291,6 +298,7 @@ public class LocalMp3SyncService
             insertCmd.Parameters.AddWithValue("artist", validatedData.CleanArtist);
             insertCmd.Parameters.AddWithValue("album", string.IsNullOrWhiteSpace(validatedData.Album) ? "Single" : validatedData.Album);
             insertCmd.Parameters.AddWithValue("year", (object?)validatedData.ReleaseYear ?? DBNull.Value);
+            insertCmd.Parameters.AddWithValue("country", string.IsNullOrWhiteSpace(validatedData.Country) ? "Unknown" : validatedData.Country);
             insertCmd.Parameters.AddWithValue("cover", validatedData.AlbumCoverUrl ?? "");
             insertCmd.Parameters.AddWithValue("audioUrl", audioUrl);
 
