@@ -28,14 +28,14 @@ public class AppDbContext : DbContext
                 .HasColumnName("id")
                 .ValueGeneratedOnAdd();
 
-            // Unique Index & Constraints
+            // Unique Index (Filter NULL agar ID lokal non-YouTube tidak bentrok jika kosong)
             entity.HasIndex(e => e.YoutubeVideoId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
 
             // Mapping Kolom
             entity.Property(e => e.YoutubeVideoId)
-                .HasColumnName("youtube_video_id")
-                .IsRequired();
+                .HasColumnName("youtube_video_id");
 
             entity.Property(e => e.Title).HasColumnName("title");
             entity.Property(e => e.Artist).HasColumnName("artist");
@@ -70,16 +70,16 @@ public class AppDbContext : DbContext
                 .HasColumnName("id")
                 .ValueGeneratedOnAdd();
 
-            // Unique Index & Constraints (Untuk kebutuhan Upsert)
+            // Unique Index (Filter NULL untuk kebutuhan Upsert aman)
             entity.HasIndex(e => e.YoutubeVideoId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
 
             // Mapping Kolom
             entity.Property(e => e.RawId).HasColumnName("raw_id");
             
             entity.Property(e => e.YoutubeVideoId)
-                .HasColumnName("youtube_video_id")
-                .IsRequired();
+                .HasColumnName("youtube_video_id");
 
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
