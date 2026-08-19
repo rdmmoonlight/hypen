@@ -19,10 +19,11 @@ public class LocalMp3SyncService
             ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
     }
 
-    // 1. Ekstrak Metadata dari Stream MP3 Menggunakan TagLibSharp
+    // =========================================================================
+    // 1. TAHAP PERTAMA: EXTRACTION LOKAL (STREAM / ID3 TAG & FILENAME WRAPPING)
+    // =========================================================================
     public async Task<LocalMp3ExtractModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
     {
-        // Simpan stream ke file temporary untuk di-parse oleh TagLib
         string tempPath = Path.Combine(Path.GetTempPath(), $"hypen_tag_{Guid.NewGuid():N}.mp3");
 
         try
@@ -32,7 +33,6 @@ public class LocalMp3SyncService
                 await fileStream.CopyToAsync(destStream);
             }
 
-            // Inisialisasi TagLib File
             using var tFile = TagLib.File.Create(tempPath);
 
             string tagArtist = tFile.Tag.FirstPerformer?.Trim() ?? "";
@@ -40,15 +40,15 @@ public class LocalMp3SyncService
             string tagAlbum = tFile.Tag.Album?.Trim() ?? "";
             uint tagYear = tFile.Tag.Year;
 
-            // Jika tag ID3 kosong, gunakan Fallback Parsers dari nama file
+            // Fallback parsing nama file jika tag ID3 kosong
             var fileFallback = ExtractMetadataFromFileName(originalFileName);
 
-            string finalArtist = !string.IsNullOrWhiteSpace(tagArtist) ? tagArtist : fileFallback.RawArtist;
-            string finalTitle = !string.IsNullOrWhiteSpace(tagTitle) ? tagTitle : fileFallback.RawTitle;
-            string finalAlbum = !string.IsNullOrWhiteSpace(tagAlbum) ? tagAlbum : "Single";
-            int? finalYear = tagYear > 0 ? (int)tagYear : null;
+            string artist = !string.IsNullOrWhiteSpace(tagArtist) ? tagArtist : fileFallback.RawArtist;
+            string title = !string.IsNullOrWhiteSpace(tagTitle) ? tagTitle : fileFallback.RawTitle;
+            string album = !string.IsNullOrWhiteSpace(tagAlbum) ? tagAlbum : "Single";
+            int? year = tagYear > 0 ? (int)tagYear : null;
 
-            // Ekstrak Cover Artwork jika ada yang tertanam di dalam MP3
+            // Cover Art tertanam (jika ada)
             string embeddedCoverBase64 = "";
             if (tFile.Tag.Pictures.Length > 0)
             {
@@ -60,23 +60,22 @@ public class LocalMp3SyncService
             return new LocalMp3ExtractModel
             {
                 FileName = originalFileName,
-                RawArtist = finalArtist,
-                RawTitle = finalTitle,
-                CleanArtist = finalArtist,
-                CleanTitle = finalTitle,
-                Album = finalAlbum,
-                ReleaseYear = finalYear,
-                AlbumCoverUrl = embeddedCoverBase64 // Menggunakan embedded picture jika ada
+                RawArtist = artist,
+                RawTitle = title,
+                CleanArtist = artist,
+                CleanTitle = title,
+                Album = album,
+                ReleaseYear = year,
+                AlbumCoverUrl = embeddedCoverBase64
             };
         }
         catch
         {
-            // Jika file corrupt / gagal parse tag, gunakan fallback murni dari nama file
+            // Fallback murni jika file corrupt / gagal parse tag
             return ExtractMetadataFromFileName(originalFileName);
         }
         finally
         {
-            // Pastikan file temporary selalu dibersihkan
             if (System.IO.File.Exists(tempPath))
             {
                 try { System.IO.File.Delete(tempPath); } catch { }
@@ -84,21 +83,15 @@ public class LocalMp3SyncService
         }
     }
 
-    // Fallback Parser: Ekstrak Metadata dari String Nama File
+    // Fallback Parser dari String Nama File
     public LocalMp3ExtractModel ExtractMetadataFromFileName(string fileName)
     {
-        // Hapus ekstensi .mp3
         string cleanName = Regex.Replace(fileName, @"(?i)\.mp3$", "").Trim();
-
-        // Bersihkan teks umum seperti [Lyrics], (Official Video), 320kbps, dll.
-        string cleanedText = Regex.Replace(cleanName, 
-            @"(?i)(\[.*?\]|\(.*?\)|official video|music video|lyric video|audio|320kbps|hd|remastered)", "")
-            .Trim();
+        string cleanedText = CleanQueryForSearch(cleanName);
 
         string artist = "Unknown Artist";
         string title = cleanedText;
 
-        // Jika format file "Artist - Title.mp3"
         if (cleanedText.Contains('-'))
         {
             var parts = cleanedText.Split('-', 2);
@@ -117,47 +110,79 @@ public class LocalMp3SyncService
         };
     }
 
-    // 2. Fetch Album Cover & Metadata Tambahan dari iTunes Search API (Jika Embedded Cover Kosong)
-    public async Task EnrichMetadataAsync(LocalMp3ExtractModel item)
+    // =========================================================================
+    // 2. TAHAP KEDUA: SMART INTERNET MATCHING (ITUNES METADATA ENRICHMENT)
+    // =========================================================================
+    // Mengubah data kotor wrapping lokal menjadi Artis, Judul, Album, & Tahun resmi.
+    public async Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
     {
-        // Jika sudah ada embedded cover dari TagLib, tidak perlu override dengan iTunes API
-        if (!string.IsNullOrWhiteSpace(item.AlbumCoverUrl)) return;
-
         try
         {
-            string query = $"{item.CleanArtist} {item.CleanTitle}";
-            string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(query)}&entity=song&limit=1";
+            // Buat query pencarian yang sudah dibersihkan dari simbol & noise
+            string searchQuery = CleanQueryForSearch($"{item.CleanArtist} {item.CleanTitle}");
             
+            // Tembak iTunes Search API
+            string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(searchQuery)}&entity=song&limit=1";
             var res = await _http.GetFromJsonAsync<JsonElement>(url);
-            
+
             if (res.GetProperty("resultCount").GetInt32() > 0)
             {
                 var first = res.GetProperty("results")[0];
-                
-                if (item.Album == "Single" && first.TryGetProperty("collectionName", out var alb))
+
+                // 1. Overwrite Nama Artis Resmi
+                if (first.TryGetProperty("artistName", out var artistProp))
                 {
-                    item.Album = alb.GetString() ?? "Single";
-                }
-                
-                // Ambil High Resolution Artwork (600x600 px)
-                if (first.TryGetProperty("artworkUrl100", out var art))
-                {
-                    item.AlbumCoverUrl = art.GetString()?.Replace("100x100bb", "600x600bb") ?? "";
+                    item.CleanArtist = artistProp.GetString() ?? item.CleanArtist;
                 }
 
-                if (!item.ReleaseYear.HasValue && first.TryGetProperty("releaseDate", out var rel) && DateTime.TryParse(rel.GetString(), out var dt))
+                // 2. Overwrite Judul Lagu Resmi
+                if (first.TryGetProperty("trackName", out var trackProp))
+                {
+                    item.CleanTitle = trackProp.GetString() ?? item.CleanTitle;
+                }
+
+                // 3. Overwrite Nama Album Resmi
+                if (first.TryGetProperty("collectionName", out var albumProp))
+                {
+                    item.Album = albumProp.GetString() ?? "Single";
+                }
+
+                // 4. Overwrite Tahun Rilis Resmi
+                if (first.TryGetProperty("releaseDate", out var relProp) && DateTime.TryParse(relProp.GetString(), out var dt))
                 {
                     item.ReleaseYear = dt.Year;
+                }
+
+                // 5. Override Cover Art dengan Gambar High-Resolution (600x600)
+                if (first.TryGetProperty("artworkUrl100", out var artProp))
+                {
+                    item.AlbumCoverUrl = artProp.GetString()?.Replace("100x100bb", "600x600bb") ?? item.AlbumCoverUrl;
                 }
             }
         }
         catch
         {
-            // Fail silent jika API iTunes tidak menemukan kecocokan
+            // Fail silent: Jika gagal connect/API error, tetap gunakan data wrapping awal
         }
     }
 
-    // 3. Save Hasil Olahan Langsung ke Tabel `songs_complete`
+    // Retain method lama untuk kompatibilitas panggilan di UI
+    public async Task EnrichMetadataAsync(LocalMp3ExtractModel item)
+    {
+        await SmartMatchFromInternetAsync(item);
+    }
+
+    private string CleanQueryForSearch(string raw)
+    {
+        // Membersihkan noise seperti [Official Video], 320kbps, Lirik, dll.
+        return Regex.Replace(raw, 
+            @"(?i)(\[.*?\]|\(.*?\)|official video|music video|lyric video|audio|320kbps|hd|remastered|full song|lirik)", "")
+            .Trim();
+    }
+
+    // =========================================================================
+    // 3. TAHAP KETIGA: SAVE TO DATABASE (`songs_complete`)
+    // =========================================================================
     public async Task<int> SaveToSongsCompleteAsync(List<LocalMp3ExtractModel> items)
     {
         var selectedItems = items.Where(i => i.IsSelected).ToList();
@@ -170,7 +195,6 @@ public class LocalMp3SyncService
 
         foreach (var item in selectedItems)
         {
-            // Hash / Video ID buatan agar unik di DB (Format: LOCAL-UUID)
             string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
 
             string query = @"
