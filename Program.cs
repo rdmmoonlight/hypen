@@ -51,7 +51,7 @@ string dbConnectionStringConfig = builder.Configuration.GetConnectionString("NEO
 
 string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_ID") ?? "";
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
-string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URL") ?? "";
+string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
 
 // =========================================================================
 // REGISTRASI ORM ENTITY FRAMEWORK CORE
