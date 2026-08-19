@@ -33,6 +33,12 @@ public class CloudSongModel
     // Status Master Library
     public bool IsDownloaded { get; set; } = false;
 
+    /// <summary>
+    /// Menandakan apakah seluruh atribut lagu terisi penuh.
+    /// Dikalkulasi langsung di level Database via EF Core Computed Column.
+    /// </summary>
+    public bool IsComplete { get; set; }
+
     // Backward Compatibility Aliases
     public string? YoutubeId 
     { 
@@ -62,27 +68,4 @@ public class CloudSongModel
     // UI Local State & Provider Info
     public CloudProvider Provider { get; set; } = CloudProvider.YouTube;
     public bool IsSelected { get; set; }
-}
-
-/// <summary>
-/// Model Penampung Data Mentah Staging (Tabel: songs_raw)
-/// </summary>
-public class RawSongModel
-{
-    public long Id { get; set; }
-    
-    // Header Atribut Utama (Sama Persis dengan CloudSongModel)
-    public string? YoutubeVideoId { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Artist { get; set; } = string.Empty;
-    public string? Album { get; set; } = "Single";
-    public int? ReleaseYear { get; set; }
-    public string? Country { get; set; } = "Unknown";
-    public string? AlbumCoverUrl { get; set; }
-    public string? AudioUrl { get; set; }
-    public int? DurationSeconds { get; set; }
-
-    // Pipeline State
-    public string Status { get; set; } = "PENDING";
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
