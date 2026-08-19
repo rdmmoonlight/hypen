@@ -100,7 +100,18 @@ public class AppDbContext : DbContext
             entity.ToTable("youtube_oauth_tokens");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.AccountEmail)
+                .HasColumnName("account_email");
+
+            entity.Property(e => e.ChannelTitle)
+                .HasColumnName("channel_title");
+
+            entity.Property(e => e.AccessToken)
+                .HasColumnName("access_token");
 
             entity.Property(e => e.RefreshToken)
                 .HasColumnName("refresh_token")
