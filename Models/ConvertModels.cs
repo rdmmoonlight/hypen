@@ -16,8 +16,6 @@ public class ConvertResponse
 }
 
 // Request body untuk konversi playlist
-// CATATAN: backend belum punya endpoint /api/convert-ytdlp/playlist,
-// jadi ConvertPlaylistAsync di SongService akan menerima 404 (null) sampai endpoint itu dibuat.
 public record PlaylistRequest(string PlaylistUrl);
 
 public class PlaylistResponse
@@ -26,5 +24,5 @@ public class PlaylistResponse
     public List<ConvertResponse> Items { get; set; } = [];
 }
 
-// Request body untuk hapus banyak lagu sekaligus
-public record BatchDeleteRequest(int[] Ids);
+// Request body untuk hapus banyak lagu sekaligus (Menggunakan long[] untuk BIGINT DB)
+public record BatchDeleteRequest(long[] Ids);
