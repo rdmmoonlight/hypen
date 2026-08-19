@@ -16,56 +16,62 @@ public partial class Index : ComponentBase
     [Inject]
     protected LocalMp3SyncService LocalSyncService { get; set; } = default!;
 
-    // UI Tab State
-    protected string activeTab = "youtube"; // "youtube" atau "local"
+    // UI Tab State Pipeline ("ingest", "staging", "vault")
+    protected string activeTab = "ingest"; 
     protected string statusMsg = "";
     protected bool isError;
     protected bool isProcessing;
 
-    // YouTube State
+    // Ingestion YouTube State
     protected string targetPlaylistId = "LL";
     protected int maxResults = 25;
+
+    // Staging RAW State
+    protected List<RawSongModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
 
-    // Local MP3 State
+    // Ingestion Local MP3 State
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllLocalSelected = true;
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshMetrics();
+        await LoadStagingData();
     }
 
-    protected void SwitchTab(string tab)
+    protected async Task SwitchTab(string tab)
     {
         activeTab = tab;
         statusMsg = "";
+
+        if (tab == "staging")
+        {
+            await LoadStagingData();
+        }
     }
 
-    // ==========================================
-    // LOGIKA YOUTUBE SYNC
-    // ==========================================
+    // =========================================================================
+    // TIER 1: INGESTION (YOUTUBE & LOCAL MP3) -> SAVE TO SONGS_RAW
+    // =========================================================================
 
-    protected async Task StartFullYouTubeSync()
+    protected async Task StartYouTubeIngestionToRaw()
     {
         try
         {
             isProcessing = true;
-            UpdateStatus("Tahap 1: Menarik data mentah dari YouTube API ke 'songs_raw'...");
+            UpdateStatus("Menarik data mentah dari YouTube API ke 'songs_raw'...");
 
             int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, maxResults);
             
-            UpdateStatus($"Tahap 1 Selesai! {rawFetched} data baru masuk ke 'songs_raw'. Memulai Tahap 2: Cleanup metadata ke 'songs_complete'...");
-
-            int processedCount = await ProcessorService.ProcessPendingSongsAsync();
-
-            UpdateStatus($"Sync YouTube Berhasil! {processedCount} lagu berhasil dibersihkan dan dimasukkan ke Vault Library.");
+            UpdateStatus($"Ingestion Berhasil! {rawFetched} data baru tersimpan di Staging RAW (Pending).");
             await RefreshMetrics();
+            await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Sync YouTube: {ex.Message}", true);
+            UpdateStatus($"Gagal Ingestion YouTube: {ex.Message}", true);
         }
         finally
         {
@@ -73,33 +79,6 @@ public partial class Index : ComponentBase
             StateHasChanged();
         }
     }
-
-    protected async Task ProcessRawOnly()
-    {
-        try
-        {
-            isProcessing = true;
-            UpdateStatus("Memproses data PENDING di 'songs_raw'...");
-
-            int processedCount = await ProcessorService.ProcessPendingSongsAsync();
-
-            UpdateStatus($"Pembersihan Selesai! {processedCount} lagu di-update ke 'songs_complete'.");
-            await RefreshMetrics();
-        }
-        catch (Exception ex)
-        {
-            UpdateStatus($"Gagal Memproses Data Raw: {ex.Message}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    // ==========================================
-    // LOGIKA LOCAL MP3 SYNC (SMART INTERNET MATCHING)
-    // ==========================================
 
     protected async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
@@ -123,7 +102,7 @@ public partial class Index : ComponentBase
                 extractedList.Add(model);
             }
 
-            UpdateStatus($"{extractedList.Count} file MP3 ter-wrapping. Silakan periksa atau klik 'Enrich & Entry' untuk pencarian metadata resmi via internet.");
+            UpdateStatus($"{extractedList.Count} file MP3 ter-wrapping. Silakan klik 'Simpan ke Staging RAW'.");
         }
         catch (Exception ex)
         {
@@ -136,7 +115,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected async Task ProcessAndEntryLocalToDb()
+    protected async Task SaveLocalIngestionToRaw()
     {
         var selected = extractedList.Where(i => i.IsSelected).ToList();
         if (selected.Count == 0) return;
@@ -144,27 +123,18 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            int count = 0;
+            UpdateStatus("Memasukkan data mentah MP3 ke tabel 'songs_raw'...");
 
-            // 1. Validasi & Overwrite Metadata via Internet (iTunes Search API)
-            foreach (var item in selected)
-            {
-                count++;
-                UpdateStatus($"[{count}/{selected.Count}] Memvalidasi Artis, Judul, Album, & Tahun via Internet: '{item.CleanTitle}'...");
-                await LocalSyncService.SmartMatchFromInternetAsync(item);
-            }
+            int savedCount = await LocalSyncService.SaveToRawAsync(selected);
 
-            // 2. Simpan hasil resmi ke database
-            UpdateStatus("Memasukkan data olahan ke tabel 'songs_complete'...");
-            int savedCount = await LocalSyncService.SaveToSongsCompleteAsync(selected);
-
-            UpdateStatus($"Berhasil! {savedCount} lagu MP3 lokal telah divalidasi dan terdaftar di Vault Library.");
+            UpdateStatus($"Berhasil! {savedCount} MP3 lokal masuk ke Staging RAW (Pending).");
             extractedList.Clear();
             await RefreshMetrics();
+            await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Sync MP3 Lokal: {ex.Message}", true);
+            UpdateStatus($"Gagal Simpan ke Staging RAW: {ex.Message}", true);
         }
         finally
         {
@@ -172,6 +142,122 @@ public partial class Index : ComponentBase
             StateHasChanged();
         }
     }
+
+    // =========================================================================
+    // TIER 2: STAGING REVIEW (SONGS_RAW PENDING - UNDO & PROMOTE TO COMPLETE)
+    // =========================================================================
+
+    private async Task LoadStagingData()
+    {
+        try
+        {
+            stagingList = await ProcessorService.GetPendingRawAsync();
+        }
+        catch { }
+    }
+
+    protected async Task PromoteSingleRawToComplete(RawSongModel raw)
+    {
+        try
+        {
+            isProcessing = true;
+            UpdateStatus($"1. Memvalidasi metadata internet untuk: '{raw.Title}'...");
+
+            // Smart Internet Match via iTunes API
+            var modelToValidate = new LocalMp3ExtractModel
+            {
+                CleanArtist = raw.Artist,
+                CleanTitle = raw.Title
+            };
+            await LocalSyncService.SmartMatchFromInternetAsync(modelToValidate);
+
+            UpdateStatus($"2. Memindahkan '{modelToValidate.CleanTitle}' oleh '{modelToValidate.CleanArtist}' ke Vault Complete...");
+            
+            bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, modelToValidate);
+            if (success)
+            {
+                UpdateStatus($"Promote Berhasil! Data #{raw.Id} telah diterbitkan ke Vault Library.");
+            }
+
+            await RefreshMetrics();
+            await LoadStagingData();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal Promote Data #{raw.Id}: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task PromoteAllPendingToComplete()
+    {
+        if (stagingList.Count == 0) return;
+
+        try
+        {
+            isProcessing = true;
+            int count = 0;
+
+            foreach (var item in stagingList.ToList())
+            {
+                count++;
+                UpdateStatus($"[{count}/{stagingList.Count}] Smart Match & Promote: '{item.Title}'...");
+
+                var modelToValidate = new LocalMp3ExtractModel
+                {
+                    CleanArtist = item.Artist,
+                    CleanTitle = item.Title
+                };
+                await LocalSyncService.SmartMatchFromInternetAsync(modelToValidate);
+                await LocalSyncService.PromoteRawToCompleteAsync(item.Id, modelToValidate);
+            }
+
+            UpdateStatus($"Selesai! Seluruh data Staging RAW telah divalidasi dan dipindahkan ke Vault.");
+            await RefreshMetrics();
+            await LoadStagingData();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal Memproses Staging RAW: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task DeleteRawItem(long rawId)
+    {
+        try
+        {
+            isProcessing = true;
+            UpdateStatus($"Membatalkan / Menghapus data RAW #{rawId}...");
+
+            await ProcessorService.DeleteRawAsync(rawId);
+
+            UpdateStatus($"Data RAW #{rawId} berhasil dihapus/di-undo.");
+            await RefreshMetrics();
+            await LoadStagingData();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal Menghapus Data RAW: {ex.Message}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    // =========================================================================
+    // HELPERS & UI TOGGLES
+    // =========================================================================
 
     protected void ToggleSelectAllLocal(ChangeEventArgs e)
     {
@@ -181,10 +267,6 @@ public partial class Index : ComponentBase
             item.IsSelected = isAllLocalSelected;
         }
     }
-
-    // ==========================================
-    // HELPERS
-    // ==========================================
 
     private async Task RefreshMetrics()
     {
