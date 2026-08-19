@@ -1,123 +1,105 @@
 using Microsoft.AspNetCore.Mvc;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Helpers;
-using Hypen.Web.Services;
 
 namespace Hypen.Web.Endpoints;
 
 public static class SongEndpoints
 {
-    public static void MapSongEndpoints(this IEndpointRouteBuilder app, string dbConnectionString)
+    public static void MapSongEndpoints(this IEndpointRouteBuilder app)
     {
         // ------------------------------------------------------------
-        // GET ALL SONGS (Membaca dari tabel olahan songs_complete)
+        // GET ALL SONGS (Membaca dari tabel olahan songs_complete via ORM)
         // ------------------------------------------------------------
-        app.MapGet("/api/songs", async (ILogger<Program> logger) =>
+        app.MapGet("/api/songs", async (
+            IDbContextFactory<AppDbContext> dbContextFactory, 
+            ILogger<Program> logger) =>
         {
-            if (string.IsNullOrWhiteSpace(dbConnectionString))
-                return Results.Ok(new List<CloudSongModel>());
-
             try
             {
-                await using var conn = new NpgsqlConnection(dbConnectionString);
-                await conn.OpenAsync();
+                await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                const string sql = @"
-                    SELECT 
-                        id, 
-                        youtube_video_id, 
-                        title, 
-                        artist, 
-                        album, 
-                        release_year, 
-                        album_cover_url, 
-                        audio_url, 
-                        is_downloaded, 
-                        duration_seconds
-                    FROM songs_complete 
-                    ORDER BY id DESC;";
-
-                await using var cmd = new NpgsqlCommand(sql, conn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                var songs = new List<CloudSongModel>();
-                while (await reader.ReadAsync())
-                {
-                    string audioUrl = reader.IsDBNull(7) ? "" : reader.GetString(7);
-
-                    songs.Add(new CloudSongModel
+                var songs = await context.SongsComplete
+                    .AsNoTracking()
+                    .OrderByDescending(s => s.Id)
+                    .Select(s => new CloudSongModel
                     {
-                        Id = reader.GetInt64(0), // BIGINT / long
-                        YoutubeVideoId = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        Title = reader.IsDBNull(2) ? "Untitled" : reader.GetString(2),
-                        Artist = reader.IsDBNull(3) ? "Unknown" : reader.GetString(3),
-                        Album = reader.IsDBNull(4) ? "Single" : reader.GetString(4),
-                        ReleaseYear = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-                        AlbumCoverUrl = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                        AudioUrl = audioUrl,
-                        IsDownloaded = !reader.IsDBNull(8) && reader.GetBoolean(8),
-                        DurationSeconds = reader.IsDBNull(9) ? 0 : reader.GetInt32(9)
-                    });
-                }
+                        Id = s.Id,
+                        YoutubeVideoId = s.YoutubeVideoId ?? "",
+                        Title = string.IsNullOrWhiteSpace(s.Title) ? "Untitled" : s.Title,
+                        Artist = string.IsNullOrWhiteSpace(s.Artist) ? "Unknown" : s.Artist,
+                        Album = string.IsNullOrWhiteSpace(s.Album) ? "Single" : s.Album,
+                        ReleaseYear = s.ReleaseYear,
+                        AlbumCoverUrl = s.AlbumCoverUrl ?? "",
+                        AudioUrl = s.AudioUrl ?? "",
+                        IsDownloaded = s.IsDownloaded,
+                        DurationSeconds = 0 // Sesuaikan jika ada kolom Duration
+                    })
+                    .ToListAsync();
+
                 return Results.Ok(songs);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[NEON DB] Failed to fetch songs from songs_complete");
+                logger.LogError(ex, "[DB ORM] Failed to fetch songs from songs_complete");
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
 
         // ------------------------------------------------------------
-        // DELETE SINGLE SONG (Parameter ID bertipe long)
+        // DELETE SINGLE SONG (Parameter ID bertipe long via ORM)
         // ------------------------------------------------------------
-        app.MapDelete("/api/songs/{id:long}", async (long id, ILogger<Program> logger) =>
+        app.MapDelete("/api/songs/{id:long}", async (
+            long id, 
+            IDbContextFactory<AppDbContext> dbContextFactory, 
+            ILogger<Program> logger) =>
         {
-            if (string.IsNullOrWhiteSpace(dbConnectionString)) return Results.BadRequest();
-
             try
             {
-                await using var conn = new NpgsqlConnection(dbConnectionString);
-                await conn.OpenAsync();
+                await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                const string sql = "DELETE FROM songs_complete WHERE id = @id;";
-                await using var cmd = new NpgsqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("id", id);
+                var song = await context.SongsComplete.FindAsync(id);
+                if (song == null) return Results.NotFound();
 
-                int affected = await cmd.ExecuteNonQueryAsync();
-                return affected > 0 ? Results.Ok() : Results.NotFound();
+                context.SongsComplete.Remove(song);
+                await context.SaveChangesAsync();
+
+                return Results.Ok();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[NEON DB] Failed to delete song {Id}", id);
+                logger.LogError(ex, "[DB ORM] Failed to delete song {Id}", id);
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
 
         // ------------------------------------------------------------
-        // DELETE BATCH SONGS (Explicit Namespace DTO untuk Mencegah CS0104)
+        // DELETE BATCH SONGS (Menggunakan Bulk Delete EF Core)
         // ------------------------------------------------------------
-        app.MapPost("/api/songs/delete-batch", async ([FromBody] Hypen.Web.Models.BatchDeleteRequest req, ILogger<Program> logger) =>
+        app.MapPost("/api/songs/delete-batch", async (
+            [FromBody] Hypen.Web.Models.BatchDeleteRequest req, 
+            IDbContextFactory<AppDbContext> dbContextFactory, 
+            ILogger<Program> logger) =>
         {
-            if (string.IsNullOrWhiteSpace(dbConnectionString) || req?.Ids == null || req.Ids.Length == 0)
+            if (req?.Ids == null || req.Ids.Length == 0)
                 return Results.BadRequest();
 
             try
             {
-                await using var conn = new NpgsqlConnection(dbConnectionString);
-                await conn.OpenAsync();
+                await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                const string sql = "DELETE FROM songs_complete WHERE id = ANY(@ids);";
-                await using var cmd = new NpgsqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("ids", req.Ids);
+                // Direct ExecuteDeleteAsync untuk efisiensi penanganan batch delete tanpa mengurutkan memori
+                int affected = await context.SongsComplete
+                    .Where(s => req.Ids.Contains(s.Id))
+                    .ExecuteDeleteAsync();
 
-                int affected = await cmd.ExecuteNonQueryAsync();
                 return Results.Ok(new { deletedCount = affected });
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[NEON DB] Failed to delete batch songs");
+                logger.LogError(ex, "[DB ORM] Failed to delete batch songs");
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
