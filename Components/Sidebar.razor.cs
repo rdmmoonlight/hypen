@@ -9,6 +9,9 @@ namespace Hypen.Web.Components
         [Parameter]
         public EventCallback<bool> OnToggle { get; set; }
 
+        [Inject]
+        protected NavigationManager Navigation { get; set; } = default!;
+
         private async Task ToggleSidebar()
         {
             isExpanded = !isExpanded;
@@ -17,6 +20,17 @@ namespace Hypen.Web.Components
             {
                 await OnToggle.InvokeAsync(isExpanded);
             }
+        }
+
+        // Helper untuk navigasi langsung via code (opsional jika dibutuhkan)
+        protected void NavigateToStaging()
+        {
+            Navigation.NavigateTo("/staging");
+        }
+
+        protected void NavigateToSync()
+        {
+            Navigation.NavigateTo("/library/sync");
         }
     }
 }
