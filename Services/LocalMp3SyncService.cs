@@ -144,8 +144,7 @@ public class LocalMp3SyncService
                 Artist = item.CleanArtist,
                 Country = string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country,
                 AudioUrl = $"/downloads/{item.FileName}",
-                Status = "PENDING",
-                SyncStatus = "PENDING"
+                Status = "PENDING"
             };
 
             await context.SongsRaw.AddAsync(rawEntity);
@@ -281,7 +280,7 @@ public class LocalMp3SyncService
             string ytId = rawItem.YoutubeVideoId ?? "";
             string audioUrl = rawItem.AudioUrl ?? "";
 
-            // 2. ORM Upsert Check ke songs_complete
+            // 2. ORM Upsert Check ke songs_complete (CloudSongModel)
             var existingComplete = await context.SongsComplete
                 .FirstOrDefaultAsync(c => c.YoutubeVideoId == ytId);
 
@@ -299,7 +298,7 @@ public class LocalMp3SyncService
             }
             else
             {
-                var newComplete = new CompleteSongModel
+                var newComplete = new CloudSongModel
                 {
                     RawId = rawId,
                     YoutubeVideoId = ytId,
@@ -318,7 +317,6 @@ public class LocalMp3SyncService
 
             // 3. Update status di songs_raw via Tracking Entity EF Core
             rawItem.Status = "PROCESSED";
-            rawItem.SyncStatus = "PROCESSED";
 
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
