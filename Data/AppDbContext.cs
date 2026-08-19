@@ -14,11 +14,55 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Mapping nama tabel PostgreSQL
-        modelBuilder.Entity<RawSongModel>().ToTable("songs_raw");
-        modelBuilder.Entity<CompleteSongModel>().ToTable("songs_complete");
+        // =========================================================================
+        // 1. MAPPING TABEL: songs_raw
+        // =========================================================================
+        modelBuilder.Entity<RawSongModel>(entity =>
+        {
+            entity.ToTable("songs_raw");
 
-        // Abaikan kolom created_at agar ORM tidak mencarinya di Database
-        modelBuilder.Entity<RawSongModel>().Ignore(r => r.CreatedAt);
+            // Primary Key
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            // Mapping Kolom
+            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Artist).HasColumnName("artist");
+            entity.Property(e => e.RawTitle).HasColumnName("raw_title");
+            entity.Property(e => e.RawChannelTitle).HasColumnName("raw_channel_title");
+            entity.Property(e => e.RawThumbnailUrl).HasColumnName("raw_thumbnail_url");
+            entity.Property(e => e.Country).HasColumnName("country");
+            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.SyncStatus).HasColumnName("sync_status");
+
+            // Abaikan kolom yang tidak ada di database PostgreSQL
+            entity.Ignore(e => e.CreatedAt);
+        });
+
+        // =========================================================================
+        // 2. MAPPING TABEL: songs_complete
+        // =========================================================================
+        modelBuilder.Entity<CompleteSongModel>(entity =>
+        {
+            entity.ToTable("songs_complete");
+
+            // Primary Key
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            // Mapping Kolom
+            entity.Property(e => e.RawId).HasColumnName("raw_id");
+            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Artist).HasColumnName("artist");
+            entity.Property(e => e.Album).HasColumnName("album");
+            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
+            entity.Property(e => e.Country).HasColumnName("country");
+            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
+            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
+            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded");
+        });
     }
 }
