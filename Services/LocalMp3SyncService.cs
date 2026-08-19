@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Npgsql;
+using TagLib;
 using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
@@ -18,7 +19,72 @@ public class LocalMp3SyncService
             ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") ?? "";
     }
 
-    // 1. Ekstrak & Clean Metadata Awal dari Nama File / Tag
+    // 1. Ekstrak Metadata dari Stream MP3 Menggunakan TagLibSharp
+    public async Task<LocalMp3ExtractModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
+    {
+        // Simpan stream ke file temporary untuk di-parse oleh TagLib
+        string tempPath = Path.Combine(Path.GetTempPath(), $"hypen_tag_{Guid.NewGuid():N}.mp3");
+
+        try
+        {
+            await using (var destStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true))
+            {
+                await fileStream.CopyToAsync(destStream);
+            }
+
+            // Inisialisasi TagLib File
+            using var tFile = TagLib.File.Create(tempPath);
+
+            string tagArtist = tFile.Tag.FirstPerformer?.Trim() ?? "";
+            string tagTitle = tFile.Tag.Title?.Trim() ?? "";
+            string tagAlbum = tFile.Tag.Album?.Trim() ?? "";
+            uint tagYear = tFile.Tag.Year;
+
+            // Jika tag ID3 kosong, gunakan Fallback Parsers dari nama file
+            var fileFallback = ExtractMetadataFromFileName(originalFileName);
+
+            string finalArtist = !string.IsNullOrWhiteSpace(tagArtist) ? tagArtist : fileFallback.RawArtist;
+            string finalTitle = !string.IsNullOrWhiteSpace(tagTitle) ? tagTitle : fileFallback.RawTitle;
+            string finalAlbum = !string.IsNullOrWhiteSpace(tagAlbum) ? tagAlbum : "Single";
+            int? finalYear = tagYear > 0 ? (int)tagYear : null;
+
+            // Ekstrak Cover Artwork jika ada yang tertanam di dalam MP3
+            string embeddedCoverBase64 = "";
+            if (tFile.Tag.Pictures.Length > 0)
+            {
+                var pic = tFile.Tag.Pictures[0];
+                string mimeType = string.IsNullOrWhiteSpace(pic.MimeType) ? "image/jpeg" : pic.MimeType;
+                embeddedCoverBase64 = $"data:{mimeType};base64,{Convert.ToBase64String(pic.Data.Data)}";
+            }
+
+            return new LocalMp3ExtractModel
+            {
+                FileName = originalFileName,
+                RawArtist = finalArtist,
+                RawTitle = finalTitle,
+                CleanArtist = finalArtist,
+                CleanTitle = finalTitle,
+                Album = finalAlbum,
+                ReleaseYear = finalYear,
+                AlbumCoverUrl = embeddedCoverBase64 // Menggunakan embedded picture jika ada
+            };
+        }
+        catch
+        {
+            // Jika file corrupt / gagal parse tag, gunakan fallback murni dari nama file
+            return ExtractMetadataFromFileName(originalFileName);
+        }
+        finally
+        {
+            // Pastikan file temporary selalu dibersihkan
+            if (System.IO.File.Exists(tempPath))
+            {
+                try { System.IO.File.Delete(tempPath); } catch { }
+            }
+        }
+    }
+
+    // Fallback Parser: Ekstrak Metadata dari String Nama File
     public LocalMp3ExtractModel ExtractMetadataFromFileName(string fileName)
     {
         // Hapus ekstensi .mp3
@@ -46,13 +112,17 @@ public class LocalMp3SyncService
             RawArtist = artist,
             RawTitle = title,
             CleanArtist = artist,
-            CleanTitle = title
+            CleanTitle = title,
+            Album = "Single"
         };
     }
 
-    // 2. Fetch Album Cover & Metadata Lengkap dari iTunes Search API
+    // 2. Fetch Album Cover & Metadata Tambahan dari iTunes Search API (Jika Embedded Cover Kosong)
     public async Task EnrichMetadataAsync(LocalMp3ExtractModel item)
     {
+        // Jika sudah ada embedded cover dari TagLib, tidak perlu override dengan iTunes API
+        if (!string.IsNullOrWhiteSpace(item.AlbumCoverUrl)) return;
+
         try
         {
             string query = $"{item.CleanArtist} {item.CleanTitle}";
@@ -63,7 +133,11 @@ public class LocalMp3SyncService
             if (res.GetProperty("resultCount").GetInt32() > 0)
             {
                 var first = res.GetProperty("results")[0];
-                item.Album = first.TryGetProperty("collectionName", out var alb) ? alb.GetString() ?? "Single" : "Single";
+                
+                if (item.Album == "Single" && first.TryGetProperty("collectionName", out var alb))
+                {
+                    item.Album = alb.GetString() ?? "Single";
+                }
                 
                 // Ambil High Resolution Artwork (600x600 px)
                 if (first.TryGetProperty("artworkUrl100", out var art))
@@ -71,7 +145,7 @@ public class LocalMp3SyncService
                     item.AlbumCoverUrl = art.GetString()?.Replace("100x100bb", "600x600bb") ?? "";
                 }
 
-                if (first.TryGetProperty("releaseDate", out var rel) && DateTime.TryParse(rel.GetString(), out var dt))
+                if (!item.ReleaseYear.HasValue && first.TryGetProperty("releaseDate", out var rel) && DateTime.TryParse(rel.GetString(), out var dt))
                 {
                     item.ReleaseYear = dt.Year;
                 }
@@ -80,7 +154,6 @@ public class LocalMp3SyncService
         catch
         {
             // Fail silent jika API iTunes tidak menemukan kecocokan
-            item.Album = "Single";
         }
     }
 
@@ -90,7 +163,7 @@ public class LocalMp3SyncService
         var selectedItems = items.Where(i => i.IsSelected).ToList();
         if (selectedItems.Count == 0) return 0;
 
-        using var conn = new NpgsqlConnection(_connectionString);
+        await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
 
         int insertedCount = 0;
@@ -107,11 +180,11 @@ public class LocalMp3SyncService
                     @ytId, @title, @artist, @album, @year, @cover, @audioUrl, true
                 ) ON CONFLICT (youtube_video_id) DO NOTHING;";
 
-            using var cmd = new NpgsqlCommand(query, conn);
+            await using var cmd = new NpgsqlCommand(query, conn);
             cmd.Parameters.AddWithValue("ytId", fakeYtId);
             cmd.Parameters.AddWithValue("title", item.CleanTitle);
             cmd.Parameters.AddWithValue("artist", item.CleanArtist);
-            cmd.Parameters.AddWithValue("album", item.Album ?? "Single");
+            cmd.Parameters.AddWithValue("album", string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album);
             cmd.Parameters.AddWithValue("year", (object?)item.ReleaseYear ?? DBNull.Value);
             cmd.Parameters.AddWithValue("cover", item.AlbumCoverUrl ?? "");
             cmd.Parameters.AddWithValue("audioUrl", $"/downloads/{item.FileName}");
