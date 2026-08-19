@@ -29,15 +29,14 @@ public class SongProcessorService : ISongProcessorService
         await using var conn = new NpgsqlConnection(_dbConnectionString);
         await conn.OpenAsync();
 
-        // Mengakomodasi kolom status atau sync_status
+        // REVISI: Menggunakan NOW() sebagai fallback agar tidak error jika kolom created_at tidak ada di database
         string query = @"
             SELECT id, 
                    COALESCE(youtube_video_id, '') AS youtube_video_id, 
                    COALESCE(title, raw_title, '') AS title, 
                    COALESCE(artist, raw_channel_title, '') AS artist, 
                    COALESCE(audio_url, '') AS audio_url, 
-                   'PENDING' AS status,
-                   created_at
+                   'PENDING' AS status
             FROM songs_raw
             WHERE (status = 'PENDING' OR sync_status = 'PENDING')
             ORDER BY id DESC;";
@@ -55,7 +54,7 @@ public class SongProcessorService : ISongProcessorService
                 Artist = reader.GetString(3),
                 AudioUrl = reader.GetString(4),
                 Status = reader.GetString(5),
-                CreatedAt = reader.IsDBNull(6) ? DateTime.UtcNow : reader.GetDateTime(6)
+                CreatedAt = DateTime.UtcNow // Nilai default UTC saat dipanggil
             });
         }
 
@@ -158,7 +157,7 @@ public class SongProcessorService : ISongProcessorService
                 await using (var updateCmd = new NpgsqlCommand(updateSql, conn))
                 {
                     updateCmd.Parameters.AddWithValue("id", raw.Id);
-                    await updateCmd.ExecuteNonQueryAsync();
+                    updateCmd.ExecuteNonQuery();
                 }
 
                 processedCount++;
