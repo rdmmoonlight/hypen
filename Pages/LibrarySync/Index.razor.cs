@@ -50,6 +50,8 @@ public partial class Index : ComponentBase
         {
             await LoadStagingData();
         }
+
+        StateHasChanged();
     }
 
     // =========================================================================
@@ -151,9 +153,17 @@ public partial class Index : ComponentBase
     {
         try
         {
-            stagingList = await ProcessorService.GetPendingRawAsync();
+            var data = await ProcessorService.GetPendingRawAsync();
+            stagingList = data ?? [];
         }
-        catch { }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal memuat data Staging RAW: {ex.Message}", true);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
     }
 
     protected async Task PromoteSingleRawToComplete(RawSongModel raw)
@@ -275,7 +285,15 @@ public partial class Index : ComponentBase
             pendingRawCount = await SyncService.GetPendingRawCountAsync();
             completedSongsCount = await SyncService.GetCompletedCountAsync();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Opsional: Log error jika metrics gagal dimuat
+            Console.WriteLine($"Error RefreshMetrics: {ex.Message}");
+        }
+        finally
+        {
+            StateHasChanged();
+        }
     }
 
     private void UpdateStatus(string msg, bool error = false)
