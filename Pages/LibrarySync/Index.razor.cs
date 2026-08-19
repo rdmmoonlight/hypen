@@ -98,7 +98,7 @@ public partial class Index : ComponentBase
     }
 
     // ==========================================
-    // LOGIKA LOCAL MP3 SYNC (ID3 TAG PARSING)
+    // LOGIKA LOCAL MP3 SYNC (SMART INTERNET MATCHING)
     // ==========================================
 
     protected async Task HandleFileSelection(InputFileChangeEventArgs e)
@@ -114,7 +114,7 @@ public partial class Index : ComponentBase
             foreach (var file in files)
             {
                 scanned++;
-                UpdateStatus($"[{scanned}/{files.Count}] Membaca ID3 Tag & Cover Art dari: '{file.Name}'...");
+                UpdateStatus($"[{scanned}/{files.Count}] Mengurai teks/tag awal dari: '{file.Name}'...");
 
                 // Batas file size 50 MB per MP3
                 await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50);
@@ -123,7 +123,7 @@ public partial class Index : ComponentBase
                 extractedList.Add(model);
             }
 
-            UpdateStatus($"{extractedList.Count} file MP3 berhasil di-scan. Metadata ID3 Tag & gambar sampul telah diekstrak.");
+            UpdateStatus($"{extractedList.Count} file MP3 ter-wrapping. Silakan periksa atau klik 'Enrich & Entry' untuk pencarian metadata resmi via internet.");
         }
         catch (Exception ex)
         {
@@ -146,17 +146,19 @@ public partial class Index : ComponentBase
             isProcessing = true;
             int count = 0;
 
+            // 1. Validasi & Overwrite Metadata via Internet (iTunes Search API)
             foreach (var item in selected)
             {
                 count++;
-                UpdateStatus($"[{count}/{selected.Count}] Mengecek metadata tambahan via iTunes untuk: '{item.CleanTitle}'...");
-                await LocalSyncService.EnrichMetadataAsync(item);
+                UpdateStatus($"[{count}/{selected.Count}] Memvalidasi Artis, Judul, Album, & Tahun via Internet: '{item.CleanTitle}'...");
+                await LocalSyncService.SmartMatchFromInternetAsync(item);
             }
 
+            // 2. Simpan hasil resmi ke database
             UpdateStatus("Memasukkan data olahan ke tabel 'songs_complete'...");
             int savedCount = await LocalSyncService.SaveToSongsCompleteAsync(selected);
 
-            UpdateStatus($"Berhasil! {savedCount} lagu MP3 lokal telah terdaftar di Vault Library.");
+            UpdateStatus($"Berhasil! {savedCount} lagu MP3 lokal telah divalidasi dan terdaftar di Vault Library.");
             extractedList.Clear();
             await RefreshMetrics();
         }
