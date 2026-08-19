@@ -16,24 +16,24 @@ public partial class Index : ComponentBase
     [Inject]
     protected LocalMp3SyncService LocalSyncService { get; set; } = default!;
 
-    // UI Tab State Pipeline ("ingest", "staging", "vault")
+    // UI Tab State Pipeline ("ingest", "staging")
     protected string activeTab = "ingest"; 
     protected string statusMsg = "";
     protected bool isError;
     protected bool isProcessing;
 
-    // Ingestion YouTube State
+    // TAB 1: INGESTION - YOUTUBE STATE
     protected string targetPlaylistId = "LL";
     protected int maxResults = 25;
 
-    // Staging RAW State
+    // TAB 1: INGESTION - LOCAL MP3 STATE
+    protected List<LocalMp3ExtractModel> extractedList = [];
+    protected bool isAllLocalSelected = true;
+
+    // TAB 2: STAGING STATE (SONGS_RAW -> READY FOR COMPLETE)
     protected List<RawSongModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
-
-    // Ingestion Local MP3 State
-    protected List<LocalMp3ExtractModel> extractedList = [];
-    protected bool isAllLocalSelected = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,10 +43,11 @@ public partial class Index : ComponentBase
 
     protected async Task SwitchTab(string tab)
     {
-        activeTab = tab;
+        // Membatasi pilihan tab hanya pada 2 state
+        activeTab = tab == "staging" ? "staging" : "ingest";
         statusMsg = "";
 
-        if (tab == "staging")
+        if (activeTab == "staging")
         {
             await LoadStagingData();
         }
@@ -55,7 +56,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // TIER 1: INGESTION (YOUTUBE & LOCAL MP3) -> SAVE TO SONGS_RAW
+    // TAB 1: EKSTRAKSI / INGESTION (YOUTUBE & LOCAL MP3) -> SONGS_RAW
     // =========================================================================
 
     protected async Task StartYouTubeIngestionToRaw()
@@ -67,7 +68,7 @@ public partial class Index : ComponentBase
 
             int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, maxResults);
             
-            UpdateStatus($"Ingestion Berhasil! {rawFetched} data baru tersimpan di Staging RAW (Pending).");
+            UpdateStatus($"Ingestion Berhasil! {rawFetched} data baru masuk ke Tab Staging.");
             await RefreshMetrics();
             await LoadStagingData();
         }
@@ -95,7 +96,7 @@ public partial class Index : ComponentBase
             foreach (var file in files)
             {
                 scanned++;
-                UpdateStatus($"[{scanned}/{files.Count}] Mengurai teks/tag awal dari: '{file.Name}'...");
+                UpdateStatus($"[{scanned}/{files.Count}] Mengurai metadata dari: '{file.Name}'...");
 
                 // Batas file size 50 MB per MP3
                 await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50);
@@ -104,7 +105,7 @@ public partial class Index : ComponentBase
                 extractedList.Add(model);
             }
 
-            UpdateStatus($"{extractedList.Count} file MP3 ter-wrapping. Silakan klik 'Simpan ke Staging RAW'.");
+            UpdateStatus($"{extractedList.Count} file MP3 berhasil diproses. Klik 'Simpan ke Staging'.");
         }
         catch (Exception ex)
         {
@@ -125,18 +126,18 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus("Memasukkan data mentah MP3 ke tabel 'songs_raw'...");
+            UpdateStatus("Memasukkan data MP3 ke tabel Staging ('songs_raw')...");
 
             int savedCount = await LocalSyncService.SaveToRawAsync(selected);
 
-            UpdateStatus($"Berhasil! {savedCount} MP3 lokal masuk ke Staging RAW (Pending).");
+            UpdateStatus($"Berhasil! {savedCount} MP3 lokal tersimpan di Staging.");
             extractedList.Clear();
             await RefreshMetrics();
             await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Simpan ke Staging RAW: {ex.Message}", true);
+            UpdateStatus($"Gagal Simpan ke Staging: {ex.Message}", true);
         }
         finally
         {
@@ -146,7 +147,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // TIER 2: STAGING REVIEW (SONGS_RAW PENDING - UNDO & PROMOTE TO COMPLETE)
+    // TAB 2: STAGING (REVIEW, SMART MATCH & DIRECT UPLOAD TO COMPLETE TABLE)
     // =========================================================================
 
     private async Task LoadStagingData()
@@ -158,7 +159,7 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal memuat data Staging RAW: {ex.Message}", true);
+            UpdateStatus($"Gagal memuat data Staging: {ex.Message}", true);
         }
         finally
         {
@@ -171,9 +172,8 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus($"1. Memvalidasi metadata internet untuk: '{raw.Title}'...");
+            UpdateStatus($"1. Memvalidasi metadata via iTunes API untuk: '{raw.Title}'...");
 
-            // Smart Internet Match via iTunes API
             var modelToValidate = new LocalMp3ExtractModel
             {
                 CleanArtist = raw.Artist,
@@ -181,12 +181,12 @@ public partial class Index : ComponentBase
             };
             await LocalSyncService.SmartMatchFromInternetAsync(modelToValidate);
 
-            UpdateStatus($"2. Memindahkan '{modelToValidate.CleanTitle}' oleh '{modelToValidate.CleanArtist}' ke Vault Complete...");
+            UpdateStatus($"2. Mengunggah '{modelToValidate.CleanTitle}' ke tabel utama (Complete Library)...");
             
             bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, modelToValidate);
             if (success)
             {
-                UpdateStatus($"Promote Berhasil! Data #{raw.Id} telah diterbitkan ke Vault Library.");
+                UpdateStatus($"Upload Berhasil! Data #{raw.Id} telah dipindahkan ke tabel Complete.");
             }
 
             await RefreshMetrics();
@@ -194,7 +194,7 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Promote Data #{raw.Id}: {ex.Message}", true);
+            UpdateStatus($"Gagal Upload Data #{raw.Id}: {ex.Message}", true);
         }
         finally
         {
@@ -215,7 +215,7 @@ public partial class Index : ComponentBase
             foreach (var item in stagingList.ToList())
             {
                 count++;
-                UpdateStatus($"[{count}/{stagingList.Count}] Smart Match & Promote: '{item.Title}'...");
+                UpdateStatus($"[{count}/{stagingList.Count}] Validasi & Upload: '{item.Title}'...");
 
                 var modelToValidate = new LocalMp3ExtractModel
                 {
@@ -226,13 +226,13 @@ public partial class Index : ComponentBase
                 await LocalSyncService.PromoteRawToCompleteAsync(item.Id, modelToValidate);
             }
 
-            UpdateStatus($"Selesai! Seluruh data Staging RAW telah divalidasi dan dipindahkan ke Vault.");
+            UpdateStatus($"Selesai! Seluruh data Staging berhasil diunggah ke tabel Complete.");
             await RefreshMetrics();
             await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Memproses Staging RAW: {ex.Message}", true);
+            UpdateStatus($"Gagal Mengunggah Data Staging: {ex.Message}", true);
         }
         finally
         {
@@ -246,17 +246,17 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus($"Membatalkan / Menghapus data RAW #{rawId}...");
+            UpdateStatus($"Membatalkan / Menghapus data Staging #{rawId}...");
 
             await ProcessorService.DeleteRawAsync(rawId);
 
-            UpdateStatus($"Data RAW #{rawId} berhasil dihapus/di-undo.");
+            UpdateStatus($"Data #{rawId} berhasil dihapus dari Staging.");
             await RefreshMetrics();
             await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Menghapus Data RAW: {ex.Message}", true);
+            UpdateStatus($"Gagal Menghapus Data: {ex.Message}", true);
         }
         finally
         {
@@ -266,7 +266,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // HELPERS & UI TOGGLES
+    // HELPERS & UTILITIES
     // =========================================================================
 
     protected void ToggleSelectAllLocal(ChangeEventArgs e)
@@ -287,7 +287,6 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            // Opsional: Log error jika metrics gagal dimuat
             Console.WriteLine($"Error RefreshMetrics: {ex.Message}");
         }
         finally
