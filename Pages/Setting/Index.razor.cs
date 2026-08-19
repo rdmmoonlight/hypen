@@ -1,4 +1,5 @@
 using Hypen.Web.Data;
+using Hypen.Web.Models;
 using Hypen.Web.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
@@ -30,16 +31,19 @@ namespace Hypen.Web.Pages.Setting
             {
                 using var dbContext = await DbFactory.CreateDbContextAsync();
 
-                // Memeriksa keberadaan token di DB (sesuaikan dengan nama Entity/Table OAuth yang Anda gunakan di AppDbContext)
-                // Contoh: Mengambil credential OAuth pertama atau spesifik pengguna
-                var tokenEntity = await dbContext.Set<YouTubeOAuthToken>()
+                // Menggunakan DbSet YouTubeOAuthTokens & YouTubeOAuthTokenModel sesuai AppDbContext
+                var tokenEntity = await dbContext.YouTubeOAuthTokens
+                    .AsNoTracking()
                     .OrderByDescending(t => t.UpdatedAt)
                     .FirstOrDefaultAsync();
 
                 if (tokenEntity != null && !string.IsNullOrEmpty(tokenEntity.RefreshToken))
                 {
                     IsConnected = true;
-                    AccountIdentifier = tokenEntity.AccountEmail ?? tokenEntity.ChannelTitle ?? "OAuth Active Token";
+                    AccountIdentifier = !string.IsNullOrEmpty(tokenEntity.AccountEmail) 
+                        ? tokenEntity.AccountEmail 
+                        : (!string.IsNullOrEmpty(tokenEntity.ChannelTitle) ? tokenEntity.ChannelTitle : "OAuth Active Token");
+                    
                     LastUpdated = tokenEntity.UpdatedAt;
                 }
                 else
@@ -61,7 +65,6 @@ namespace Hypen.Web.Pages.Setting
         {
             try
             {
-                // Menuju ke Endpoint OAuth Redirect yang sudah dipetakan via app.MapOAuthEndpoints(...)
                 Navigation.NavigateTo("/api/oauth/youtube/login", forceLoad: true);
             }
             catch (Exception ex)
@@ -82,10 +85,10 @@ namespace Hypen.Web.Pages.Setting
             {
                 using var dbContext = await DbFactory.CreateDbContextAsync();
 
-                var tokens = await dbContext.Set<YouTubeOAuthToken>().ToListAsync();
+                var tokens = await dbContext.YouTubeOAuthTokens.ToListAsync();
                 if (tokens.Any())
                 {
-                    dbContext.Set<YouTubeOAuthToken>().RemoveRange(tokens);
+                    dbContext.YouTubeOAuthTokens.RemoveRange(tokens);
                     await dbContext.SaveChangesAsync();
                 }
 
@@ -106,17 +109,5 @@ namespace Hypen.Web.Pages.Setting
 
         protected void DismissError() => ErrorMessage = null;
         protected void DismissSuccess() => SuccessMessage = null;
-    }
-
-    // Catatan: Jika entitas YouTubeOAuthToken belum ada di AppDbContext, 
-    // pastikan struktur model entitas berikut disesuaikan dengan DB Schema milik Anda.
-    public class YouTubeOAuthToken
-    {
-        public int Id { get; set; }
-        public string? AccountEmail { get; set; }
-        public string? ChannelTitle { get; set; }
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }
