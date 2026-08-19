@@ -82,6 +82,23 @@ public class AppDbContext : DbContext
                 .HasColumnName("is_downloaded")
                 .HasDefaultValue(false);
 
+            // Mapping Generated Column: is_complete
+            entity.Property(e => e.IsComplete)
+                .HasColumnName("is_complete")
+                .HasComputedColumnSql(@"
+                    CASE WHEN 
+                        (youtube_video_id IS NOT NULL AND youtube_video_id <> '') AND
+                        (musicbrainz_id IS NOT NULL AND musicbrainz_id <> '') AND
+                        (title IS NOT NULL AND title <> '') AND
+                        (artist IS NOT NULL AND artist <> '') AND
+                        (album IS NOT NULL AND album <> '') AND
+                        (release_year IS NOT NULL) AND
+                        (country IS NOT NULL AND country <> '') AND
+                        (album_cover_url IS NOT NULL AND album_cover_url <> '') AND
+                        (audio_url IS NOT NULL AND audio_url <> '') AND
+                        (duration_seconds IS NOT NULL AND duration_seconds > 0)
+                    THEN TRUE ELSE FALSE END", stored: true);
+
             // Abaikan properti pendukung UI & Alias
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
