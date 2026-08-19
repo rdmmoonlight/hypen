@@ -44,6 +44,14 @@
                     <span class="nav-text animate-fade">Downloader</span>
                 }
             </NavLink>
+
+            <NavLink href="setting" class="nav-item-nebula" title="Pengaturan Akun">
+                <i class="bi bi-gear-fill fs-5"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Pengaturan</span>
+                }
+            </NavLink>
         </nav>
     </div>
 
@@ -234,7 +242,7 @@
         animation: fadeIn 0.25s ease-in-out forwards;
     }
 
-    @@keyframes fadeIn {
+    @keyframes fadeIn {
         from {
             opacity: 0;
             transform: translateX(-5px);
