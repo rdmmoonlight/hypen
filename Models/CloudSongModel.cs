@@ -36,7 +36,7 @@ public class CloudSongModel
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = "Single";
     public int? ReleaseYear { get; set; }
-    public string Country { get; set; } = "Unknown"; // Penambahan Metadata Negara
+    public string Country { get; set; } = "Unknown"; // Metadata Negara
     public string AlbumCoverUrl { get; set; } = string.Empty;
 
     // Backward Compatibility Alias untuk AlbumCoverUrl
@@ -64,14 +64,17 @@ public class CloudSongModel
     public bool IsSelected { get; set; }
 }
 
-// Model Penampung Data Mentah dari Tabel songs_raw
+/// <summary>
+/// Model Penampung Data Mentah dari Tabel songs_raw.
+/// Menggunakan `RawSongModel` & properti `Title` sesuai dengan struktur riil repository.
+/// </summary>
 public class RawSongModel
 {
     public long Id { get; set; }
     public string YoutubeVideoId { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty; // Non-nullable + default value (Lapis 1 & 2 Aman)
     public string Artist { get; set; } = string.Empty;
-    public string Country { get; set; } = "Unknown"; // Penambahan Metadata Negara (Raw)
+    public string Country { get; set; } = "Unknown";
     public string AudioUrl { get; set; } = string.Empty;
     public string Status { get; set; } = "PENDING";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
