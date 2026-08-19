@@ -8,6 +8,24 @@ public enum CloudProvider
 }
 
 /// <summary>
+/// Model Buffer Staging Utama (Tabel: songs_raw)
+/// </summary>
+public class RawSongModel
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string? Album { get; set; }
+    public int? ReleaseYear { get; set; }
+    public string? Country { get; set; }
+    public int? DurationSeconds { get; set; }
+    public string? AlbumCoverUrl { get; set; }
+    public string? AudioUrl { get; set; }
+    public string? YoutubeVideoId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
 /// Model Master Library Utama (Tabel: songs_complete)
 /// </summary>
 public class CloudSongModel
