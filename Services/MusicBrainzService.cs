@@ -42,7 +42,6 @@ public class MusicBrainzService : IMusicBrainzService
                 return null;
             }
 
-            // PERBAIKAN: Gunakan response.Content.ReadFromJsonAsync
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (!json.TryGetProperty("recordings", out var recordings) || recordings.GetArrayLength() == 0)
             {
@@ -79,7 +78,6 @@ public class MusicBrainzService : IMusicBrainzService
 
             if (!response.IsSuccessStatusCode) return null;
 
-            // PERBAIKAN: Gunakan response.Content.ReadFromJsonAsync
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (json.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
             {
@@ -156,6 +154,20 @@ public class MusicBrainzService : IMusicBrainzService
 
             if (firstRelease.TryGetProperty("title", out var albumTitleProp))
                 result.Album = albumTitleProp.GetString() ?? "Single";
+
+            // Ekstraksi Negara Awal (Release Country / Area)
+            if (firstRelease.TryGetProperty("country", out var countryProp))
+            {
+                result.Country = countryProp.GetString() ?? "Unknown";
+            }
+            else if (firstRelease.TryGetProperty("release-events", out var relEvents) && relEvents.GetArrayLength() > 0)
+            {
+                var firstEvent = relEvents[0];
+                if (firstEvent.TryGetProperty("area", out var area) && area.TryGetProperty("name", out var areaName))
+                {
+                    result.Country = areaName.GetString() ?? "Unknown";
+                }
+            }
 
             if (firstRelease.TryGetProperty("date", out var dateProp))
             {
