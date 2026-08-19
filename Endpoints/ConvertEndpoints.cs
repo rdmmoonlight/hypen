@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Helpers;
 using Hypen.Web.Services;
@@ -8,7 +9,7 @@ namespace Hypen.Web.Endpoints;
 
 public static class ConvertEndpoints
 {
-    public static void MapConvertEndpoints(this IEndpointRouteBuilder app, string dbConnectionString)
+    public static void MapConvertEndpoints(this IEndpointRouteBuilder app)
     {
         // ------------------------------------------------------------
         // WEB TERMINAL LOG STREAM (Server-Sent Events / SSE)
@@ -29,7 +30,7 @@ public static class ConvertEndpoints
             httpContext.Response.Headers.Append("Cache-Control", "no-cache");
             httpContext.Response.Headers.Append("Connection", "keep-alive");
 
-            string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+            string downloadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "downloads");
 
             try
             {
@@ -55,6 +56,7 @@ public static class ConvertEndpoints
         // ------------------------------------------------------------
         app.MapPost("/api/convert-ytdlp", async (
             [FromBody] ConvertYtDlpRequest req, 
+            IDbContextFactory<AppDbContext> dbContextFactory,
             ILogger<Program> logger, 
             IWebHostEnvironment env, 
             HttpContext httpContext) =>
@@ -66,9 +68,9 @@ public static class ConvertEndpoints
 
                 logger.LogInformation("[FFMPEG CONVERT] Starting process for: {Url}", req.YoutubeUrl);
                 
-                string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+                string downloadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "downloads");
 
-                // Cleanup otomatis: Hapus file MP3 lama yang berumur > 1 jam untuk hemat disk/RAM container
+                // Cleanup otomatis: Hapus file MP3 lama yang berumur > 1 jam
                 try
                 {
                     var dirInfo = new DirectoryInfo(downloadsFolder);
@@ -90,33 +92,40 @@ public static class ConvertEndpoints
                 string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
                 string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
 
-                object? songId = null;
-                if (!string.IsNullOrWhiteSpace(dbConnectionString))
+                // Simpan / Update ke Database via ORM EF Core
+                await using var context = await dbContextFactory.CreateDbContextAsync();
+
+                var existingSong = await context.SongsComplete
+                    .FirstOrDefaultAsync(s => s.YoutubeVideoId == ytdlpResult.YoutubeId);
+
+                long songId;
+                if (existingSong != null)
                 {
-                    await using var conn = new NpgsqlConnection(dbConnectionString);
-                    await conn.OpenAsync();
+                    existingSong.Title = ytdlpResult.Title;
+                    existingSong.Artist = ytdlpResult.Artist;
+                    existingSong.AlbumCoverUrl = ytdlpResult.CoverUrl;
+                    existingSong.AudioUrl = publicAudioUrl;
+                    existingSong.IsDownloaded = true;
+                    
+                    await context.SaveChangesAsync();
+                    songId = existingSong.Id;
+                }
+                else
+                {
+                    var newSong = new CompleteSongModel
+                    {
+                        YoutubeVideoId = ytdlpResult.YoutubeId,
+                        Title = ytdlpResult.Title,
+                        Artist = ytdlpResult.Artist,
+                        Album = "Single",
+                        AlbumCoverUrl = ytdlpResult.CoverUrl,
+                        AudioUrl = publicAudioUrl,
+                        IsDownloaded = true
+                    };
 
-                    const string sql = """
-                        INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds)
-                        VALUES (@yid, @title, @artist, @cover, @url, @dur)
-                        ON CONFLICT (youtube_id)
-                        DO UPDATE SET
-                            title = EXCLUDED.title,
-                            artist = EXCLUDED.artist,
-                            cover_url = EXCLUDED.cover_url,
-                            audio_url = EXCLUDED.audio_url
-                        RETURNING id;
-                        """;
-
-                    await using var cmd = new NpgsqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("yid", ytdlpResult.YoutubeId);
-                    cmd.Parameters.AddWithValue("title", ytdlpResult.Title);
-                    cmd.Parameters.AddWithValue("artist", ytdlpResult.Artist);
-                    cmd.Parameters.AddWithValue("cover", ytdlpResult.CoverUrl);
-                    cmd.Parameters.AddWithValue("url", publicAudioUrl);
-                    cmd.Parameters.AddWithValue("dur", ytdlpResult.Duration);
-
-                    songId = await cmd.ExecuteScalarAsync();
+                    await context.SongsComplete.AddAsync(newSong);
+                    await context.SaveChangesAsync();
+                    songId = newSong.Id;
                 }
 
                 return Results.Ok(new
@@ -142,6 +151,7 @@ public static class ConvertEndpoints
         // ------------------------------------------------------------
         app.MapPost("/api/convert-ytdlp/batch", async (
             [FromBody] BatchConvertYtDlpRequest req, 
+            IDbContextFactory<AppDbContext> dbContextFactory,
             ILogger<Program> logger, 
             IWebHostEnvironment env, 
             HttpContext httpContext) =>
@@ -154,10 +164,12 @@ public static class ConvertEndpoints
                 var urlsToProcess = req.YoutubeUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(4).ToList();
                 logger.LogInformation("[FFMPEG BATCH] Processing {Count} URLs...", urlsToProcess.Count);
 
-                string downloadsFolder = Path.Combine(env.WebRootPath, "downloads");
+                string downloadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "downloads");
                 string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
 
+                await using var context = await dbContextFactory.CreateDbContextAsync();
                 var results = new List<object>();
+
                 foreach (var url in urlsToProcess)
                 {
                     try
@@ -165,33 +177,37 @@ public static class ConvertEndpoints
                         var ytdlpResult = await YtDlpHelper.ExtractAndConvertMp3Async(url, downloadsFolder, logger);
                         string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
 
-                        object? songId = null;
-                        if (!string.IsNullOrWhiteSpace(dbConnectionString))
+                        var existingSong = await context.SongsComplete
+                            .FirstOrDefaultAsync(s => s.YoutubeVideoId == ytdlpResult.YoutubeId);
+
+                        long songId;
+                        if (existingSong != null)
                         {
-                            await using var conn = new NpgsqlConnection(dbConnectionString);
-                            await conn.OpenAsync();
+                            existingSong.Title = ytdlpResult.Title;
+                            existingSong.Artist = ytdlpResult.Artist;
+                            existingSong.AlbumCoverUrl = ytdlpResult.CoverUrl;
+                            existingSong.AudioUrl = publicAudioUrl;
+                            existingSong.IsDownloaded = true;
+                            
+                            await context.SaveChangesAsync();
+                            songId = existingSong.Id;
+                        }
+                        else
+                        {
+                            var newSong = new CompleteSongModel
+                            {
+                                YoutubeVideoId = ytdlpResult.YoutubeId,
+                                Title = ytdlpResult.Title,
+                                Artist = ytdlpResult.Artist,
+                                Album = "Single",
+                                AlbumCoverUrl = ytdlpResult.CoverUrl,
+                                AudioUrl = publicAudioUrl,
+                                IsDownloaded = true
+                            };
 
-                            const string sql = """
-                                INSERT INTO songs (youtube_id, title, artist, cover_url, audio_url, duration_seconds)
-                                VALUES (@yid, @title, @artist, @cover, @url, @dur)
-                                ON CONFLICT (youtube_id)
-                                DO UPDATE SET
-                                    title = EXCLUDED.title,
-                                    artist = EXCLUDED.artist,
-                                    cover_url = EXCLUDED.cover_url,
-                                    audio_url = EXCLUDED.audio_url
-                                RETURNING id;
-                                """;
-
-                            await using var cmd = new NpgsqlCommand(sql, conn);
-                            cmd.Parameters.AddWithValue("yid", ytdlpResult.YoutubeId);
-                            cmd.Parameters.AddWithValue("title", ytdlpResult.Title);
-                            cmd.Parameters.AddWithValue("artist", ytdlpResult.Artist);
-                            cmd.Parameters.AddWithValue("cover", ytdlpResult.CoverUrl);
-                            cmd.Parameters.AddWithValue("url", publicAudioUrl);
-                            cmd.Parameters.AddWithValue("dur", ytdlpResult.Duration);
-
-                            songId = await cmd.ExecuteScalarAsync();
+                            await context.SongsComplete.AddAsync(newSong);
+                            await context.SaveChangesAsync();
+                            songId = newSong.Id;
                         }
 
                         results.Add(new
