@@ -23,10 +23,19 @@ public class AppDbContext : DbContext
 
             // Primary Key
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd();
+
+            // Unique Index & Constraints
+            entity.HasIndex(e => e.YoutubeVideoId)
+                .IsUnique();
 
             // Mapping Kolom
-            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
+            entity.Property(e => e.YoutubeVideoId)
+                .HasColumnName("youtube_video_id")
+                .IsRequired();
+
             entity.Property(e => e.Title).HasColumnName("title");
             entity.Property(e => e.Artist).HasColumnName("artist");
             entity.Property(e => e.RawTitle).HasColumnName("raw_title");
@@ -34,10 +43,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.RawThumbnailUrl).HasColumnName("raw_thumbnail_url");
             entity.Property(e => e.Country).HasColumnName("country");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
-            entity.Property(e => e.Status).HasColumnName("status");
-            entity.Property(e => e.SyncStatus).HasColumnName("sync_status");
+            
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasDefaultValue("PENDING");
 
-            // Abaikan kolom yang tidak ada di database PostgreSQL
+            entity.Property(e => e.SyncStatus)
+                .HasColumnName("sync_status")
+                .HasDefaultValue("PENDING");
+
+            // Abaikan kolom yang tidak ada di skema fisik PostgreSQL
             entity.Ignore(e => e.CreatedAt);
         });
 
@@ -50,19 +65,32 @@ public class AppDbContext : DbContext
 
             // Primary Key
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd();
+
+            // Unique Index & Constraints (Untuk kebutuhan Upsert)
+            entity.HasIndex(e => e.YoutubeVideoId)
+                .IsUnique();
 
             // Mapping Kolom
             entity.Property(e => e.RawId).HasColumnName("raw_id");
-            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
-            entity.Property(e => e.Title).HasColumnName("title");
-            entity.Property(e => e.Artist).HasColumnName("artist");
+            
+            entity.Property(e => e.YoutubeVideoId)
+                .HasColumnName("youtube_video_id")
+                .IsRequired();
+
+            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
+            entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
             entity.Property(e => e.Album).HasColumnName("album");
             entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
             entity.Property(e => e.Country).HasColumnName("country");
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
-            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded");
+            
+            entity.Property(e => e.IsDownloaded)
+                .HasColumnName("is_downloaded")
+                .HasDefaultValue(false);
         });
     }
 }
