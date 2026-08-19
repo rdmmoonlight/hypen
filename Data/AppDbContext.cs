@@ -28,7 +28,7 @@ public class AppDbContext : DbContext
                 .HasColumnName("id")
                 .ValueGeneratedOnAdd();
 
-            // Unique Index (Filter NULL agar ID lokal non-YouTube tidak bentrok jika kosong)
+            // Unique Index (Filtered untuk mengabaikan NULL/string kosong agar ID lokal tidak bentrok)
             entity.HasIndex(e => e.YoutubeVideoId)
                 .IsUnique()
                 .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
@@ -53,7 +53,7 @@ public class AppDbContext : DbContext
                 .HasColumnName("sync_status")
                 .HasDefaultValue("PENDING");
 
-            // Abaikan kolom yang tidak ada di skema fisik PostgreSQL
+            // Abaikan properti yang tidak ada di skema fisik PostgreSQL
             entity.Ignore(e => e.CreatedAt);
         });
 
@@ -70,7 +70,7 @@ public class AppDbContext : DbContext
                 .HasColumnName("id")
                 .ValueGeneratedOnAdd();
 
-            // Unique Index (Filter NULL untuk kebutuhan Upsert aman)
+            // Unique Index (Filtered untuk kebutuhan Upsert yang aman)
             entity.HasIndex(e => e.YoutubeVideoId)
                 .IsUnique()
                 .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
