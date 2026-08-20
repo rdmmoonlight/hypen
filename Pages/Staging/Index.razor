@@ -3,19 +3,19 @@
 
 <PageTitle>Staging Buffer - Hypen Music Vault</PageTitle>
 
-<div class="container-fluid py-4 bg-dark text-light min-vh-100">
-
+<div style="padding: 24px; background: #0a0b0e; color: #8a8f98; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-end border-bottom border-secondary pb-3 mb-4 flex-wrap gap-2">
+    <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
         <div>
-            <div class="text-uppercase text-muted fw-bold small mb-1" style="letter-spacing: 2px; font-size: 0.7rem;">System Pipeline</div>
-            <h1 class="h4 mb-0 fw-normal text-white">Staging Buffer Review</h1>
+            <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: #525866; margin-bottom: 4px; font-weight: 600;">System Pipeline</div>
+            <h1 style="font-size: 1.25rem; color: #e6e8ec; margin: 0; font-weight: 500; letter-spacing: -0.2px;">Staging Buffer Review</h1>
         </div>
-        <div class="d-flex gap-2">
-            <a href="/library/sync" class="btn btn-outline-secondary btn-sm font-monospace">
+        <div style="display: flex; gap: 8px;">
+            <a href="/library/sync" style="text-decoration: none; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #8a8f98; padding: 6px 14px; border-radius: 4px; font-size: 0.75rem; font-family: monospace; transition: all 0.2s;">
                 ← EXTRACTION
             </a>
-            <a href="/library" class="btn btn-outline-secondary btn-sm font-monospace">
+            <a href="/library" style="text-decoration: none; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #8a8f98; padding: 6px 14px; border-radius: 4px; font-size: 0.75rem; font-family: monospace; transition: all 0.2s;">
                 LIBRARY (@completedSongsCount)
             </a>
         </div>
@@ -24,142 +24,151 @@
     <!-- STATUS ALERT -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-info") alert-dismissible fade show mb-4 py-2" role="alert">
-            <small class="font-monospace">@statusMsg</small>
+        <div style="background: @(isError ? "rgba(247, 37, 133, 0.05)" : "rgba(76, 201, 240, 0.05)"); 
+                    border-left: 2px solid @(isError ? "#ff4d6d" : "#4cc9f0"); 
+                    padding: 8px 14px; margin-bottom: 20px; border-radius: 2px;">
+            <p style="color: @(isError ? "#ff4d6d" : "#4cc9f0"); font-weight: 400; font-size: 0.75rem; margin: 0; letter-spacing: 0.3px;">
+                @statusMsg
+            </p>
         </div>
     }
 
     <!-- STAGING REVIEW TOOLBAR -->
-    <div class="card bg-secondary bg-opacity-10 border-secondary mb-4">
-        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-                <div class="text-uppercase text-muted font-monospace small" style="font-size: 0.75rem;">
-                    Buffer Pipeline (@pendingRawCount PENDING) 
-                    @if (selectedRawIds.Count > 0)
-                    {
-                        <span class="text-info ms-2 fw-bold">[ @selectedRawIds.Count TERPILIH ]</span>
-                    }
-                </div>
-                <div class="small text-secondary">Review metadata & sinkronisasi data staging.</div>
-            </div>
-            
-            <div class="d-flex gap-2 flex-wrap">
-                <!-- TOMBOL AKSI MASSAL ITEM TERPILIH -->
+    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <div style="font-size: 0.68rem; font-family: monospace; color: #525866; text-transform: uppercase;">
+                Buffer Pipeline (@pendingRawCount PENDING) 
                 @if (selectedRawIds.Count > 0)
                 {
-                    <button class="btn btn-outline-info btn-sm font-monospace" @onclick="SmartMatchSelected" disabled="@isProcessing">
-                        🔍 MATCH SELECTED (@selectedRawIds.Count)
-                    </button>
-                    <button class="btn btn-info btn-sm font-monospace text-dark fw-bold" @onclick="UploadSelectedToComplete" disabled="@isProcessing">
-                        🚀 COMMIT SELECTED (@selectedRawIds.Count)
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm font-monospace" @onclick="DeleteSelectedRawItems" disabled="@isProcessing">
-                        ✕ DELETE SELECTED (@selectedRawIds.Count)
-                    </button>
+                    <span style="color: #4cc9f0; margin-left: 8px;">[ @selectedRawIds.Count TERPILIH ]</span>
                 }
-
-                <!-- TOMBOL AKSI GLOBAL -->
-                <button class="btn btn-outline-light btn-sm font-monospace" @onclick="SmartMatchAllPending" disabled="@isProcessing">
-                    MATCH ALL
-                </button>
-                <button class="btn btn-light btn-sm font-monospace text-dark fw-bold" @onclick="UploadAllToComplete" disabled="@isProcessing">
-                    COMMIT ALL
-                </button>
             </div>
+            <div style="font-size: 0.8rem; color: #d0d3d8;">Review metadata & sinkronisasi data staging.</div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <!-- TOMBOL AKSI MASSAL ITEM TERPILIH -->
+            @if (selectedRawIds.Count > 0)
+            {
+                <button style="background: rgba(69, 162, 158, 0.15); color: #45a29e; border: 1px solid rgba(69, 162, 158, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="SmartMatchSelected" disabled="@isProcessing">
+                    🔍 MATCH SELECTED (@selectedRawIds.Count)
+                </button>
+                <button style="background: rgba(76, 201, 240, 0.15); color: #4cc9f0; border: 1px solid rgba(76, 201, 240, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="UploadSelectedToComplete" disabled="@isProcessing">
+                    🚀 COMMIT SELECTED (@selectedRawIds.Count)
+                </button>
+                <button style="background: rgba(247, 37, 133, 0.15); color: #ff4d6d; border: 1px solid rgba(247, 37, 133, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="DeleteSelectedRawItems" disabled="@isProcessing">
+                    ✕ DELETE SELECTED (@selectedRawIds.Count)
+                </button>
+            }
+
+            <!-- TOMBOL AKSI GLOBAL -->
+            <button style="background: transparent; color: #8a8f98; border: 1px solid rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                    @onclick="SmartMatchAllPending" disabled="@isProcessing">
+                MATCH ALL
+            </button>
+            <button style="background: rgba(255,255,255,0.08); color: #e6e8ec; border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                    @onclick="UploadAllToComplete" disabled="@isProcessing">
+                COMMIT ALL
+            </button>
         </div>
     </div>
 
-    <!-- TABLE / EMPTY STATE -->
     @if (stagingList.Count == 0)
     {
-        <div class="card bg-secondary bg-opacity-10 border-secondary text-center py-5">
-            <div class="card-body text-muted font-monospace small">
-                NO PENDING TRACKS IN STAGING BUFFER.
-            </div>
+        <div style="padding: 40px; text-align: center; color: #525866; font-family: monospace; font-size: 0.75rem; background: rgba(255,255,255,0.01); border-radius: 4px; border: 1px solid rgba(255,255,255,0.03);">
+            NO PENDING TRACKS IN STAGING BUFFER.
         </div>
     }
     else
     {
-        <div class="card bg-dark border-secondary">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle mb-0" style="font-size: 0.85rem; min-width: 1000px;">
-                    <thead class="table-group-divider border-secondary text-uppercase text-muted font-monospace small" style="font-size: 0.7rem;">
-                        <tr>
-                            <th class="text-center" style="width: 40px;">
-                                <input type="checkbox" class="form-check-input" checked="@IsAllSelected" @onchange="ToggleSelectAll" />
-                            </th>
-                            <th style="width: 180px;">Judul</th>
-                            <th style="width: 150px;">Artis</th>
-                            <th style="width: 140px;">Album</th>
-                            <th style="width: 80px;">Tahun</th>
-                            <th style="width: 70px;">Reg</th>
-                            <th style="width: 80px;">Durasi</th>
-                            <th>Cover URL</th>
-                            <th class="text-end" style="width: 110px;">Aksi</th>
+        <div style="background: rgba(255, 255, 255, 0.02); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.05); overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem; min-width: 1040px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #525866; font-size: 0.68rem; text-transform: uppercase; font-family: monospace;">
+                        <th style="padding: 8px 10px; width: 40px; text-align: center;">
+                            <input type="checkbox" checked="@IsAllSelected" @onchange="ToggleSelectAll" style="cursor: pointer; accent-color: #4cc9f0;" />
+                        </th>
+                        <th style="padding: 8px 10px; width: 180px;">Judul</th>
+                        <th style="padding: 8px 10px; width: 150px;">Artis</th>
+                        <th style="padding: 8px 10px; width: 140px;">Album</th>
+                        <th style="padding: 8px 10px; width: 70px;">Tahun</th>
+                        <th style="padding: 8px 10px; width: 60px;">Reg</th>
+                        <th style="padding: 8px 10px; width: 70px;">Durasi</th>
+                        <th style="padding: 8px 10px;">Cover URL</th>
+                        <th style="padding: 8px 10px; text-align: right; width: 110px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in stagingList)
+                    {
+                        var isSelected = selectedRawIds.Contains(row.Id);
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); background: @(isSelected ? "rgba(76, 201, 240, 0.03)" : "transparent");">
+                            <!-- CHECKBOX SELECT -->
+                            <td style="padding: 6px 10px; text-align: center;">
+                                <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" style="cursor: pointer; accent-color: #4cc9f0;" />
+                            </td>
+
+                            <!-- TITLE -->
+                            <td style="padding: 6px 8px;">
+                                <input type="text" @bind="row.Title" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
+                            </td>
+
+                            <!-- ARTIST -->
+                            <td style="padding: 6px 8px;">
+                                <input type="text" @bind="row.Artist" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
+                            </td>
+
+                            <!-- ALBUM -->
+                            <td style="padding: 6px 8px;">
+                                <input type="text" @bind="row.Album" placeholder="Single" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
+                            </td>
+
+                            <!-- YEAR -->
+                            <td style="padding: 6px 8px;">
+                                <input type="number" @bind="row.ReleaseYear" placeholder="2024" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
+                            </td>
+
+                            <!-- COUNTRY -->
+                            <td style="padding: 6px 8px;">
+                                <input type="text" @bind="row.Country" placeholder="ID" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #4cc9f0; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
+                            </td>
+
+                            <!-- DURATION -->
+                            <td style="padding: 6px 8px;">
+                                <input type="number" @bind="row.DurationSeconds" placeholder="0" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
+                            </td>
+
+                            <!-- COVER URL -->
+                            <td style="padding: 6px 8px;">
+                                <input type="text" @bind="row.AlbumCoverUrl" placeholder="https://..." style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #666c7a; padding: 4px 6px; border-radius: 2px; font-size: 0.72rem; font-family: monospace; width: 100%; outline: none;" />
+                            </td>
+
+                            <!-- ACTIONS -->
+                            <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
+                                <button style="background: transparent; border: none; color: #45a29e; padding: 4px 4px; font-size: 0.72rem; cursor: pointer;" 
+                                        title="Smart Match"
+                                        @onclick="() => SmartMatchSingleRaw(row)" disabled="@isProcessing">
+                                    🔍
+                                </button>
+                                
+                                <button style="background: transparent; border: none; color: #e6e8ec; padding: 4px 4px; font-size: 0.72rem; cursor: pointer;" 
+                                        title="Commit to Library"
+                                        @onclick="() => UploadSingleRawToComplete(row)" disabled="@isProcessing">
+                                    🚀
+                                </button>
+                                
+                                <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 4px; font-size: 0.72rem; cursor: pointer;" 
+                                        title="Hapus"
+                                        @onclick="() => DeleteRawItem(row.Id)" disabled="@isProcessing">
+                                    ✕
+                                </button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in stagingList)
-                        {
-                            var isSelected = selectedRawIds.Contains(row.Id);
-                            <tr class="@(isSelected ? "table-active" : "")">
-                                <!-- CHECKBOX SELECT -->
-                                <td class="text-center">
-                                    <input type="checkbox" class="form-check-input" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" />
-                                </td>
-
-                                <!-- TITLE -->
-                                <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" @bind="row.Title" />
-                                </td>
-
-                                <!-- ARTIST -->
-                                <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" @bind="row.Artist" />
-                                </td>
-
-                                <!-- ALBUM -->
-                                <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary" @bind="row.Album" placeholder="Single" />
-                                </td>
-
-                                <!-- YEAR -->
-                                <td>
-                                    <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" @bind="row.ReleaseYear" placeholder="2024" />
-                                </td>
-
-                                <!-- COUNTRY -->
-                                <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary font-monospace" @bind="row.Country" placeholder="ID" />
-                                </td>
-
-                                <!-- DURATION -->
-                                <td>
-                                    <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary font-monospace" @bind="row.DurationSeconds" placeholder="0" />
-                                </td>
-
-                                <!-- COVER URL -->
-                                <td>
-                                    <input type="text" class="form-control form-control-sm bg-dark text-muted border-secondary font-monospace" @bind="row.AlbumCoverUrl" placeholder="https://..." />
-                                </td>
-
-                                <!-- ACTIONS -->
-                                <td class="text-end text-nowrap">
-                                    <button class="btn btn-link btn-sm text-info p-1" title="Smart Match" @onclick="() => SmartMatchSingleRaw(row)" disabled="@isProcessing">
-                                        🔍
-                                    </button>
-                                    <button class="btn btn-link btn-sm text-light p-1" title="Commit to Library" @onclick="() => UploadSingleRawToComplete(row)" disabled="@isProcessing">
-                                        🚀
-                                    </button>
-                                    <button class="btn btn-link btn-sm text-danger p-1 opacity-75" title="Hapus" @onclick="() => DeleteRawItem(row.Id)" disabled="@isProcessing">
-                                        ✕
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                </tbody>
+            </table>
         </div>
     }
 
