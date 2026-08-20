@@ -7,8 +7,7 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<RawSongModel> SongsRaw { get; set; } = default!;
-    public DbSet<CloudSongModel> SongsComplete { get; set; } = default!;
+    public DbSet<SongModel> Songs { get; set; } = default!;
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -16,32 +15,9 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // 1. MAPPING ENTITY: RawSongModel -> TABEL SSOT: songs
+        // MAPPING TABEL SSOT: songs
         // =========================================================================
-        modelBuilder.Entity<RawSongModel>(entity =>
-        {
-            entity.ToTable("songs");
-
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
-            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
-            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
-            entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
-            entity.Property(e => e.Album).HasColumnName("album");
-            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
-            entity.Property(e => e.Country).HasColumnName("country");
-            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
-            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
-            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
-
-            entity.Ignore(e => e.CreatedAt);
-        });
-
-        // =========================================================================
-        // 2. MAPPING ENTITY: CloudSongModel -> TABEL SSOT: songs
-        // =========================================================================
-        modelBuilder.Entity<CloudSongModel>(entity =>
+        modelBuilder.Entity<SongModel>(entity =>
         {
             entity.ToTable("songs");
 
@@ -58,14 +34,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
             entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
 
-            // Kolom generated dari DB (Read-Only)
+            // Generated column dari DB
             entity.Property(e => e.IsComplete)
                 .HasColumnName("is_complete")
                 .ValueGeneratedOnAddOrUpdate();
 
-            // Abaikan properti UI / Alias
+            // Abaikan properti non-database / UI helper
+            entity.Ignore(e => e.CreatedAt);
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
             entity.Ignore(e => e.Cover);
@@ -75,7 +53,7 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // 3. MAPPING TABEL: youtube_oauth_tokens
+        // MAPPING TABEL: youtube_oauth_tokens
         // =========================================================================
         modelBuilder.Entity<YouTubeOAuthTokenModel>(entity =>
         {
