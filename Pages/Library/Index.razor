@@ -110,7 +110,14 @@
                     {
                         <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                             <td style="padding: 8px 6px; text-align: center;">
-                                <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
+                                @if (IsLocked(song))
+                                {
+                                    <span title="Terkunci (memiliki YouTube URL)" style="opacity: 0.5; font-size: 0.75rem;">🔒</span>
+                                }
+                                else
+                                {
+                                    <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
+                                }
                             </td>
                             <!-- Album Cover 32x32 px -->
                             <td style="padding: 8px 6px; text-align: center;">
@@ -178,9 +185,18 @@
                                 <button style="background: transparent; border: none; color: #8a8f98; padding: 4px 6px; font-size: 0.75rem; cursor: pointer; margin-right: 4px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading" title="Unduh File">
                                     ↓
                                 </button>
-                                <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus File">
-                                    ✕
-                                </button>
+                                @if (IsLocked(song))
+                                {
+                                    <button style="background: transparent; border: none; color: rgba(255,255,255,0.15); padding: 4px 6px; font-size: 0.75rem; cursor: not-allowed;" disabled title="Terkunci — memiliki YouTube URL, tidak dapat dihapus">
+                                        ✕
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus File">
+                                        ✕
+                                    </button>
+                                }
                             </td>
                         </tr>
                     }

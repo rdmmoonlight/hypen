@@ -24,6 +24,8 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
+    protected bool IsLocked(CloudSongModel song) => !string.IsNullOrWhiteSpace(song.YoutubeVideoId);
+
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
@@ -68,14 +70,17 @@ public partial class Index : ComponentBase
         isSelectAllChecked = e.Value is bool val && val;
         foreach (var song in FilteredSongs)
         {
+            if (IsLocked(song)) continue;
             song.IsSelected = isSelectAllChecked;
         }
     }
 
     protected void OnSongSelectChanged(CloudSongModel song, ChangeEventArgs e)
     {
+        if (IsLocked(song)) return;
+
         song.IsSelected = e.Value is bool val && val;
-        var list = FilteredSongs.ToList();
+        var list = FilteredSongs.Where(s => !IsLocked(s)).ToList();
         if (list.Count > 0)
         {
             isSelectAllChecked = list.All(s => s.IsSelected);
@@ -140,6 +145,13 @@ public partial class Index : ComponentBase
 
     protected async Task DeleteSingle(long id)
     {
+        var target = songs.FirstOrDefault(s => s.Id == id);
+        if (target != null && IsLocked(target))
+        {
+            UpdateStatus("Lagu terkunci (memiliki YouTube URL) tidak dapat dihapus.", true);
+            return;
+        }
+
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
         if (!confirmed) return;
 
@@ -151,7 +163,7 @@ public partial class Index : ComponentBase
 
     protected async Task DeleteSelected()
     {
-        long[] selectedIds = songs.Where(song => song.IsSelected).Select(song => song.Id).ToArray();
+        long[] selectedIds = songs.Where(song => song.IsSelected && !IsLocked(song)).Select(song => song.Id).ToArray();
         if (selectedIds.Length == 0)
         {
             UpdateStatus("Tidak ada lagu yang dipilih.", true);
