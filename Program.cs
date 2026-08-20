@@ -1,4 +1,5 @@
 using Hypen.Web;
+using Hypen.Web.Components;
 using Hypen.Web.Data;
 using Hypen.Web.Endpoints;
 using Hypen.Web.Services;
@@ -8,7 +9,9 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Service Registrations
+// =========================================================================
+// 1. SERVICE REGISTRATIONS
+// =========================================================================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -19,9 +22,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Registrasi Controller API untuk DownloadController & API Endpoint Lainnya
+// Registrasi Controller API
 builder.Services.AddControllers();
 
+// Registrasi Razor Components (Blazor Server .NET 8+)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -41,7 +45,7 @@ builder.Services.AddScoped(sp =>
     return new HttpClient { BaseAddress = new Uri(baseUri) };
 });
 
-// Registrasi Standard HttpClient untuk External API Call (iTunes / YouTube Metadata)
+// Registrasi Standard HttpClient untuk External API Call
 builder.Services.AddHttpClient();
 
 // Konfigurasi Environment Variables
@@ -53,9 +57,7 @@ string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
 string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
 
-// =========================================================================
-// REGISTRASI ORM ENTITY FRAMEWORK CORE
-// =========================================================================
+// ORM Entity Framework Core (Factory)
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(dbConnectionStringConfig));
 
@@ -64,7 +66,7 @@ builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
-// Registrasi YouTube Sync & Processing Services (EF Core Dependency Injection)
+// Registrasi YouTube Sync & Processing Services
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
@@ -74,17 +76,17 @@ builder.Services.AddScoped(sp => new YouTubeOAuthService(
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
-// Registrasi Local MP3 Sync Services (Diperlukan oleh LocalMp3SyncService)
+// Registrasi Local MP3 Sync Services
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
 builder.Services.AddScoped<LocalMp3SyncService>();
 
-// 2. Build Pipeline & Middleware
+// =========================================================================
+// 2. BUILD PIPELINE & MIDDLEWARE
+// =========================================================================
 var app = builder.Build();
 
-// Wajib diletakkan paling atas agar header HTTPS dari Reverse Proxy diproses
 app.UseForwardedHeaders();
-
 app.UseCors("AllowAll");
 
 if (!app.Environment.IsDevelopment())
@@ -92,7 +94,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Ensure folder wwwroot dan wwwroot/downloads tersedia di server container saat startup
+// Ensure folder wwwroot dan wwwroot/downloads tersedia di server container
 string webRoot = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 if (!Directory.Exists(webRoot))
 {
@@ -102,7 +104,7 @@ if (!Directory.Exists(webRoot))
 string downloadsPath = Path.Combine(webRoot, "downloads");
 Directory.CreateDirectory(downloadsPath);
 
-// Konfigurasi Static Files (menyajikan file publik di /downloads)
+// Konfigurasi Static Files
 app.UseStaticFiles();
 
 app.UseStaticFiles(new StaticFileOptions
@@ -115,16 +117,16 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapStaticAssets();
 app.UseAntiforgery();
 
-// 3. Health Check & Endpoint Extensions
+// =========================================================================
+// 3. HEALTH CHECK & API ENDPOINTS
+// =========================================================================
 app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 
 app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
-// Map Controller Attribute-based routing
+// Map Controller & Minimal API Endpoints
 app.MapControllers();
-
-// Map Minimal API Endpoints (Memakai DI ORM tanpa parameter string)
 app.MapSongEndpoints();
 app.MapConvertEndpoints();
 
@@ -137,8 +139,13 @@ var oauthServiceForEndpoints = new YouTubeOAuthService(
 
 app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServiceForEndpoints);
 
-// 4. Blazor UI Routing
+// =========================================================================
+// 4. BLAZOR UI ROUTING & FALLBACK HANDLER (Mencegah Error HTTP 404)
+// =========================================================================
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Fallback route agar permintaan rute Blazor SPA (misal: /library/sync/staging) tidak dianggap 404 oleh server
+app.MapFallbackToPage("/_Host");
 
 app.Run();
