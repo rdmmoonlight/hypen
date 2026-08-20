@@ -8,8 +8,6 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<SongModel> Songs { get; set; } = default!;
-    public DbSet<RawSongModel> SongsRaw { get; set; } = default!;
-    public DbSet<CloudSongModel> SongsComplete { get; set; } = default!;
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -51,10 +49,6 @@ public class AppDbContext : DbContext
             entity.Ignore(e => e.Provider);
             entity.Ignore(e => e.IsSelected);
         });
-
-        // Mapping turunan ke tabel fisik yang sama
-        modelBuilder.Entity<RawSongModel>().ToTable("songs");
-        modelBuilder.Entity<CloudSongModel>().ToTable("songs");
 
         // =========================================================================
         // MAPPING TABEL: youtube_oauth_tokens
