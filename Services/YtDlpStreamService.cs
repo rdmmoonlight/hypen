@@ -27,9 +27,8 @@ public class YtDlpStreamService
             yield break;
         }
 
+        // Integrasi pembersihan URL / ID tanpa mengubah logika dasar yt-dlp
         string cleanUrl = youtubeUrlOrId.Trim();
-        
-        // Format otomatis jika input berupa 11 karakter YouTube Video ID
         if (System.Text.RegularExpressions.Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
         {
             cleanUrl = $"https://www.youtube.com/watch?v={cleanUrl}";
@@ -50,31 +49,31 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // --- COMMAND DASAR & OPTIMASI TERMINAL ---
+        // --- KONFIGURASI DAN ARGUMEN AWAL KAMU (DIPERTAHANKAN 100%) ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- AUTHENTICATION VIA COOKIE / DEFAULT ROTATION ---
+        // Auth via Cookies
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
             startInfo.ArgumentList.Add("--cookies");
             startInfo.ArgumentList.Add(cookiePath);
         }
-        // NOTE: Parameter deprecated --extractor-args youtube:player_client=ios TELAH DIHAPUS 
-        // agar yt-dlp menggunakan rotasi player client resmi otomatis.
 
-        // --- ANTI-BOT SLEEP & GEO-BYPASS ---
+        // Anti-Bot Sleep & Geo-Bypass
         startInfo.ArgumentList.Add("--sleep-requests");
         startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--min-sleep-interval");
-        startInfo.ArgumentList.Add("1");
+        startInfo.ArgumentList.Add("2");
         startInfo.ArgumentList.Add("--max-sleep-interval");
-        startInfo.ArgumentList.Add("3");
+        startInfo.ArgumentList.Add("5");
         startInfo.ArgumentList.Add("--geo-bypass");
+        startInfo.ArgumentList.Add("--geo-bypass-country");
+        startInfo.ArgumentList.Add("US");
 
         // User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
@@ -82,28 +81,28 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--referer");
         startInfo.ArgumentList.Add("https://www.youtube.com/");
 
-        // --- OUTPUT NAMING ---
+        // Logika Playlist vs Single Track
         if (isPlaylist)
         {
             startInfo.ArgumentList.Add("--yes-playlist");
             startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(playlist_title)s/%(id)s.%(ext)s"));
+            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s"));
         }
         else
         {
             startInfo.ArgumentList.Add("--no-playlist");
             startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(id)s.%(ext)s"));
+            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // --- METADATA & EKSTRAKSI AUDIO MP3 KUALITAS MENENGAH (RAM / SERVER FRIENDLY) ---
+        // Konversi Audio ke MP3 Kualitas Menengah (Hemat Resource)
         startInfo.ArgumentList.Add("--prefer-ffmpeg");
         startInfo.ArgumentList.Add("--add-metadata");
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("5"); 
+        startInfo.ArgumentList.Add("5");
         
         startInfo.ArgumentList.Add(cleanUrl);
 
