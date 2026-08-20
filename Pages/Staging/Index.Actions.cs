@@ -1,10 +1,37 @@
-using Microsoft.AspNetCore.Components;
 using Hypen.Web.Models;
 
 namespace Hypen.Web.Pages.Staging;
 
 public partial class Index
 {
+    // =========================================================================
+    // REVIEW UI MODAL HANDLERS
+    // =========================================================================
+
+    protected void CloseReviewModal()
+    {
+        activeReviewItem = null;
+        activeReviewRawItem = null;
+    }
+
+    protected void SelectCandidate(iTunesCandidateModel candidate)
+    {
+        if (activeReviewItem != null && activeReviewRawItem != null)
+        {
+            SmartMatchService.ApplyCandidateToItem(activeReviewItem, candidate);
+
+            activeReviewRawItem.Artist = activeReviewItem.CleanArtist;
+            activeReviewRawItem.Title = activeReviewItem.CleanTitle;
+            activeReviewRawItem.Album = activeReviewItem.Album;
+            activeReviewRawItem.ReleaseYear = activeReviewItem.ReleaseYear;
+            activeReviewRawItem.AlbumCoverUrl = activeReviewItem.AlbumCoverUrl;
+            activeReviewRawItem.DurationSeconds = activeReviewItem.DurationSeconds;
+
+            CloseReviewModal();
+            StateHasChanged();
+        }
+    }
+
     // =========================================================================
     // BATCH & SINGLE OPERATIONS
     // =========================================================================
@@ -27,7 +54,8 @@ public partial class Index
                 var modelToMatch = new LocalMp3ExtractModel
                 {
                     CleanArtist = raw.Artist,
-                    CleanTitle = raw.Title
+                    CleanTitle = raw.Title,
+                    DurationSeconds = raw.DurationSeconds
                 };
 
                 await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
@@ -37,6 +65,7 @@ public partial class Index
                 if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
                 if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
                 if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
+                if (modelToMatch.DurationSeconds.HasValue) raw.DurationSeconds = modelToMatch.DurationSeconds;
             }
 
             UpdateStatus($"Smart Match untuk {targetList.Count} item terpilih selesai.");
@@ -74,7 +103,8 @@ public partial class Index
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
-                    Country = item.Country
+                    Country = item.Country,
+                    DurationSeconds = item.DurationSeconds
                 };
 
                 await LocalSyncService.PromoteRawToCompleteAsync(item.Id, validatedModel);
@@ -136,7 +166,8 @@ public partial class Index
             var modelToMatch = new LocalMp3ExtractModel
             {
                 CleanArtist = raw.Artist,
-                CleanTitle = raw.Title
+                CleanTitle = raw.Title,
+                DurationSeconds = raw.DurationSeconds
             };
 
             await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
@@ -146,8 +177,18 @@ public partial class Index
             if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
             if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
             if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
+            if (modelToMatch.DurationSeconds.HasValue) raw.DurationSeconds = modelToMatch.DurationSeconds;
 
-            UpdateStatus($"Smart Match selesai untuk '{raw.Title}'. Silakan tinjau/edit seluruh atribut sebelum upload.");
+            if (modelToMatch.IsNeedsReview && modelToMatch.Candidates.Count > 0)
+            {
+                activeReviewItem = modelToMatch;
+                activeReviewRawItem = raw;
+                UpdateStatus($"Smart Match selesai. Ditemukan beberapa opsi kandidat untuk '{raw.Title}'. Silakan pilih.");
+            }
+            else
+            {
+                UpdateStatus($"Smart Match selesai untuk '{raw.Title}'. Silakan tinjau/edit seluruh atribut.");
+            }
         }
         catch (Exception ex)
         {
@@ -177,7 +218,8 @@ public partial class Index
                 var modelToMatch = new LocalMp3ExtractModel
                 {
                     CleanArtist = raw.Artist,
-                    CleanTitle = raw.Title
+                    CleanTitle = raw.Title,
+                    DurationSeconds = raw.DurationSeconds
                 };
 
                 await LocalSyncService.SmartMatchFromInternetAsync(modelToMatch);
@@ -187,6 +229,7 @@ public partial class Index
                 if (!string.IsNullOrEmpty(modelToMatch.Album)) raw.Album = modelToMatch.Album;
                 if (modelToMatch.ReleaseYear.HasValue) raw.ReleaseYear = modelToMatch.ReleaseYear;
                 if (!string.IsNullOrEmpty(modelToMatch.AlbumCoverUrl)) raw.AlbumCoverUrl = modelToMatch.AlbumCoverUrl;
+                if (modelToMatch.DurationSeconds.HasValue) raw.DurationSeconds = modelToMatch.DurationSeconds;
             }
 
             UpdateStatus($"Smart Match massal selesai. Anda dapat memeriksa dan mengedit data sebelum di-upload.");
@@ -216,7 +259,8 @@ public partial class Index
                 Album = raw.Album,
                 ReleaseYear = raw.ReleaseYear,
                 AlbumCoverUrl = raw.AlbumCoverUrl,
-                Country = raw.Country
+                Country = raw.Country,
+                DurationSeconds = raw.DurationSeconds
             };
 
             bool success = await LocalSyncService.PromoteRawToCompleteAsync(raw.Id, validatedModel);
@@ -260,7 +304,8 @@ public partial class Index
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
-                    Country = item.Country
+                    Country = item.Country,
+                    DurationSeconds = item.DurationSeconds
                 };
 
                 await LocalSyncService.PromoteRawToCompleteAsync(item.Id, validatedModel);
