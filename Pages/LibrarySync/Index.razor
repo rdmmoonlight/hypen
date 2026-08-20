@@ -39,16 +39,6 @@
                 <input type="text" @bind="targetPlaylistId" placeholder="LL atau Playlist ID..." class="form-control" />
             </div>
 
-            <div class="form-group-large">
-                <label class="form-label">Fetch Limit</label>
-                <select @bind="maxResults" class="form-control">
-                    <option value="10">10 Track Terbaru</option>
-                    <option value="25">25 Track Terbaru</option>
-                    <option value="50">50 Track Terbaru</option>
-                    <option value="@int.MaxValue">Unlimited (Seluruh Playlist)</option>
-                </select>
-            </div>
-
             <button class="btn-action" @onclick="StartYouTubeIngestionToRaw" disabled="@isProcessing">
                 @(isProcessing ? "PROCESSING..." : "EXTRACT TO STAGING")
             </button>
