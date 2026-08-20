@@ -16,22 +16,14 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // 1. MAPPING TABEL: songs_raw (Staging RAW)
+        // 1. MAPPING ENTITY: RawSongModel -> TABEL: songs
         // =========================================================================
         modelBuilder.Entity<RawSongModel>(entity =>
         {
-            entity.ToTable("songs_raw");
+            entity.ToTable("songs");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .ValueGeneratedOnAdd();
-
-            entity.HasIndex(e => e.YoutubeVideoId)
-                .IsUnique()
-                .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
-
-            // Mapping Kolom Presisi (Identik dengan Master Library)
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
@@ -41,31 +33,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            
-            entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue("PENDING");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
 
             entity.Ignore(e => e.CreatedAt);
         });
 
         // =========================================================================
-        // 2. MAPPING TABEL: songs_complete (Master Library)
+        // 2. MAPPING ENTITY: CloudSongModel -> TABEL: songs
         // =========================================================================
         modelBuilder.Entity<CloudSongModel>(entity =>
         {
-            entity.ToTable("songs_complete");
+            entity.ToTable("songs");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .ValueGeneratedOnAdd();
-
-            entity.HasIndex(e => e.YoutubeVideoId)
-                .IsUnique()
-                .HasFilter("youtube_video_id IS NOT NULL AND youtube_video_id <> ''");
-
-            // Mapping Kolom Presisi
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.RawId).HasColumnName("raw_id");
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
@@ -77,12 +58,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            
-            entity.Property(e => e.IsDownloaded)
-                .HasColumnName("is_downloaded")
-                .HasDefaultValue(false);
+            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
 
-            // Mapping Generated Column: is_complete
             entity.Property(e => e.IsComplete)
                 .HasColumnName("is_complete")
                 .HasComputedColumnSql(@"
@@ -99,7 +76,6 @@ public class AppDbContext : DbContext
                         (duration_seconds IS NOT NULL AND duration_seconds > 0)
                     THEN TRUE ELSE FALSE END", stored: true);
 
-            // Abaikan properti pendukung UI & Alias
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
             entity.Ignore(e => e.Cover);
@@ -116,18 +92,12 @@ public class AppDbContext : DbContext
             entity.ToTable("youtube_oauth_tokens");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .ValueGeneratedOnAdd();
-
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.AccountEmail).HasColumnName("account_email");
             entity.Property(e => e.ChannelTitle).HasColumnName("channel_title");
             entity.Property(e => e.AccessToken).HasColumnName("access_token");
             entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").IsRequired();
-            
-            entity.Property(e => e.UpdatedAt)
-                .HasColumnName("updated_at")
-                .HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
         });
     }
 }
