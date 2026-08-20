@@ -1,0 +1,357 @@
+.staging-container {
+    padding: 24px;
+    background: #0a0b0e;
+    color: #8a8f98;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.staging-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pipeline-tag {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #525866;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.staging-title {
+    font-size: 1.25rem;
+    color: #e6e8ec;
+    margin: 0;
+    font-weight: 500;
+    letter-spacing: -0.2px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-nav {
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #8a8f98;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.btn-nav:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e6e8ec;
+}
+
+.status-alert {
+    padding: 8px 14px;
+    margin-bottom: 20px;
+    border-radius: 2px;
+}
+
+.status-alert.info {
+    background: rgba(76, 201, 240, 0.05);
+    border-left: 2px solid #4cc9f0;
+}
+
+.status-alert.info p {
+    color: #4cc9f0;
+}
+
+.status-alert.error {
+    background: rgba(247, 37, 133, 0.05);
+    border-left: 2px solid #ff4d6d;
+}
+
+.status-alert.error p {
+    color: #ff4d6d;
+}
+
+.status-alert p {
+    font-weight: 400;
+    font-size: 0.75rem;
+    margin: 0;
+    letter-spacing: 0.3px;
+}
+
+.staging-toolbar {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.toolbar-info {
+    font-size: 0.68rem;
+    font-family: monospace;
+    color: #525866;
+    text-transform: uppercase;
+}
+
+.selected-badge {
+    color: #4cc9f0;
+    margin-left: 8px;
+}
+
+.toolbar-subtext {
+    font-size: 0.8rem;
+    color: #d0d3d8;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.match-selected {
+    background: rgba(69, 162, 158, 0.15);
+    color: #45a29e;
+    border-color: rgba(69, 162, 158, 0.4);
+}
+
+.commit-selected {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+    border-color: rgba(76, 201, 240, 0.4);
+}
+
+.delete-selected {
+    background: rgba(247, 37, 133, 0.15);
+    color: #ff4d6d;
+    border-color: rgba(247, 37, 133, 0.4);
+}
+
+.global-action {
+    background: transparent;
+    color: #8a8f98;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.commit-all {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e6e8ec;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #525866;
+    font-family: monospace;
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.table-wrapper {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-x: auto;
+}
+
+.staging-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.78rem;
+    min-width: 1040px;
+}
+
+.staging-table th {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #525866;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    font-family: monospace;
+}
+
+.staging-table tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.staging-table tr.selected-row {
+    background: rgba(76, 201, 240, 0.03);
+}
+
+.staging-table td {
+    padding: 6px 8px;
+}
+
+.col-checkbox { width: 40px; text-align: center; }
+.col-title { width: 180px; }
+.col-artist { width: 150px; }
+.col-album { width: 140px; }
+.col-year { width: 70px; }
+.col-reg { width: 60px; }
+.col-duration { width: 70px; }
+.col-actions { width: 110px; text-align: right; white-space: nowrap; }
+
+.custom-chk {
+    cursor: pointer;
+    accent-color: #4cc9f0;
+}
+
+.input-cell {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #d0d3d8;
+    padding: 4px 6px;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    width: 100%;
+    outline: none;
+}
+
+.input-cell.mono { font-family: monospace; }
+.input-cell.highlight-text { color: #4cc9f0; }
+.input-cell.text-muted-url { color: #666c7a; font-size: 0.72rem; }
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    padding: 4px;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.btn-icon.match { color: #45a29e; }
+.btn-icon.commit { color: #e6e8ec; }
+.btn-icon.delete { color: rgba(247, 37, 133, 0.5); }
+
+/* MODAL CANDIDATE REVIEW STYLES */
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-card {
+    background: #12141a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    width: 100%;
+    max-width: 580px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #e6e8ec;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    color: #8a8f98;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.modal-subtext {
+    font-size: 0.75rem;
+    color: #8a8f98;
+    margin-bottom: 16px;
+}
+
+.reason-badge {
+    color: #ffb703;
+    font-size: 0.7rem;
+}
+
+.candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.candidate-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.candidate-card:hover {
+    background: rgba(76, 201, 240, 0.08);
+    border-color: rgba(76, 201, 240, 0.3);
+}
+
+.candidate-cover {
+    width: 44px;
+    height: 44px;
+    border-radius: 3px;
+    object-fit: cover;
+}
+
+.candidate-info { flex: 1; }
+.candidate-title { font-size: 0.8rem; font-weight: 500; color: #e6e8ec; }
+.candidate-artist { font-size: 0.72rem; color: #8a8f98; }
+
+.diff-badge {
+    font-size: 0.65rem;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 2px;
+}
+
+.diff-badge.exact { background: rgba(69, 162, 158, 0.2); color: #45a29e; }
+.diff-badge.warn { background: rgba(255, 183, 3, 0.2); color: #ffb703; }
+
+.modal-footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
