@@ -1,12 +1,17 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace Hypen.Web.Pages.Downloader; // Sesuaikan namespace dengan lokasi folder Anda
+namespace Hypen.Web.Pages.Downloader;
 
 public partial class Index : ComponentBase, IAsyncDisposable
 {
     [Inject] 
     private IJSRuntime JS { get; set; } = default!;
+
+    // Menerima masukan dari Query String: /downloader?url=https://youtube.com/watch?v=...
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "url")]
+    public string? AutoStartUrl { get; set; }
 
     private string ytUrl = "";
     private string playlistUrl = "";
@@ -21,6 +26,16 @@ public partial class Index : ComponentBase, IAsyncDisposable
     protected override void OnInitialized()
     {
         objRef = DotNetObjectReference.Create(this);
+    }
+
+    // Tangkap parameter query string dan jalankan ekstraksi otomatis
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(AutoStartUrl))
+        {
+            ytUrl = AutoStartUrl;
+            await StartTerminalDownload(AutoStartUrl);
+        }
     }
 
     private async Task ConvertVideo() => await StartTerminalDownload(ytUrl);
