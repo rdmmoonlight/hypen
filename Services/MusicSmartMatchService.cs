@@ -45,86 +45,83 @@ public class MusicSmartMatchService
             if (res.TryGetProperty("resultCount", out var countProp) && countProp.GetInt32() > 0)
             {
                 var results = res.GetProperty("results").EnumerateArray();
-                JsonElement bestMatch = default;
+                item.Candidates.Clear();
 
-                // 1. PENGAMAN DURASI: Toleransi maksimal selisih 8 detik
+                // 1. TAMBUNG SEMUA KANDIDAT UNTUK UI SELECTION
+                foreach (var track in results)
+                {
+                    var candidate = new iTunesCandidateModel();
+                    if (track.TryGetProperty("artistName", out var a)) candidate.Artist = a.GetString() ?? "";
+                    if (track.TryGetProperty("trackName", out var t)) candidate.Title = t.GetString() ?? "";
+                    if (track.TryGetProperty("collectionName", out var al)) candidate.Album = al.GetString() ?? "Single";
+                    if (track.TryGetProperty("artworkUrl100", out var art)) candidate.AlbumCoverUrl = art.GetString()?.Replace("100x100bb", "600x600bb") ?? "";
+                    if (track.TryGetProperty("trackTimeMillis", out var tm)) candidate.DurationSeconds = (int)(tm.GetInt64() / 1000);
+                    if (track.TryGetProperty("releaseDate", out var rel) && DateTime.TryParse(rel.GetString(), out var dt)) candidate.ReleaseYear = dt.Year;
+
+                    item.Candidates.Add(candidate);
+                }
+
+                // 2. CARI KANDIDAT TERBAIK BERBASIS DURASI
+                iTunesCandidateModel? bestMatch = null;
+                int minDiff = int.MaxValue;
+                const int maxAllowedDiffSeconds = 8; // Beda > 8 detik dianggap tidak cocok
+
                 if (item.DurationSeconds.HasValue && item.DurationSeconds.Value > 0)
                 {
                     int localDuration = item.DurationSeconds.Value;
-                    int minDiff = int.MaxValue;
-                    const int maxAllowedDiffSeconds = 8; 
 
-                    foreach (var track in results)
+                    foreach (var c in item.Candidates)
                     {
-                        if (track.TryGetProperty("trackTimeMillis", out var timeProp))
+                        int diff = Math.Abs(c.DurationSeconds - localDuration);
+                        if (diff <= maxAllowedDiffSeconds && diff < minDiff)
                         {
-                            int trackDuration = (int)(timeProp.GetInt64() / 1000);
-                            int diff = Math.Abs(trackDuration - localDuration);
-
-                            if (diff <= maxAllowedDiffSeconds && diff < minDiff)
-                            {
-                                minDiff = diff;
-                                bestMatch = track;
-                            }
+                            minDiff = diff;
+                            bestMatch = c;
                         }
                     }
                 }
 
-                // Jika durasi lokal tidak ada / tidak valid, fallback ke elemen pertama
-                if (bestMatch.ValueKind == JsonValueKind.Undefined && (!item.DurationSeconds.HasValue || item.DurationSeconds == 0))
+                // Fallback jika tidak ada durasi lokal
+                if (bestMatch == null && (!item.DurationSeconds.HasValue || item.DurationSeconds == 0))
                 {
-                    bestMatch = res.GetProperty("results")[0];
+                    bestMatch = item.Candidates.FirstOrDefault();
                 }
 
-                // Jika tidak ada hasil yang lolos batas toleransi durasi -> anggap iTunes gagal
-                if (bestMatch.ValueKind == JsonValueKind.Undefined)
+                // Jika tidak ada hasil yang lolos batas toleransi durasi -> gagal
+                if (bestMatch == null)
                 {
                     return false;
                 }
 
-                // 2. PENGAMAN NAMA ARTIS: Cek kemiripan artis sebelum menyalin data
-                if (bestMatch.TryGetProperty("artistName", out var artistProp))
+                // 3. VALIDASI KEMIRIPAN ARTIS
+                bool isArtistExact = string.IsNullOrWhiteSpace(item.CleanArtist)
+                    || item.CleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
+                    || bestMatch.Artist.Equals(item.CleanArtist, StringComparison.OrdinalIgnoreCase);
+
+                bool isArtistPartial = bestMatch.Artist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
+                    || item.CleanArtist.Contains(bestMatch.Artist, StringComparison.OrdinalIgnoreCase);
+
+                if (!isArtistExact && !isArtistPartial)
                 {
-                    string matchedArtist = artistProp.GetString() ?? "";
-                    bool isArtistValid = string.IsNullOrWhiteSpace(item.CleanArtist)
-                        || item.CleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
-                        || matchedArtist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
-                        || item.CleanArtist.Contains(matchedArtist, StringComparison.OrdinalIgnoreCase);
-
-                    // Jika nama artis beda jauh -> batalkan match ini
-                    if (!isArtistValid)
-                    {
-                        return false;
-                    }
-
-                    item.CleanArtist = matchedArtist;
+                    return false; // Artis beda jauh, gagalkan match
                 }
 
-                if (bestMatch.TryGetProperty("trackName", out var trackProp))
+                // 4. CEK CONFIDENCE & BUAT PENANDA UNTUK REVIEW UI
+                if (minDiff >= 3 || !isArtistExact)
                 {
-                    item.CleanTitle = trackProp.GetString() ?? item.CleanTitle;
+                    item.IsNeedsReview = true;
+                    item.MatchConfidenceReason = minDiff >= 3 
+                        ? $"Selisih durasi {minDiff}s dari file asli." 
+                        : "Nama artis kurang presisi.";
+                }
+                else
+                {
+                    item.IsNeedsReview = false;
+                    item.MatchConfidenceReason = "Exact Match";
                 }
 
-                if (bestMatch.TryGetProperty("collectionName", out var albumProp))
-                {
-                    item.Album = albumProp.GetString() ?? "Single";
-                }
-
-                if (bestMatch.TryGetProperty("releaseDate", out var relProp) && DateTime.TryParse(relProp.GetString(), out var dt))
-                {
-                    item.ReleaseYear = dt.Year;
-                }
-
-                if (bestMatch.TryGetProperty("artworkUrl100", out var artProp))
-                {
-                    item.AlbumCoverUrl = artProp.GetString()?.Replace("100x100bb", "600x600bb") ?? item.AlbumCoverUrl;
-                }
-
-                if (bestMatch.TryGetProperty("trackTimeMillis", out var bestTimeProp))
-                {
-                    item.DurationSeconds = (int)(bestTimeProp.GetInt64() / 1000);
-                }
-
+                // Terapkan kandidat terbaik ke atribut utama
+                ApplyCandidateToItem(item, bestMatch);
                 return true;
             }
         }
@@ -134,6 +131,16 @@ public class MusicSmartMatchService
         }
 
         return false;
+    }
+
+    public void ApplyCandidateToItem(LocalMp3ExtractModel item, iTunesCandidateModel candidate)
+    {
+        item.CleanArtist = candidate.Artist;
+        item.CleanTitle = candidate.Title;
+        item.Album = candidate.Album;
+        item.ReleaseYear = candidate.ReleaseYear;
+        item.AlbumCoverUrl = candidate.AlbumCoverUrl;
+        item.DurationSeconds = candidate.DurationSeconds;
     }
 
     private async Task TryMatchMusicBrainzAsync(LocalMp3ExtractModel item)
