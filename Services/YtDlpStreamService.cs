@@ -29,7 +29,7 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // UNIVERSAL URL & VIDEO ID PARSING (AMANA & PRESISI)
+        // UNIVERSAL URL & VIDEO ID PARSING (AMAN & PRESISI)
         // =========================================================================
         string cleanUrl = youtubeUrlOrId.Trim();
         bool isPlaylist = cleanUrl.Contains("list=", StringComparison.OrdinalIgnoreCase);
@@ -75,12 +75,16 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // --- KONFIGURASI DAN ARGUMEN AWAL (DIPERTAHANKAN 100%) ---
+        // --- KONFIGURASI DAN ARGUMEN AWAL ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
+
+        // --- PENANGANAN CLIENT WEBPAGE BOT PREVENTION (MEMBAYPASS ERROR 'VIDEO UNAVAILABLE') ---
+        startInfo.ArgumentList.Add("--extractor-args");
+        startInfo.ArgumentList.Add("youtube:player_client=mweb,web");
 
         // Auth via Cookies
         string cookiePath = "/app/cookies.txt";
@@ -99,7 +103,7 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("5");
         startInfo.ArgumentList.Add("--geo-bypass");
         startInfo.ArgumentList.Add("--geo-bypass-country");
-        startInfo.ArgumentList.Add("US");
+        startInfo.ArgumentList.Add("ID"); // Bypass geo ke wilayah Indonesia
 
         // User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
