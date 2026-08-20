@@ -6,7 +6,7 @@ namespace Hypen.Web.Services;
 public class YtDlpStreamService
 {
     public async IAsyncEnumerable<string> StreamDownloadAsync(
-        string youtubeUrl, 
+        string youtubeUrlOrId, 
         string outputDirectory, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -27,8 +27,14 @@ public class YtDlpStreamService
             yield break;
         }
 
-        string cleanUrl = youtubeUrl.Trim();
-        if (cleanUrl.Contains("music.youtube.com"))
+        string cleanUrl = youtubeUrlOrId.Trim();
+        
+        // Format otomatis jika input berupa 11 karakter YouTube Video ID
+        if (System.Text.RegularExpressions.Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
+        {
+            cleanUrl = $"https://www.youtube.com/watch?v={cleanUrl}";
+        }
+        else if (cleanUrl.Contains("music.youtube.com"))
         {
             cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com");
         }
@@ -44,14 +50,14 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // Command dasar
+        // --- COMMAND DASAR & OPTIMASI TERMINAL ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- AUTHENTICATION VIA COOKIE ---
+        // --- AUTHENTICATION VIA COOKIE / PLAYER CLIENT ---
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
@@ -68,9 +74,9 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--sleep-requests");
         startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--min-sleep-interval");
-        startInfo.ArgumentList.Add("2");
+        startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--max-sleep-interval");
-        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("3");
         startInfo.ArgumentList.Add("--geo-bypass");
         startInfo.ArgumentList.Add("--geo-bypass-country");
         startInfo.ArgumentList.Add("US");
@@ -81,30 +87,30 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--referer");
         startInfo.ArgumentList.Add("https://www.youtube.com/");
 
-        // Playlist vs Single Track Logic
+        // --- OUTPUT NAMING ---
         if (isPlaylist)
         {
             startInfo.ArgumentList.Add("--yes-playlist");
             startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s"));
+            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(playlist_title)s/%(id)s.%(ext)s"));
         }
         else
         {
             startInfo.ArgumentList.Add("--no-playlist");
             startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
+            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(id)s.%(ext)s"));
         }
 
-        // --- STABILITAS FORMAT (Tanpa -f agar yt-dlp memilih otomatis) ---
+        // --- METADATA & EKSTRAKSI AUDIO MP3 KUALITAS MENENGAH (RAM / SERVER FRIENDLY) ---
         startInfo.ArgumentList.Add("--prefer-ffmpeg");
         startInfo.ArgumentList.Add("--add-metadata");
-
-        // Konversi Audio ke MP3
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
+        
+        // Kualitas Menengah (~128kbps) - Ideal & Aman untuk Free Tier Server
         startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("5"); 
         
         startInfo.ArgumentList.Add(cleanUrl);
 
