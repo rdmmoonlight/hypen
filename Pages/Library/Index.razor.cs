@@ -24,7 +24,9 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
-    protected bool IsLocked(CloudSongModel song) => !string.IsNullOrWhiteSpace(song.YoutubeVideoId);
+    protected bool IsLocked(CloudSongModel song) =>
+        !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
+        !song.YoutubeVideoId.Equals("LOCAL", StringComparison.OrdinalIgnoreCase);
 
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
