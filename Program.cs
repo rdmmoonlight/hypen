@@ -74,7 +74,9 @@ builder.Services.AddScoped(sp => new YouTubeOAuthService(
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
-// Registrasi Local MP3 Sync Service
+// Registrasi Local MP3 Sync Services (Diperlukan oleh LocalMp3SyncService)
+builder.Services.AddScoped<LocalMp3ExtractorService>();
+builder.Services.AddScoped<MusicSmartMatchService>();
 builder.Services.AddScoped<LocalMp3SyncService>();
 
 // 2. Build Pipeline & Middleware
