@@ -14,7 +14,7 @@ public class LocalMp3ExtractModel
     public string Country { get; set; } = "Unknown";
     public string? AlbumCoverUrl { get; set; }
     
-    // Metadata Tambahan (Solusi Error Build CS0117/CS1061)
+    // Metadata Tambahan
     public int? DurationSeconds { get; set; }
 
     // MusicBrainz Identifiers
@@ -23,4 +23,19 @@ public class LocalMp3ExtractModel
     // UI & Pipeline State
     public bool IsSelected { get; set; } = true;
     public bool IsProcessed { get; set; }
+
+    // Smart Match Review UI Properties
+    public bool IsNeedsReview { get; set; } = false;
+    public string MatchConfidenceReason { get; set; } = string.Empty;
+    public List<iTunesCandidateModel> Candidates { get; set; } = new();
+}
+
+public class iTunesCandidateModel
+{
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string Album { get; set; } = "Single";
+    public int? ReleaseYear { get; set; }
+    public string AlbumCoverUrl { get; set; } = string.Empty;
+    public int DurationSeconds { get; set; }
 }
