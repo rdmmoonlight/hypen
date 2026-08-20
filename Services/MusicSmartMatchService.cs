@@ -47,10 +47,12 @@ public class MusicSmartMatchService
                 var results = res.GetProperty("results").EnumerateArray();
                 JsonElement bestMatch = default;
 
+                // 1. PENGAMAN DURASI: Toleransi maksimal selisih 8 detik
                 if (item.DurationSeconds.HasValue && item.DurationSeconds.Value > 0)
                 {
                     int localDuration = item.DurationSeconds.Value;
                     int minDiff = int.MaxValue;
+                    const int maxAllowedDiffSeconds = 8; 
 
                     foreach (var track in results)
                     {
@@ -59,7 +61,7 @@ public class MusicSmartMatchService
                             int trackDuration = (int)(timeProp.GetInt64() / 1000);
                             int diff = Math.Abs(trackDuration - localDuration);
 
-                            if (diff < minDiff)
+                            if (diff <= maxAllowedDiffSeconds && diff < minDiff)
                             {
                                 minDiff = diff;
                                 bestMatch = track;
@@ -68,14 +70,34 @@ public class MusicSmartMatchService
                     }
                 }
 
-                if (bestMatch.ValueKind == JsonValueKind.Undefined)
+                // Jika durasi lokal tidak ada / tidak valid, fallback ke elemen pertama
+                if (bestMatch.ValueKind == JsonValueKind.Undefined && (!item.DurationSeconds.HasValue || item.DurationSeconds == 0))
                 {
                     bestMatch = res.GetProperty("results")[0];
                 }
 
+                // Jika tidak ada hasil yang lolos batas toleransi durasi -> anggap iTunes gagal
+                if (bestMatch.ValueKind == JsonValueKind.Undefined)
+                {
+                    return false;
+                }
+
+                // 2. PENGAMAN NAMA ARTIS: Cek kemiripan artis sebelum menyalin data
                 if (bestMatch.TryGetProperty("artistName", out var artistProp))
                 {
-                    item.CleanArtist = artistProp.GetString() ?? item.CleanArtist;
+                    string matchedArtist = artistProp.GetString() ?? "";
+                    bool isArtistValid = string.IsNullOrWhiteSpace(item.CleanArtist)
+                        || item.CleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
+                        || matchedArtist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
+                        || item.CleanArtist.Contains(matchedArtist, StringComparison.OrdinalIgnoreCase);
+
+                    // Jika nama artis beda jauh -> batalkan match ini
+                    if (!isArtistValid)
+                    {
+                        return false;
+                    }
+
+                    item.CleanArtist = matchedArtist;
                 }
 
                 if (bestMatch.TryGetProperty("trackName", out var trackProp))
