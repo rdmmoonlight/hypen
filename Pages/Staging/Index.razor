@@ -105,47 +105,30 @@
                     {
                         var isSelected = selectedRawIds.Contains(row.Id);
                         <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); background: @(isSelected ? "rgba(76, 201, 240, 0.03)" : "transparent");">
-                            <!-- CHECKBOX SELECT -->
                             <td style="padding: 6px 10px; text-align: center;">
                                 <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" style="cursor: pointer; accent-color: #4cc9f0;" />
                             </td>
-
-                            <!-- TITLE -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.Title" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
                             </td>
-
-                            <!-- ARTIST -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.Artist" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
                             </td>
-
-                            <!-- ALBUM -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.Album" placeholder="Single" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
                             </td>
-
-                            <!-- YEAR -->
                             <td style="padding: 6px 8px;">
                                 <input type="number" @bind="row.ReleaseYear" placeholder="2024" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
                             </td>
-
-                            <!-- COUNTRY -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.Country" placeholder="ID" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #4cc9f0; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
                             </td>
-
-                            <!-- DURATION -->
                             <td style="padding: 6px 8px;">
                                 <input type="number" @bind="row.DurationSeconds" placeholder="0" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; font-family: monospace; outline: none;" />
                             </td>
-
-                            <!-- COVER URL -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.AlbumCoverUrl" placeholder="https://..." style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #666c7a; padding: 4px 6px; border-radius: 2px; font-size: 0.72rem; font-family: monospace; width: 100%; outline: none;" />
                             </td>
-
-                            <!-- ACTIONS -->
                             <td style="padding: 6px 8px; text-align: right; white-space: nowrap;">
                                 <button style="background: transparent; border: none; color: #45a29e; padding: 4px 4px; font-size: 0.72rem; cursor: pointer;" 
                                         title="Smart Match"
