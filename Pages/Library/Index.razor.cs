@@ -28,7 +28,7 @@ public partial class Index : ComponentBase
     protected int progressPercentage = 0;
 
     // Lagu yang bersumber dari YouTube dikunci hanya untuk fitur HAPUS (tidak bisa dihapus sembarangan),
-    // TETAPI SANGAT BISA DIPILIH DAN DIUNDUH KAPAN SAJA.
+    // TETAPI SANGAT BISA DIPILIH DAN DIUNDUH KAPAN SAJA VIA DOWNLOADER PAGE.
     protected bool IsLockedFromDeletion(SongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
         !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
@@ -92,90 +92,52 @@ public partial class Index : ComponentBase
     }
 
     // ==========================================
-    // SISTEM UNDUH (SINGLE & BATCH)
+    // SISTEM UNDUH (REDIRECT KE DOWNLOADER PAGE)
     // ==========================================
 
-    protected async Task DownloadSingle(SongModel song)
+    protected void DownloadSingle(SongModel song)
     {
         try
         {
-            UpdateStatus($"Mempersiapkan unduhan: {song.Artist} - {song.Title}...");
-
-            // 1. Jika ada YoutubeVideoId, arahkan langsung ke endpoint stream yt-dlp
+            // 1. Jika lagu memiliki YouTube Video ID, redirect ke halaman Downloader dengan URL YouTube
             if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
             {
-                string downloadUrl = $"/api/convert/download-stream?youtubeUrl=https://www.youtube.com/watch?v={song.YoutubeVideoId}";
-                await JS.InvokeVoidAsync("open", downloadUrl, "_blank");
+                string ytTargetUrl = $"https://www.youtube.com/watch?v={song.YoutubeVideoId}";
+                Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
             }
-            // 2. Jika ada AudioUrl langsung dari file lokal
+            // 2. Jika lagu lokal yang memiliki AudioUrl langsung
             else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
             {
-                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+                Navigation.NavigateTo(song.AudioUrl, forceLoad: true);
             }
             else
             {
-                UpdateStatus($"Gagal: Lagu '{song.Title}' tidak memiliki Youtube ID atau URL Audio yang valid.", true);
-                return;
+                UpdateStatus($"Gagal: Lagu '{song.Title}' tidak memiliki Youtube Video ID atau Audio URL yang valid.", true);
             }
-
-            UpdateStatus($"Proses unduh dimulai untuk: {song.Title}");
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal mengunduh lagu: {ex.Message}", true);
+            UpdateStatus($"Gagal mengalihkan ke Downloader: {ex.Message}", true);
         }
     }
 
-    protected async Task DownloadSelected()
+    protected void DownloadSelected()
     {
-        var selected = FilteredSongs.Where(song => song.IsSelected).ToList();
-        if (selected.Count == 0)
+        var selectedWithYt = FilteredSongs
+            .Where(song => song.IsSelected && !string.IsNullOrWhiteSpace(song.YoutubeVideoId))
+            .ToList();
+
+        if (selectedWithYt.Count == 0)
         {
-            UpdateStatus("Tidak ada lagu yang dipilih untuk diunduh.", true);
+            UpdateStatus("Pilih setidaknya satu lagu dengan YouTube Video ID untuk diunduh.", true);
             return;
         }
 
-        try
-        {
-            isLoading = true;
-            totalQueueCount = selected.Count;
-            currentProcessedCount = 0;
-            progressPercentage = 0;
-            StateHasChanged();
-
-            foreach (var song in selected)
-            {
-                currentProcessedCount++;
-                progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
-                UpdateStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Artist} - {song.Title}...");
-
-                if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
-                {
-                    string downloadUrl = $"/api/convert/download-stream?youtubeUrl=https://www.youtube.com/watch?v={song.YoutubeVideoId}";
-                    await JS.InvokeVoidAsync("open", downloadUrl, "_blank");
-                }
-                else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
-                {
-                    await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                }
-
-                // Jeda sebentar antar antrean agar browser & server tidak overloaded
-                await Task.Delay(1000);
-            }
-
-            progressPercentage = 100;
-            UpdateStatus($"Selesai memicu unduhan untuk {totalQueueCount} lagu!");
-        }
-        catch (Exception ex)
-        {
-            UpdateStatus($"Gagal mengunduh antrean: {ex.Message}", true);
-        }
-        finally
-        {
-            isLoading = false;
-            totalQueueCount = 0;
-            StateHasChanged();
-        }
+        // Ambil lagu pertama dari item terpilih dan alihkan ke halaman Downloader Engine
+        var firstSong = selectedWithYt.First();
+        string ytTargetUrl = $"https://www.youtube.com/watch?v={firstSong.YoutubeVideoId}";
+        
+        Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
     }
 
     // ==========================================
