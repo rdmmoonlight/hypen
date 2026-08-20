@@ -8,12 +8,17 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<SongModel> Songs { get; set; } = default!;
+    public DbSet<RawSongModel> SongsRaw { get; set; } = default!;
+    public DbSet<CloudSongModel> SongsComplete { get; set; } = default!;
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        // =========================================================================
+        // MAPPING TABEL TUNGGAL SSOT: songs
+        // =========================================================================
         modelBuilder.Entity<SongModel>(entity =>
         {
             entity.ToTable("songs");
@@ -47,9 +52,17 @@ public class AppDbContext : DbContext
             entity.Ignore(e => e.IsSelected);
         });
 
+        // Mapping turunan ke tabel fisik yang sama
+        modelBuilder.Entity<RawSongModel>().ToTable("songs");
+        modelBuilder.Entity<CloudSongModel>().ToTable("songs");
+
+        // =========================================================================
+        // MAPPING TABEL: youtube_oauth_tokens
+        // =========================================================================
         modelBuilder.Entity<YouTubeOAuthTokenModel>(entity =>
         {
             entity.ToTable("youtube_oauth_tokens");
+
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.AccountEmail).HasColumnName("account_email");
