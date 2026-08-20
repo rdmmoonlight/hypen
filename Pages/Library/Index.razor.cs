@@ -13,7 +13,10 @@ public partial class Index : ComponentBase
     [Inject]
     protected IJSRuntime JS { get; set; } = default!;
 
-    protected List<CloudSongModel> songs = [];
+    [Inject]
+    protected NavigationManager Navigation { get; set; } = default!;
+
+    protected List<SongModel> songs = [];
     protected string searchQuery = "";
     protected string statusMsg = "";
     protected bool isLoading;
@@ -24,11 +27,13 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
-    protected bool IsLocked(CloudSongModel song) =>
+    // Lagu yang bersumber dari YouTube dikunci hanya untuk fitur HAPUS (tidak bisa dihapus sembarangan),
+    // TETAPI SANGAT BISA DIPILIH DAN DIUNDUH KAPAN SAJA.
+    protected bool IsLockedFromDeletion(SongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
         !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
 
-    protected IEnumerable<CloudSongModel> FilteredSongs =>
+    protected IEnumerable<SongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
             : songs.Where(song =>
@@ -64,7 +69,7 @@ public partial class Index : ComponentBase
     }
 
     // ==========================================
-    // MANAJEMEN FILE & SELEKSI
+    // SELEKSI FILE & CHECKBOX MANAGEMENT
     // ==========================================
 
     protected void ToggleSelectAll(ChangeEventArgs e)
@@ -72,30 +77,48 @@ public partial class Index : ComponentBase
         isSelectAllChecked = e.Value is bool val && val;
         foreach (var song in FilteredSongs)
         {
-            if (IsLocked(song)) continue;
             song.IsSelected = isSelectAllChecked;
         }
     }
 
-    protected void OnSongSelectChanged(CloudSongModel song, ChangeEventArgs e)
+    protected void OnSongSelectChanged(SongModel song, ChangeEventArgs e)
     {
-        if (IsLocked(song)) return;
-
         song.IsSelected = e.Value is bool val && val;
-        var list = FilteredSongs.Where(s => !IsLocked(s)).ToList();
+        var list = FilteredSongs.ToList();
         if (list.Count > 0)
         {
             isSelectAllChecked = list.All(s => s.IsSelected);
         }
     }
 
-    protected async Task DownloadSingle(CloudSongModel song)
+    // ==========================================
+    // SISTEM UNDUH (SINGLE & BATCH)
+    // ==========================================
+
+    protected async Task DownloadSingle(SongModel song)
     {
         try
         {
-            UpdateStatus($"Mempersiapkan unduhan: {song.Title}...");
-            await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-            UpdateStatus("");
+            UpdateStatus($"Mempersiapkan unduhan: {song.Artist} - {song.Title}...");
+
+            // 1. Jika ada YoutubeVideoId, arahkan langsung ke endpoint stream yt-dlp
+            if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
+            {
+                string downloadUrl = $"/api/convert/download-stream?youtubeUrl=https://www.youtube.com/watch?v={song.YoutubeVideoId}";
+                await JS.InvokeVoidAsync("open", downloadUrl, "_blank");
+            }
+            // 2. Jika ada AudioUrl langsung dari file lokal
+            else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
+            {
+                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+            }
+            else
+            {
+                UpdateStatus($"Gagal: Lagu '{song.Title}' tidak memiliki Youtube ID atau URL Audio yang valid.", true);
+                return;
+            }
+
+            UpdateStatus($"Proses unduh dimulai untuk: {song.Title}");
         }
         catch (Exception ex)
         {
@@ -105,10 +128,10 @@ public partial class Index : ComponentBase
 
     protected async Task DownloadSelected()
     {
-        var selected = songs.Where(song => song.IsSelected).ToList();
+        var selected = FilteredSongs.Where(song => song.IsSelected).ToList();
         if (selected.Count == 0)
         {
-            UpdateStatus("Tidak ada lagu yang dipilih.", true);
+            UpdateStatus("Tidak ada lagu yang dipilih untuk diunduh.", true);
             return;
         }
 
@@ -124,14 +147,24 @@ public partial class Index : ComponentBase
             {
                 currentProcessedCount++;
                 progressPercentage = (int)((double)currentProcessedCount / totalQueueCount * 100);
-                UpdateStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Title}...");
+                UpdateStatus($"[Antrean {currentProcessedCount}/{totalQueueCount}] Mengunduh: {song.Artist} - {song.Title}...");
 
-                await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
-                await Task.Delay(1200);
+                if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
+                {
+                    string downloadUrl = $"/api/convert/download-stream?youtubeUrl=https://www.youtube.com/watch?v={song.YoutubeVideoId}";
+                    await JS.InvokeVoidAsync("open", downloadUrl, "_blank");
+                }
+                else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
+                {
+                    await SongService.DownloadSongAsync(song.AudioUrl, $"{song.Artist} - {song.Title}");
+                }
+
+                // Jeda sebentar antar antrean agar browser & server tidak overloaded
+                await Task.Delay(1000);
             }
 
             progressPercentage = 100;
-            UpdateStatus($"Selesai mengunduh seluruh {totalQueueCount} lagu!");
+            UpdateStatus($"Selesai memicu unduhan untuk {totalQueueCount} lagu!");
         }
         catch (Exception ex)
         {
@@ -145,12 +178,16 @@ public partial class Index : ComponentBase
         }
     }
 
+    // ==========================================
+    // SISTEM HAPUS (SINGLE & BATCH)
+    // ==========================================
+
     protected async Task DeleteSingle(long id)
     {
         var target = songs.FirstOrDefault(s => s.Id == id);
-        if (target != null && IsLocked(target))
+        if (target != null && IsLockedFromDeletion(target))
         {
-            UpdateStatus("Lagu terkunci (memiliki YouTube URL) tidak dapat dihapus.", true);
+            UpdateStatus("Lagu terkunci (memiliki YouTube Video ID) tidak dapat dihapus dari Master Library.", true);
             return;
         }
 
@@ -165,14 +202,18 @@ public partial class Index : ComponentBase
 
     protected async Task DeleteSelected()
     {
-        long[] selectedIds = songs.Where(song => song.IsSelected && !IsLocked(song)).Select(song => song.Id).ToArray();
+        long[] selectedIds = FilteredSongs
+            .Where(song => song.IsSelected && !IsLockedFromDeletion(song))
+            .Select(song => song.Id)
+            .ToArray();
+
         if (selectedIds.Length == 0)
         {
-            UpdateStatus("Tidak ada lagu yang dipilih.", true);
+            UpdateStatus("Tidak ada lagu tidak terkunci yang dipilih untuk dihapus.", true);
             return;
         }
 
-        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu?");
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu terpilih?");
         if (!confirmed) return;
 
         if (await SongService.DeleteBatchSongsAsync(selectedIds))
