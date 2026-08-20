@@ -1,10 +1,11 @@
 @page "/library"
 @page "/"
 
-<PageTitle>Library Vault</PageTitle>
+<PageTitle>Library Vault - Hypen Music</PageTitle>
 
 <div style="padding: 24px; background: #0a0b0e; color: #8a8f98; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
 
+    <!-- ALERT STATUS -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
         <div style="background: @(isError ? "rgba(247, 37, 133, 0.05)" : "rgba(76, 201, 240, 0.05)"); 
@@ -35,7 +36,7 @@
                 <div style="width: @(progressPercentage)%; background: #45a29e; height: 100%; transition: width 0.3s ease;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #666c7a; margin-top: 8px; font-family: monospace;">
-                <span>DOWNLOADING: @currentProcessedCount / @totalQueueCount</span>
+                <span>PROCESSING QUEUE: @currentProcessedCount / @totalQueueCount</span>
                 <span>@progressPercentage%</span>
             </div>
         </div>
@@ -44,11 +45,15 @@
     <!-- TOOLBAR (AKSI BATCH & PENCARIAN) -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; gap: 8px; align-items: center;">
-            <button style="padding: 6px 14px; font-size: 0.75rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #e6e8ec; border-radius: 4px; cursor: pointer;" @onclick="DownloadSelected" disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected))">
-                Unduh Terpilih
+            <button style="padding: 6px 14px; font-size: 0.75rem; background: rgba(69, 162, 158, 0.15); border: 1px solid rgba(69, 162, 158, 0.3); color: #45a29e; border-radius: 4px; cursor: pointer; font-family: monospace; transition: all 0.2s;"
+                    @onclick="DownloadSelected" 
+                    disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected))">
+                ↓ UNDUH TERPILIH (@FilteredSongs.Count(s => s.IsSelected))
             </button>
-            <button style="padding: 6px 14px; font-size: 0.75rem; border-radius: 4px; background: transparent; border: 1px solid rgba(247, 37, 133, 0.3); color: #ff4d6d; cursor: pointer;" @onclick="DeleteSelected" disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected))">
-                Hapus Terpilih
+            <button style="padding: 6px 14px; font-size: 0.75rem; border-radius: 4px; background: transparent; border: 1px solid rgba(247, 37, 133, 0.3); color: #ff4d6d; cursor: pointer; font-family: monospace; transition: all 0.2s;" 
+                    @onclick="DeleteSelected" 
+                    disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected && !IsLockedFromDeletion(s)))">
+                ✕ HAPUS TERPILIH
             </button>
         </div>
 
@@ -59,13 +64,15 @@
                    placeholder="Cari judul / artis / album..."
                    style="padding: 6px 12px; width: 220px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; font-size: 0.75rem; outline: none;" />
             
-            <button style="padding: 6px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #a0a5aa; border-radius: 4px; cursor: pointer;" @onclick="LoadLibrary" disabled="@isLoading">
+            <button style="padding: 6px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #a0a5aa; border-radius: 4px; cursor: pointer;" 
+                    @onclick="LoadLibrary" 
+                    disabled="@isLoading">
                 Refresh
             </button>
         </div>
     </div>
 
-    <!-- FULL ATTRIBUTE TABLE -->
+    <!-- TABEL DATA MASTER LIBRARY -->
     <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem;">
             <thead>
@@ -109,17 +116,12 @@
                     @foreach (var song in FilteredSongs)
                     {
                         <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                            <!-- CHECKBOX SELEKSI (Selalu Buka Untuk Unduh) -->
                             <td style="padding: 8px 6px; text-align: center;">
-                                @if (IsLocked(song))
-                                {
-                                    <span title="Terkunci (memiliki YouTube URL)" style="opacity: 0.5; font-size: 0.75rem;">🔒</span>
-                                }
-                                else
-                                {
-                                    <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
-                                }
+                                <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
                             </td>
-                            <!-- Album Cover 32x32 px -->
+
+                            <!-- COVER ART -->
                             <td style="padding: 8px 6px; text-align: center;">
                                 @if (!string.IsNullOrWhiteSpace(song.AlbumCoverUrl))
                                 {
@@ -132,7 +134,8 @@
                                     </div>
                                 }
                             </td>
-                            <!-- Status Complete Badge -->
+
+                            <!-- STATUS BADGE -->
                             <td style="padding: 8px 6px;">
                                 @if (song.IsComplete)
                                 {
@@ -147,6 +150,7 @@
                                     </span>
                                 }
                             </td>
+
                             <td style="padding: 8px 6px; font-weight: 500; color: #d0d3d8; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 @song.Title
                             </td>
@@ -172,28 +176,41 @@
                                 @(string.IsNullOrWhiteSpace(song.MusicBrainzId) ? "-" : song.MusicBrainzId)
                             </td>
                             <td style="padding: 8px 6px;">
-                                @if (!string.IsNullOrWhiteSpace(song.AudioUrl))
+                                @if (!string.IsNullOrWhiteSpace(song.AudioUrl) || !string.IsNullOrWhiteSpace(song.YoutubeVideoId))
                                 {
-                                    <span style="color: #4cc9f0; font-size: 0.65rem; font-family: monospace;" title="@song.AudioUrl">READY</span>
+                                    <span style="color: #4cc9f0; font-size: 0.65rem; font-family: monospace;">READY</span>
                                 }
                                 else
                                 {
                                     <span style="color: #525866; font-size: 0.65rem; font-family: monospace;">EMPTY</span>
                                 }
                             </td>
+
+                            <!-- AKSI PER BARIS (UNDUH & HAPUS) -->
                             <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
-                                <button style="background: transparent; border: none; color: #8a8f98; padding: 4px 6px; font-size: 0.75rem; cursor: pointer; margin-right: 4px;" @onclick="() => DownloadSingle(song)" disabled="@isLoading" title="Unduh File">
-                                    ↓
+                                <!-- TOMBOL UNDUH SINGLE -->
+                                <button style="background: rgba(69, 162, 158, 0.1); border: 1px solid rgba(69, 162, 158, 0.3); color: #45a29e; padding: 4px 8px; border-radius: 3px; font-size: 0.75rem; cursor: pointer; margin-right: 4px; font-family: monospace;" 
+                                        @onclick="() => DownloadSingle(song)" 
+                                        disabled="@isLoading" 
+                                        title="Unduh MP3 via yt-dlp">
+                                    ↓ UNDUH
                                 </button>
-                                @if (IsLocked(song))
+
+                                <!-- TOMBOL HAPUS SINGLE (TERKUNCI JIKA DARI YT) -->
+                                @if (IsLockedFromDeletion(song))
                                 {
-                                    <button style="background: transparent; border: none; color: rgba(255,255,255,0.15); padding: 4px 6px; font-size: 0.75rem; cursor: not-allowed;" disabled title="Terkunci — memiliki YouTube URL, tidak dapat dihapus">
-                                        ✕
+                                    <button style="background: transparent; border: none; color: rgba(255,255,255,0.15); padding: 4px 6px; font-size: 0.75rem; cursor: not-allowed;" 
+                                            disabled 
+                                            title="Terkunci — Memiliki YouTube Video ID, tidak dapat dihapus dari Master Library">
+                                        🔒 ✕
                                     </button>
                                 }
                                 else
                                 {
-                                    <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus File">
+                                    <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;" 
+                                            @onclick="() => DeleteSingle(song.Id)" 
+                                            disabled="@isLoading" 
+                                            title="Hapus File">
                                         ✕
                                     </button>
                                 }
