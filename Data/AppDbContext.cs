@@ -14,9 +14,6 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // =========================================================================
-        // MAPPING TABEL SSOT: songs
-        // =========================================================================
         modelBuilder.Entity<SongModel>(entity =>
         {
             entity.ToTable("songs");
@@ -37,12 +34,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
             entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
 
-            // Generated column dari DB
             entity.Property(e => e.IsComplete)
                 .HasColumnName("is_complete")
                 .ValueGeneratedOnAddOrUpdate();
 
-            // Abaikan properti non-database / UI helper
             entity.Ignore(e => e.CreatedAt);
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
@@ -52,13 +47,9 @@ public class AppDbContext : DbContext
             entity.Ignore(e => e.IsSelected);
         });
 
-        // =========================================================================
-        // MAPPING TABEL: youtube_oauth_tokens
-        // =========================================================================
         modelBuilder.Entity<YouTubeOAuthTokenModel>(entity =>
         {
             entity.ToTable("youtube_oauth_tokens");
-
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.AccountEmail).HasColumnName("account_email");
