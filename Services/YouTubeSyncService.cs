@@ -42,6 +42,9 @@ public class YouTubeSyncService : IYouTubeSyncService
 
         var fetched = new List<(string VideoId, string Title, string ChannelTitle)>();
 
+        // Tentukan batas maksimal penarikan. Jika maxResults <= 0 atau int.MaxValue, anggap UNLIMITED.
+        int targetMaxResults = (maxResults <= 0) ? int.MaxValue : maxResults;
+
         // =========================================================================
         // SKENARIO A: SINGLE VIDEO (Link/ID Lagu Satuan, misal music.youtube.com/watch?v=...)
         // =========================================================================
@@ -69,17 +72,19 @@ public class YouTubeSyncService : IYouTubeSyncService
             }
         }
         // =========================================================================
-        // SKENARIO B: LIKED VIDEOS (LL / LM / liked)
+        // SKENARIO B: LIKED VIDEOS (LL / LM / liked) -> UNLIMITED LOOPING
         // =========================================================================
         else if (isLikedVideos)
         {
-            Console.WriteLine("[YouTubeSync] Routing: Liked Videos");
+            Console.WriteLine("[YouTubeSync] Routing: Liked Videos (Unlimited Mode)");
             string? pageToken = null;
-            int targetMaxResults = Math.Clamp(maxResults, 1, 500);
 
             do
             {
-                int pageSize = Math.Clamp(targetMaxResults - fetched.Count, 1, 50);
+                // Minta 50 item per page request API (maksimum dari API YouTube)
+                int pageSize = Math.Min(targetMaxResults - fetched.Count, 50);
+                if (pageSize <= 0) break;
+
                 string url = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults={pageSize}";
                 if (!string.IsNullOrWhiteSpace(pageToken)) url += $"&pageToken={pageToken}";
 
@@ -96,6 +101,8 @@ public class YouTubeSyncService : IYouTubeSyncService
                 {
                     if (string.IsNullOrWhiteSpace(item.Id)) continue;
                     fetched.Add((item.Id, item.Snippet?.Title ?? "Untitled", item.Snippet?.ChannelTitle ?? "Unknown Artist"));
+                    
+                    if (fetched.Count >= targetMaxResults) break;
                 }
 
                 pageToken = parsed.NextPageToken;
@@ -103,17 +110,18 @@ public class YouTubeSyncService : IYouTubeSyncService
             while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
         }
         // =========================================================================
-        // SKENARIO C: PLAYLIST STANDARD (PL...)
+        // SKENARIO C: PLAYLIST STANDARD (PL...) -> UNLIMITED LOOPING
         // =========================================================================
         else
         {
-            Console.WriteLine($"[YouTubeSync] Routing: Playlist ID '{cleanPlaylistId}'");
+            Console.WriteLine($"[YouTubeSync] Routing: Playlist ID '{cleanPlaylistId}' (Unlimited Mode)");
             string? pageToken = null;
-            int targetMaxResults = Math.Clamp(maxResults, 1, 500);
 
             do
             {
-                int pageSize = Math.Clamp(targetMaxResults - fetched.Count, 1, 50);
+                int pageSize = Math.Min(targetMaxResults - fetched.Count, 50);
+                if (pageSize <= 0) break;
+
                 string url = $"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId={Uri.EscapeDataString(cleanPlaylistId)}&maxResults={pageSize}";
                 if (!string.IsNullOrWhiteSpace(pageToken)) url += $"&pageToken={pageToken}";
 
@@ -129,13 +137,19 @@ public class YouTubeSyncService : IYouTubeSyncService
                 foreach (var item in parsed.Items)
                 {
                     var vId = item.Snippet?.ResourceId?.VideoId;
-                    if (string.IsNullOrWhiteSpace(vId)) continue;
+                    var title = item.Snippet?.Title;
+                    
+                    // Filter video privat / terhapus
+                    if (string.IsNullOrWhiteSpace(vId) || title == "Private video" || title == "Deleted video") 
+                        continue;
 
                     fetched.Add((
                         vId,
-                        item.Snippet?.Title ?? "Untitled",
+                        title ?? "Untitled",
                         item.Snippet?.VideoOwnerChannelTitle ?? item.Snippet?.ChannelTitle ?? "Unknown Artist"
                     ));
+
+                    if (fetched.Count >= targetMaxResults) break;
                 }
 
                 pageToken = parsed.NextPageToken;
@@ -145,22 +159,27 @@ public class YouTubeSyncService : IYouTubeSyncService
 
         if (fetched.Count == 0) return 0;
 
-        // 2. Simpan Ke Database (Pencegahan Duplikasi)
+        // =========================================================================
+        // 2. SIMPAN KE DATABASE (BATCH INSERT & EFFICEINT DEDUPLICATION)
+        // =========================================================================
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         
         var fetchedVideoIds = fetched.Select(f => f.VideoId).Distinct().ToList();
-        var existingVideoIds = await context.SongsRaw
-            .Where(r => fetchedVideoIds.Contains(r.YoutubeVideoId!))
+        
+        // Ambil ID video yang sudah ada di database untuk mencegah error duplikasi
+        var existingVideoIds = await context.Songs
+            .Where(r => r.YoutubeVideoId != null && fetchedVideoIds.Contains(r.YoutubeVideoId))
             .Select(r => r.YoutubeVideoId!)
             .ToHashSetAsync();
 
         int insertedCount = 0;
+        int batchSize = 500; // Commit per 500 baris agar memori hemat
 
         foreach (var song in fetched)
         {
             if (existingVideoIds.Contains(song.VideoId)) continue;
 
-            var rawEntity = new RawSongModel
+            var rawEntity = new SongModel
             {
                 YoutubeVideoId = song.VideoId,
                 Title = song.Title,
@@ -168,12 +187,19 @@ public class YouTubeSyncService : IYouTubeSyncService
                 Status = "PENDING"
             };
 
-            await context.SongsRaw.AddAsync(rawEntity);
+            await context.Songs.AddAsync(rawEntity);
             existingVideoIds.Add(song.VideoId);
             insertedCount++;
+
+            // Simpan bertahap setiap 500 baris baru
+            if (insertedCount % batchSize == 0)
+            {
+                await context.SaveChangesAsync();
+            }
         }
 
-        if (insertedCount > 0)
+        // Simpan sisa data
+        if (insertedCount % batchSize != 0)
         {
             await context.SaveChangesAsync();
         }
@@ -184,13 +210,13 @@ public class YouTubeSyncService : IYouTubeSyncService
     public async Task<int> GetPendingRawCountAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        return await context.SongsRaw.CountAsync(s => s.Status == "PENDING");
+        return await context.Songs.CountAsync(s => s.Status == "PENDING");
     }
 
     public async Task<int> GetCompletedCountAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        return await context.SongsComplete.CountAsync();
+        return await context.Songs.CountAsync(s => s.Status == "COMPLETED" || s.IsComplete);
     }
 
     /// <summary>
@@ -198,15 +224,12 @@ public class YouTubeSyncService : IYouTubeSyncService
     /// </summary>
     private static string? ExtractSingleVideoId(string input)
     {
-        // Parameter v= di URL (misal: music.youtube.com/watch?v=AWggPLXeOkU&si=...)
         var matchUrl = Regex.Match(input, @"[?&]v=([^&]+)", RegexOptions.IgnoreCase);
         if (matchUrl.Success) return matchUrl.Groups[1].Value.Trim();
 
-        // Short link (youtu.be/AWggPLXeOkU)
         var matchShort = Regex.Match(input, @"youtu\.be/([^?&]+)", RegexOptions.IgnoreCase);
         if (matchShort.Success) return matchShort.Groups[1].Value.Trim();
 
-        // Jika user langsung memasukkan ID video 11 karakter (misal: AWggPLXeOkU)
         if (Regex.IsMatch(input, @"^[a-zA-Z0-9_-]{11}$")) return input;
 
         return null;
