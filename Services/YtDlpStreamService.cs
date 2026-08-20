@@ -57,18 +57,15 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- AUTHENTICATION VIA COOKIE / PLAYER CLIENT ---
+        // --- AUTHENTICATION VIA COOKIE / DEFAULT ROTATION ---
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
             startInfo.ArgumentList.Add("--cookies");
             startInfo.ArgumentList.Add(cookiePath);
         }
-        else
-        {
-            startInfo.ArgumentList.Add("--extractor-args");
-            startInfo.ArgumentList.Add("youtube:player_client=ios");
-        }
+        // NOTE: Parameter deprecated --extractor-args youtube:player_client=ios TELAH DIHAPUS 
+        // agar yt-dlp menggunakan rotasi player client resmi otomatis.
 
         // --- ANTI-BOT SLEEP & GEO-BYPASS ---
         startInfo.ArgumentList.Add("--sleep-requests");
@@ -78,8 +75,6 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--max-sleep-interval");
         startInfo.ArgumentList.Add("3");
         startInfo.ArgumentList.Add("--geo-bypass");
-        startInfo.ArgumentList.Add("--geo-bypass-country");
-        startInfo.ArgumentList.Add("US");
 
         // User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
@@ -107,8 +102,6 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
-        
-        // Kualitas Menengah (~128kbps) - Ideal & Aman untuk Free Tier Server
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5"); 
         
