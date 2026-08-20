@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace Hypen.Web.Services;
 
@@ -27,18 +28,32 @@ public class YtDlpStreamService
             yield break;
         }
 
-        // Integrasi pembersihan URL / ID tanpa mengubah logika dasar yt-dlp
+        // =========================================================================
+        // UNIVERSAL URL & VIDEO ID PARSING (Regex)
+        // =========================================================================
         string cleanUrl = youtubeUrlOrId.Trim();
-        if (System.Text.RegularExpressions.Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
-        {
-            cleanUrl = $"https://www.youtube.com/watch?v={cleanUrl}";
-        }
-        else if (cleanUrl.Contains("music.youtube.com"))
-        {
-            cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com");
-        }
 
-        bool isPlaylist = cleanUrl.Contains("list=");
+        // Cek apakah input mengandung ID Playlist
+        bool isPlaylist = cleanUrl.Contains("list=", StringComparison.OrdinalIgnoreCase);
+
+        // Jika bukan playlist, ekstrak ID 11 karakter unik dari segala jenis format link YouTube
+        if (!isPlaylist)
+        {
+            var match = Regex.Match(cleanUrl, @"(?:v=|\/|embed\/|youtu\.be\/|\/v\/|\/e\/|watch\?v=|&v=)([^""&?\/\s]{11})", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                string videoId = match.Groups[1].Value;
+                cleanUrl = $"https://www.youtube.com/watch?v={videoId}";
+            }
+            else if (Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
+            {
+                cleanUrl = $"https://www.youtube.com/watch?v={cleanUrl}";
+            }
+            else if (cleanUrl.Contains("music.youtube.com", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com", StringComparison.OrdinalIgnoreCase);
+            }
+        }
 
         var startInfo = new ProcessStartInfo
         {
@@ -49,7 +64,7 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // --- KONFIGURASI DAN ARGUMEN AWAL KAMU (DIPERTAHANKAN 100%) ---
+        // --- KONFIGURASI DAN ARGUMEN AWAL (DIPERTAHANKAN 100%) ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
