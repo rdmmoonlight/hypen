@@ -10,7 +10,7 @@ using Microsoft.Extensions.FileProviders;
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================================================================
-// 1. SERVICE REGISTRATIONS
+// 1. SERVICE REGISTRATIONS (.NET 10)
 // =========================================================================
 builder.Services.AddCors(options =>
 {
@@ -22,14 +22,12 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Registrasi Controller API
+// Registrasi Controller API & Native Blazor (.NET 10)
 builder.Services.AddControllers();
-
-// Registrasi Razor Components (Blazor Server .NET 8+)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Konfigurasi Forwarded Headers untuk Cloud Hosting / Reverse Proxy (e.g. Render/Fly.io)
+// Konfigurasi Forwarded Headers untuk Cloud Hosting (Render/Fly.io)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -37,7 +35,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-// Registrasi Base HttpClient untuk Blazor / API Internal
+// Registrasi Base HttpClient
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetService<Microsoft.AspNetCore.Components.NavigationManager>();
@@ -45,10 +43,9 @@ builder.Services.AddScoped(sp =>
     return new HttpClient { BaseAddress = new Uri(baseUri) };
 });
 
-// Registrasi Standard HttpClient untuk External API Call
 builder.Services.AddHttpClient();
 
-// Konfigurasi Environment Variables
+// Environment Variables
 string dbConnectionStringConfig = builder.Configuration.GetConnectionString("NEON_DB_CONNECTION")
     ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") 
     ?? "";
@@ -57,7 +54,7 @@ string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
 string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
 
-// ORM Entity Framework Core (Factory)
+// Entity Framework Core Factory (PostgreSQL SSOT)
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(dbConnectionStringConfig));
 
@@ -66,7 +63,6 @@ builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddSingleton<YtDlpStreamService>();
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
-// Registrasi YouTube Sync & Processing Services
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
@@ -76,7 +72,6 @@ builder.Services.AddScoped(sp => new YouTubeOAuthService(
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
-// Registrasi Local MP3 Sync Services
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
 builder.Services.AddScoped<LocalMp3SyncService>();
@@ -94,7 +89,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Ensure folder wwwroot dan wwwroot/downloads tersedia di server container
+// Ensure folder wwwroot & downloads
 string webRoot = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 if (!Directory.Exists(webRoot))
 {
@@ -104,7 +99,6 @@ if (!Directory.Exists(webRoot))
 string downloadsPath = Path.Combine(webRoot, "downloads");
 Directory.CreateDirectory(downloadsPath);
 
-// Konfigurasi Static Files
 app.UseStaticFiles();
 
 app.UseStaticFiles(new StaticFileOptions
@@ -125,12 +119,10 @@ app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
 app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
-// Map Controller & Minimal API Endpoints
 app.MapControllers();
 app.MapSongEndpoints();
 app.MapConvertEndpoints();
 
-// Map OAuth Endpoints
 var oauthServiceForEndpoints = new YouTubeOAuthService(
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
@@ -140,12 +132,10 @@ var oauthServiceForEndpoints = new YouTubeOAuthService(
 app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServiceForEndpoints);
 
 // =========================================================================
-// 4. BLAZOR UI ROUTING & FALLBACK HANDLER (Mencegah Error HTTP 404)
+// 4. BLAZOR UI ROUTING NATIVE (.NET 10)
 // =========================================================================
+// MapRazorComponents secara otomatis menangani ketersediaan fallback route untuk komponen Blazor
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
-// Fallback route agar permintaan rute Blazor SPA (misal: /library/sync/staging) tidak dianggap 404 oleh server
-app.MapFallbackToPage("/_Host");
 
 app.Run();
