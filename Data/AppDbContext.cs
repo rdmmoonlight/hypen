@@ -16,14 +16,14 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // 1. MAPPING ENTITY: RawSongModel -> TABEL: songs
+        // 1. MAPPING VIEW: songs_raw (Staging RAW)
         // =========================================================================
         modelBuilder.Entity<RawSongModel>(entity =>
         {
-            entity.ToTable("songs");
+            entity.ToView("songs_raw");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
@@ -33,20 +33,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
+            entity.Property(e => e.Status).HasColumnName("status");
 
             entity.Ignore(e => e.CreatedAt);
         });
 
         // =========================================================================
-        // 2. MAPPING ENTITY: CloudSongModel -> TABEL: songs
+        // 2. MAPPING VIEW: songs_complete (Master Library)
         // =========================================================================
         modelBuilder.Entity<CloudSongModel>(entity =>
         {
-            entity.ToTable("songs");
+            entity.ToView("songs_complete");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.RawId).HasColumnName("raw_id");
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
@@ -58,24 +58,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
+            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded");
+            entity.Property(e => e.IsComplete).HasColumnName("is_complete");
 
-            entity.Property(e => e.IsComplete)
-                .HasColumnName("is_complete")
-                .HasComputedColumnSql(@"
-                    CASE WHEN 
-                        (youtube_video_id IS NOT NULL AND youtube_video_id <> '') AND
-                        (musicbrainz_id IS NOT NULL AND musicbrainz_id <> '') AND
-                        (title IS NOT NULL AND title <> '') AND
-                        (artist IS NOT NULL AND artist <> '') AND
-                        (album IS NOT NULL AND album <> '') AND
-                        (release_year IS NOT NULL) AND
-                        (country IS NOT NULL AND country <> '') AND
-                        (album_cover_url IS NOT NULL AND album_cover_url <> '') AND
-                        (audio_url IS NOT NULL AND audio_url <> '') AND
-                        (duration_seconds IS NOT NULL AND duration_seconds > 0)
-                    THEN TRUE ELSE FALSE END", stored: true);
-
+            // Abaikan properti UI / Alias
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
             entity.Ignore(e => e.Cover);
