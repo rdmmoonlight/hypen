@@ -1,5 +1,8 @@
 namespace Hypen.Web.Models;
 
+using RawSongModel = SongModel;
+using CloudSongModel = SongModel;
+
 public enum CloudProvider
 {
     YouTube,
