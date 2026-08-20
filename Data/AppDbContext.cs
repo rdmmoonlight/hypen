@@ -16,14 +16,14 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // 1. MAPPING VIEW: songs_raw (Staging RAW)
+        // 1. MAPPING ENTITY: RawSongModel -> TABEL SSOT: songs
         // =========================================================================
         modelBuilder.Entity<RawSongModel>(entity =>
         {
-            entity.ToView("songs_raw");
+            entity.ToTable("songs");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
@@ -33,20 +33,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
 
             entity.Ignore(e => e.CreatedAt);
         });
 
         // =========================================================================
-        // 2. MAPPING VIEW: songs_complete (Master Library)
+        // 2. MAPPING ENTITY: CloudSongModel -> TABEL SSOT: songs
         // =========================================================================
         modelBuilder.Entity<CloudSongModel>(entity =>
         {
-            entity.ToView("songs_complete");
+            entity.ToTable("songs");
 
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.RawId).HasColumnName("raw_id");
             entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
@@ -58,8 +58,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
             entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
             entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded");
-            entity.Property(e => e.IsComplete).HasColumnName("is_complete");
+            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
+
+            // Kolom generated dari DB (Read-Only)
+            entity.Property(e => e.IsComplete)
+                .HasColumnName("is_complete")
+                .ValueGeneratedOnAddOrUpdate();
 
             // Abaikan properti UI / Alias
             entity.Ignore(e => e.YoutubeId);
