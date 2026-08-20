@@ -73,7 +73,6 @@ public partial class Index : ComponentBase
             var data = await ProcessorService.GetPendingRawAsync();
             stagingList = data ?? [];
             
-            // Bersihkan seleksi jika ada ID yang sudah tidak ada di data baru
             selectedRawIds.IntersectWith(stagingList.Select(x => x.Id));
         }
         catch (Exception ex)
