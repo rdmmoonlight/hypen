@@ -18,9 +18,8 @@ public partial class Index : ComponentBase
     protected bool isError;
     protected bool isProcessing;
 
-    // INGESTION STATE: maxResults diubah ke int.MaxValue untuk penarikan unlimited
+    // INGESTION STATE
     protected string targetPlaylistId = "LL";
-    protected int maxResults = int.MaxValue;
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllLocalSelected = true;
 
@@ -44,8 +43,8 @@ public partial class Index : ComponentBase
             isProcessing = true;
             UpdateStatus("Menarik seluruh data dari YouTube API ke Staging ('songs')...");
 
-            // Ingestion tanpa batasan limit maxResults
-            int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, maxResults);
+            // Ingestion tanpa batasan limit (menggunakan int.MaxValue)
+            int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, int.MaxValue);
             
             UpdateStatus($"Ingestion Berhasil! {rawFetched:N0} data baru masuk ke Staging.");
             await RefreshMetrics();
