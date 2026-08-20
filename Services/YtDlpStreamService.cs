@@ -29,29 +29,40 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // UNIVERSAL URL & VIDEO ID PARSING (Regex)
+        // UNIVERSAL URL & VIDEO ID PARSING (AMANA & PRESISI)
         // =========================================================================
         string cleanUrl = youtubeUrlOrId.Trim();
-
-        // Cek apakah input mengandung ID Playlist
         bool isPlaylist = cleanUrl.Contains("list=", StringComparison.OrdinalIgnoreCase);
 
-        // Jika bukan playlist, ekstrak ID 11 karakter unik dari segala jenis format link YouTube
         if (!isPlaylist)
         {
-            var match = Regex.Match(cleanUrl, @"(?:v=|\/|embed\/|youtu\.be\/|\/v\/|\/e\/|watch\?v=|&v=)([^""&?\/\s]{11})", RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                string videoId = match.Groups[1].Value;
-                cleanUrl = $"https://www.youtube.com/watch?v={videoId}";
-            }
-            else if (Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
-            {
-                cleanUrl = $"https://www.youtube.com/watch?v={cleanUrl}";
-            }
-            else if (cleanUrl.Contains("music.youtube.com", StringComparison.OrdinalIgnoreCase))
+            if (cleanUrl.Contains("music.youtube.com", StringComparison.OrdinalIgnoreCase))
             {
                 cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com", StringComparison.OrdinalIgnoreCase);
+            }
+
+            string? extractedId = null;
+
+            if (Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
+            {
+                extractedId = cleanUrl;
+            }
+            else if (Uri.TryCreate(cleanUrl, UriKind.Absolute, out var uri))
+            {
+                if (uri.Host.Contains("youtu.be", StringComparison.OrdinalIgnoreCase))
+                {
+                    extractedId = uri.AbsolutePath.TrimStart('/').Split('?')[0];
+                }
+                else if (uri.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                    extractedId = queryParams["v"];
+                }
+            }
+
+            if (!string.IsNullOrEmpty(extractedId) && extractedId.Length == 11)
+            {
+                cleanUrl = $"https://www.youtube.com/watch?v={extractedId}";
             }
         }
 
