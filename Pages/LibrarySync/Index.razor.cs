@@ -42,7 +42,7 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus("Menarik data mentah dari YouTube API ke 'songs_raw'...");
+            UpdateStatus("Menarik data mentah dari YouTube API ke Staging ('songs')...");
 
             int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, maxResults);
             
@@ -51,7 +51,8 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Ingestion YouTube: {ex.Message}", true);
+            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            UpdateStatus($"Gagal Ingestion YouTube: {detail}", true);
         }
         finally
         {
@@ -85,7 +86,8 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Error saat membaca file MP3: {ex.Message}", true);
+            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            UpdateStatus($"Error saat membaca file MP3: {detail}", true);
         }
         finally
         {
@@ -102,7 +104,7 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus("Memasukkan data MP3 ke tabel Staging ('songs_raw')...");
+            UpdateStatus("Memasukkan data MP3 ke tabel Staging ('songs')...");
 
             int savedCount = await LocalSyncService.SaveToRawAsync(selected);
 
@@ -112,7 +114,8 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Simpan ke Staging: {ex.Message}", true);
+            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            UpdateStatus($"Gagal Simpan ke Staging: {detail}", true);
         }
         finally
         {
