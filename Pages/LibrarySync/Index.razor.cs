@@ -18,9 +18,9 @@ public partial class Index : ComponentBase
     protected bool isError;
     protected bool isProcessing;
 
-    // INGESTION STATE
+    // INGESTION STATE: maxResults diubah ke int.MaxValue untuk penarikan unlimited
     protected string targetPlaylistId = "LL";
-    protected int maxResults = 25;
+    protected int maxResults = int.MaxValue;
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllLocalSelected = true;
 
@@ -34,7 +34,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // INGESTION (YOUTUBE & LOCAL MP3)
+    // INGESTION (YOUTUBE & LOCAL MP3 - UNLIMITED)
     // =========================================================================
 
     protected async Task StartYouTubeIngestionToRaw()
@@ -42,11 +42,12 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus("Menarik data mentah dari YouTube API ke Staging ('songs')...");
+            UpdateStatus("Menarik seluruh data dari YouTube API ke Staging ('songs')...");
 
+            // Ingestion tanpa batasan limit maxResults
             int rawFetched = await SyncService.SyncPlaylistToRawAsync(targetPlaylistId, maxResults);
             
-            UpdateStatus($"Ingestion Berhasil! {rawFetched} data baru masuk ke Staging.");
+            UpdateStatus($"Ingestion Berhasil! {rawFetched:N0} data baru masuk ke Staging.");
             await RefreshMetrics();
         }
         catch (Exception ex)
@@ -64,7 +65,8 @@ public partial class Index : ComponentBase
     protected async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
         extractedList.Clear();
-        var files = e.GetMultipleFiles(100);
+        // Bebaskan limit jumlah file yang dipilih (int.MaxValue)
+        var files = e.GetMultipleFiles(int.MaxValue);
 
         try
         {
@@ -74,15 +76,16 @@ public partial class Index : ComponentBase
             foreach (var file in files)
             {
                 scanned++;
-                UpdateStatus($"[{scanned}/{files.Count}] Mengurai metadata dari: '{file.Name}'...");
+                UpdateStatus($"[{scanned:N0}/{files.Count:N0}] Mengurai metadata: '{file.Name}'...");
 
-                await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 50);
+                // Bebaskan limit ukuran per file (long.MaxValue byte)
+                await using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
                 
                 var model = await LocalSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
                 extractedList.Add(model);
             }
 
-            UpdateStatus($"{extractedList.Count} file MP3 berhasil diproses. Klik 'Simpan ke Staging'.");
+            UpdateStatus($"{extractedList.Count:N0} file MP3 berhasil diproses. Klik 'Simpan ke Staging'.");
         }
         catch (Exception ex)
         {
@@ -104,11 +107,11 @@ public partial class Index : ComponentBase
         try
         {
             isProcessing = true;
-            UpdateStatus("Memasukkan data MP3 ke tabel Staging ('songs')...");
+            UpdateStatus($"Memasukkan {selected.Count:N0} data MP3 ke Staging ('songs')...");
 
             int savedCount = await LocalSyncService.SaveToRawAsync(selected);
 
-            UpdateStatus($"Berhasil! {savedCount} MP3 lokal tersimpan di Staging.");
+            UpdateStatus($"Berhasil! {savedCount:N0} MP3 tersimpan di Staging.");
             extractedList.Clear();
             await RefreshMetrics();
         }
