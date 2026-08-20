@@ -26,7 +26,7 @@ public partial class Index : ComponentBase
 
     protected bool IsLocked(CloudSongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
-        !song.YoutubeVideoId.Equals("LOCAL", StringComparison.OrdinalIgnoreCase);
+        !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
 
     protected IEnumerable<CloudSongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
