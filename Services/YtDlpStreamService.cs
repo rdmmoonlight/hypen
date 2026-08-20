@@ -82,11 +82,11 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- PENANGANAN CLIENT WEBPAGE BOT PREVENTION (MEMBAYPASS ERROR 'VIDEO UNAVAILABLE') ---
+        // --- BYPASS BOT CHECK & DATACENTER BLOCK (ANDROID & WEB ROTATION) ---
         startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=mweb,web");
+        startInfo.ArgumentList.Add("youtube:player_client=android,web,mweb");
 
-        // Auth via Cookies
+        // Auth via Cookies (jika tersedia)
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
@@ -98,12 +98,10 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--sleep-requests");
         startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--min-sleep-interval");
-        startInfo.ArgumentList.Add("2");
+        startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--max-sleep-interval");
-        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("3");
         startInfo.ArgumentList.Add("--geo-bypass");
-        startInfo.ArgumentList.Add("--geo-bypass-country");
-        startInfo.ArgumentList.Add("ID"); // Bypass geo ke wilayah Indonesia
 
         // User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
