@@ -1,7 +1,8 @@
-namespace Hypen.Web.Models;
+// Global using wajib diletakkan di luar namespace agar berlaku untuk seluruh project
+global using RawSongModel = Hypen.Web.Models.SongModel;
+global using CloudSongModel = Hypen.Web.Models.SongModel;
 
-using RawSongModel = SongModel;
-using CloudSongModel = SongModel;
+namespace Hypen.Web.Models;
 
 public enum CloudProvider
 {
