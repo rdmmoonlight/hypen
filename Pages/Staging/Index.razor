@@ -36,17 +36,41 @@
     <!-- STAGING REVIEW TOOLBAR -->
     <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
-            <div style="font-size: 0.68rem; font-family: monospace; color: #525866; text-transform: uppercase;">Buffer Pipeline (@pendingRawCount PENDING)</div>
+            <div style="font-size: 0.68rem; font-family: monospace; color: #525866; text-transform: uppercase;">
+                Buffer Pipeline (@pendingRawCount PENDING) 
+                @if (selectedRawIds.Count > 0)
+                {
+                    <span style="color: #4cc9f0; margin-left: 8px;">[ @selectedRawIds.Count TERPILIH ]</span>
+                }
+            </div>
             <div style="font-size: 0.8rem; color: #d0d3d8;">Review metadata & sinkronisasi data staging.</div>
         </div>
-        <div style="display: flex; gap: 8px;">
-            <button style="background: transparent; color: #45a29e; border: 1px solid rgba(69, 162, 158, 0.3); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <!-- TOMBOL AKSI MASSAL ITEM TERPILIH -->
+            @if (selectedRawIds.Count > 0)
+            {
+                <button style="background: rgba(69, 162, 158, 0.15); color: #45a29e; border: 1px solid rgba(69, 162, 158, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="SmartMatchSelected" disabled="@isProcessing">
+                    🔍 MATCH SELECTED (@selectedRawIds.Count)
+                </button>
+                <button style="background: rgba(76, 201, 240, 0.15); color: #4cc9f0; border: 1px solid rgba(76, 201, 240, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="UploadSelectedToComplete" disabled="@isProcessing">
+                    🚀 COMMIT SELECTED (@selectedRawIds.Count)
+                </button>
+                <button style="background: rgba(247, 37, 133, 0.15); color: #ff4d6d; border: 1px solid rgba(247, 37, 133, 0.4); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
+                        @onclick="DeleteSelectedRawItems" disabled="@isProcessing">
+                    ✕ DELETE SELECTED (@selectedRawIds.Count)
+                </button>
+            }
+
+            <!-- TOMBOL AKSI GLOBAL -->
+            <button style="background: transparent; color: #8a8f98; border: 1px solid rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
                     @onclick="SmartMatchAllPending" disabled="@isProcessing">
-                🔍 MATCH ALL
+                MATCH ALL
             </button>
             <button style="background: rgba(255,255,255,0.08); color: #e6e8ec; border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; cursor: pointer;" 
                     @onclick="UploadAllToComplete" disabled="@isProcessing">
-                🚀 COMMIT ALL TO LIBRARY
+                COMMIT ALL
             </button>
         </div>
     </div>
@@ -60,9 +84,12 @@
     else
     {
         <div style="background: rgba(255, 255, 255, 0.02); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.05); overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem; min-width: 1000px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem; min-width: 1040px;">
                 <thead>
                     <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #525866; font-size: 0.68rem; text-transform: uppercase; font-family: monospace;">
+                        <th style="padding: 8px 10px; width: 40px; text-align: center;">
+                            <input type="checkbox" checked="@IsAllSelected" @onchange="ToggleSelectAll" style="cursor: pointer; accent-color: #4cc9f0;" />
+                        </th>
                         <th style="padding: 8px 10px; width: 180px;">Judul</th>
                         <th style="padding: 8px 10px; width: 150px;">Artis</th>
                         <th style="padding: 8px 10px; width: 140px;">Album</th>
@@ -76,7 +103,13 @@
                 <tbody>
                     @foreach (var row in stagingList)
                     {
-                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.02);">
+                        var isSelected = selectedRawIds.Contains(row.Id);
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); background: @(isSelected ? "rgba(76, 201, 240, 0.03)" : "transparent");">
+                            <!-- CHECKBOX SELECT -->
+                            <td style="padding: 6px 10px; text-align: center;">
+                                <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" style="cursor: pointer; accent-color: #4cc9f0;" />
+                            </td>
+
                             <!-- TITLE -->
                             <td style="padding: 6px 8px;">
                                 <input type="text" @bind="row.Title" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #d0d3d8; padding: 4px 6px; border-radius: 2px; font-size: 0.75rem; width: 100%; outline: none;" />
