@@ -7,7 +7,13 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    // Master DbSet SSOT
     public DbSet<SongModel> Songs { get; set; } = default!;
+
+    // Alias Property: Menghubungkan pemanggilan SongsRaw dan SongsComplete lama ke DbSet Songs
+    public DbSet<SongModel> SongsRaw => Songs;
+    public DbSet<SongModel> SongsComplete => Songs;
+
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -37,10 +43,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
             entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
 
+            // Generated Column di PostgreSQL
             entity.Property(e => e.IsComplete)
                 .HasColumnName("is_complete")
                 .ValueGeneratedOnAddOrUpdate();
 
+            // Abaikan properti UI / Non-Database
             entity.Ignore(e => e.CreatedAt);
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
