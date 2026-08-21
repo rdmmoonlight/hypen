@@ -7,128 +7,143 @@
 
 <div class="container-fluid py-4 tools-vault-container">
     <!-- Header & Action Controls -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary gap-3">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25 gap-3">
         <div>
-            <h3 class="mb-1 text-light fw-bold">
+            <h3 class="mb-1 text-light fw-bold tracking-wide">
                 <i class="bi bi-tools text-info me-2"></i>Vault Maintenance Center
             </h3>
-            <p class="text-muted mb-0">Pusat pemeliharaan data, pembersihan duplikasi, dan optimalisasi struktur vault.</p>
+            <p class="text-muted mb-0 small">Pusat pemeliharaan data, pembersihan duplikasi, dan optimalisasi struktur vault.</p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button class="btn btn-outline-info px-3" @onclick="ScanDuplicates" disabled="@isProcessing">
+            <button class="btn btn-outline-info px-4 py-2 rounded-3 text-nowrap fw-semibold shadow-sm" @onclick="ScanDuplicates" disabled="@isProcessing">
                 @if (isProcessing)
                 {
-                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span>Memindai...</span>
                 }
                 else
                 {
-                    <i class="bi bi-search me-1"></i>
+                    <i class="bi bi-search me-2"></i>
+                    <span>Scan Vault</span>
                 }
-                Scan Vault
             </button>
 
             @if (duplicateGroups.Count > 0)
             {
-                <button class="btn btn-danger px-3" @onclick="PurgeSelected" disabled="@isProcessing">
-                    <i class="bi bi-trash me-1"></i> Purge Selected (@TotalToDeleteCount)
+                <button class="btn btn-danger px-4 py-2 rounded-3 text-nowrap fw-semibold shadow-sm" @onclick="PurgeSelected" disabled="@isProcessing">
+                    <i class="bi bi-trash me-2"></i> Purge Selected (@TotalToDeleteCount)
                 </button>
             }
         </div>
     </div>
 
-    <!-- Status Message Alert -->
+    <!-- Status Alert -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi @(isError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-2"></i>
-            @statusMsg
-            <button type="button" class="btn-close" @onclick="() => statusMsg = string.Empty"></button>
+        <div class="alert @(isError ? "alert-danger bg-danger" : "alert-success bg-success") bg-opacity-10 border-0 text-light alert-dismissible fade show rounded-3 shadow-sm mb-4" role="alert">
+            <i class="bi @(isError ? "bi-exclamation-triangle-fill text-danger" : "bi-check-circle-fill text-success") me-2 fs-5 align-middle"></i>
+            <span class="align-middle">@statusMsg</span>
+            <button type="button" class="btn-close btn-close-white" @onclick="() => statusMsg = string.Empty"></button>
         </div>
     }
 
-    <!-- Loading State -->
+    <!-- 1. LOADING STATE -->
     @if (isProcessing && duplicateGroups.Count == 0)
     {
-        <div class="text-center py-5 my-5">
-            <div class="spinner-border text-info mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-            <h5 class="text-light">Memindai seluruh isi vault...</h5>
-            <p class="text-muted small">Menganalisis kemiripan judul, artis, durasi, dan ID eksternal.</p>
+        <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
+            <div class="card-body py-4">
+                <div class="spinner-border text-info mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
+                <h5 class="text-light fw-bold mb-2">Memindai Seluruh Isi Vault...</h5>
+                <p class="text-muted small mb-0">Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.</p>
+            </div>
         </div>
     }
-    <!-- Empty State / Clean Vault -->
+    <!-- 2. EMPTY / CLEAN VAULT STATE -->
     else if (duplicateGroups.Count == 0 && hasScanned)
     {
-        <div class="card bg-dark border-secondary text-center py-5 my-4">
-            <div class="card-body">
-                <i class="bi bi-shield-check display-4 text-success d-block mb-3"></i>
-                <h4 class="text-light fw-bold">Vault Anda Bersih!</h4>
-                <p class="text-muted mb-0">Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.</p>
+        <div class="card bg-dark bg-opacity-50 border-success border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
+            <div class="card-body py-4">
+                <div class="icon-wrapper mb-3 text-success">
+                    <i class="bi bi-shield-check display-3"></i>
+                </div>
+                <h4 class="text-light fw-bold mb-2">Vault Anda Clean & Pristine!</h4>
+                <p class="text-muted small mb-0">Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.</p>
             </div>
         </div>
     }
-    <!-- Initial / Unscanned State -->
+    <!-- 3. INITIAL / UNSCANNED STATE -->
     else if (!hasScanned)
     {
-        <div class="card bg-dark border-secondary text-center py-5 my-4">
-            <div class="card-body">
-                <i class="bi bi-cpu display-4 text-info d-block mb-3"></i>
-                <h4 class="text-light fw-bold">Mulai Pemindaian Vault</h4>
-                <p class="text-muted mb-3">Klik tombol <strong>Scan Vault</strong> di atas untuk mendeteksi lagu-lagu duplikat secara otomatis.</p>
+        <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
+            <div class="card-body py-4">
+                <div class="icon-wrapper mb-3 text-info">
+                    <i class="bi bi-cpu display-3"></i>
+                </div>
+                <h4 class="text-light fw-bold mb-2">Mulai Pemindaian Vault</h4>
+                <p class="text-muted small mb-0">Klik tombol <strong class="text-info">Scan Vault</strong> di atas untuk mendeteksi klaster duplikat secara otomatis.</p>
             </div>
         </div>
     }
-    <!-- Results: Side-by-Side Comparison Clusters -->
+    <!-- 4. RESULTS STATE: COMPARISON CLUSTERS -->
     else
     {
-        <div class="mb-3 d-flex justify-content-between align-items-center">
-            <span class="text-muted small">Ditemukan <strong>@duplicateGroups.Count</strong> kelompok duplikat potensial.</span>
-            <span class="badge bg-secondary text-light">Klik pada kartu lagu untuk memilih target Master (Simpan).</span>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small">Terdeteksi <strong class="text-warning">@duplicateGroups.Count</strong> kelompok duplikat.</span>
+            <span class="badge bg-secondary bg-opacity-50 text-light fw-normal px-3 py-2 rounded-pill">
+                💡 Klik kartu lagu untuk menentukan target Master (Simpan)
+            </span>
         </div>
 
         <div class="row g-4">
             @foreach (var group in duplicateGroups)
             {
                 <div class="col-12">
-                    <div class="card bg-dark border-secondary shadow-sm cluster-card">
-                        <div class="card-header bg-secondary bg-opacity-25 d-flex justify-content-between align-items-center py-3">
+                    <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-25 rounded-4 shadow-sm overflow-hidden">
+                        <!-- Cluster Header -->
+                        <div class="card-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-3 px-4">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-warning text-dark px-2 py-1">@group.MatchReason</span>
-                                <span class="text-light fw-semibold text-truncate" style="max-width: 400px;">Grup: @group.GroupKey</span>
+                                <span class="badge bg-warning text-dark fw-bold px-2.5 py-1.5 rounded-2">@group.MatchReason</span>
+                                <span class="text-light fw-semibold text-truncate ms-1" style="max-width: 450px;">Grup: @group.GroupKey</span>
                             </div>
-                            <span class="text-muted small">Skor Kemiripan: @group.SimilarityScore%</span>
+                            <span class="text-muted small font-monospace">Kemiripan: @group.SimilarityScore%</span>
                         </div>
-                        <div class="card-body">
+                        
+                        <!-- Cluster Cards Comparison -->
+                        <div class="card-body p-4">
                             <div class="row g-3">
                                 @foreach (var song in group.Items)
                                 {
                                     bool isKeep = group.KeepSongId == song.Id;
                                     <div class="col-md-6">
-                                        <div class="card h-100 song-comparison-card @(isKeep ? "border-success bg-success bg-opacity-10 selected-keep" : "border-secondary bg-dark bg-opacity-50 selected-purge")"
-                                             @onclick="() => SelectMaster(group, song.Id)" role="button">
-                                            <div class="card-body d-flex flex-column justify-content-between">
+                                        <div class="card h-100 song-comparison-card @(isKeep ? "border-success bg-success bg-opacity-10 shadow-sm" : "border-secondary border-opacity-25 bg-dark bg-opacity-50 opacity-75")"
+                                             @onclick="() => SelectMaster(group, song.Id)" role="button" style="border-width: 2px; border-style: solid; transition: all 0.2s ease;">
+                                            <div class="card-body d-flex flex-column justify-content-between p-3.5">
                                                 <div>
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <div class="form-check">
+                                                    <!-- Keep/Purge Status Bar -->
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <div class="form-check mb-0">
                                                             <input class="form-check-input" type="radio" name="keep-group-@group.GroupKey.GetHashCode()" checked="@isKeep" @onchange="() => SelectMaster(group, song.Id)" />
-                                                            <label class="form-check-label fw-bold @(isKeep ? "text-success" : "text-muted")">
-                                                                @(isKeep ? "🟢 DIPERTAHANKAN (MASTER)" : "🔴 KANDIDAT HAPUS")
+                                                            <label class="form-check-label fw-bold small @(isKeep ? "text-success" : "text-danger")">
+                                                                @(isKeep ? "🟢 SIMPAN (MASTER)" : "🔴 HAPUS (KANDIDAT)")
                                                             </label>
                                                         </div>
-                                                        <span class="badge bg-dark text-muted font-monospace">#@song.Id</span>
+                                                        <span class="badge bg-black bg-opacity-50 text-muted font-monospace border border-secondary border-opacity-25">#@song.Id</span>
                                                     </div>
 
-                                                    <h6 class="mb-1 text-light fw-bold text-truncate">@song.Title</h6>
-                                                    <p class="small text-muted mb-2">
+                                                    <!-- Song Info -->
+                                                    <h6 class="mb-1 text-light fw-bold text-truncate fs-6">@song.Title</h6>
+                                                    <p class="small text-muted mb-2 text-truncate">
                                                         <i class="bi bi-mic me-1"></i>@(song.Artist ?? "Unknown Artist") 
                                                         <span class="mx-1">•</span> 
                                                         <i class="bi bi-disc me-1"></i>@(song.Album ?? "-")
                                                     </p>
                                                 </div>
 
-                                                <div class="pt-2 border-top border-secondary border-opacity-50 d-flex justify-content-between align-items-center text-muted small">
+                                                <!-- Metadata Badges -->
+                                                <div class="pt-2 mt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center text-muted extra-small">
                                                     <span><i class="bi bi-clock me-1"></i>@(song.DurationSeconds ?? 0)s</span>
                                                     <div class="d-flex gap-2">
-                                                        <span>Cover: @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "🖼️ Ada" : "❌ Tidak Ada")</span>
+                                                        <span>Cover: @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "🖼️ Ada" : "❌ Absen")</span>
                                                         <span>Source: @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
                                                     </div>
                                                 </div>
