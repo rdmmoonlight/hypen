@@ -60,7 +60,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
-builder.Services.AddSingleton<YtDlpStreamService>();
+
+// --- [DIBERSIHKAN] YtDlpStreamService telah dihapus dari DI Container ---
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
@@ -134,7 +135,6 @@ app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServic
 // =========================================================================
 // 4. BLAZOR UI ROUTING NATIVE (.NET 10)
 // =========================================================================
-// MapRazorComponents secara otomatis menangani ketersediaan fallback route untuk komponen Blazor
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
