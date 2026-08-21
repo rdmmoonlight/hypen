@@ -11,7 +11,7 @@ public partial class Index : ComponentBase
     protected IYouTubeSyncService SyncService { get; set; } = default!;
 
     [Inject]
-    protected LocalMp3SyncService AppSyncService { get; set; } = default!;
+    protected SyncService AppSyncService { get; set; } = default!;
 
     // UI State
     protected string statusMsg = "";

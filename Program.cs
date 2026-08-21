@@ -73,7 +73,7 @@ builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
-builder.Services.AddScoped<LocalMp3SyncService>();
+builder.Services.AddScoped<SyncService>();
 
 // =========================================================================
 // 2. BUILD PIPELINE & MIDDLEWARE
