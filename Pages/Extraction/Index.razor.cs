@@ -11,7 +11,7 @@ public partial class Index : ComponentBase
     protected IYouTubeSyncService SyncService { get; set; } = default!;
 
     [Inject]
-    protected LocalMp3SyncService LocalSyncService { get; set; } = default!;
+    protected LocalMp3SyncService AppSyncService { get; set; } = default!;
 
     // UI State
     protected string statusMsg = "";
@@ -80,7 +80,7 @@ public partial class Index : ComponentBase
                 // Bebaskan limit ukuran per file (long.MaxValue byte)
                 await using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
                 
-                var model = await LocalSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
+                var model = await AppSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
                 extractedList.Add(model);
             }
 
@@ -108,7 +108,7 @@ public partial class Index : ComponentBase
             isProcessing = true;
             UpdateStatus($"Memasukkan {selected.Count:N0} data MP3 ke Staging ('songs')...");
 
-            int savedCount = await LocalSyncService.SaveToRawAsync(selected);
+            int savedCount = await AppSyncService.SaveToRawAsync(selected);
 
             UpdateStatus($"Berhasil! {savedCount:N0} MP3 tersimpan di Staging.");
             extractedList.Clear();
