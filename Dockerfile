@@ -18,7 +18,7 @@ RUN dotnet publish "Hypen.Web.csproj" -c Release -o /app/publish /p:UseAppHost=f
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Install Python 3, Node.js, FFmpeg, Curl, & Ca-certificates
+# Install Python 3, Node.js, FFmpeg, Curl, Unzip & Ca-certificates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -29,12 +29,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Deno (JS Runtime optimal untuk EJS solver yt-dlp)
+# Install Deno (JS Runtime optimal untuk EJS/Phantom solver yt-dlp)
 RUN curl -fsSL https://deno.land/install.sh | sh \
     && mv /root/.deno/bin/deno /usr/local/bin/deno \
     && chmod a+rx /usr/local/bin/deno
 
-# Download Executable yt-dlp biner terbaru, beri izin eksekusi, dan update ke versi paling fresh
+# Download Executable yt-dlp biner terbaru, beri izin eksekusi, dan perbarui
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && yt-dlp -U
@@ -43,10 +43,11 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 COPY --from=build /app/publish .
 
 # ==========================================
-# COPY COOKIES.TXT UNTUK BYPASS BOT DI RENDER
+# 3. PENANGANAN COOKIES (BYPASS BOT DI RENDER)
 # ==========================================
-COPY cookies.txt /app/cookies.txt
-RUN chmod 644 /app/cookies.txt
+# Menggunakan wildcard (*) agar build tidak error jika cookies.txt belum di-commit
+COPY cookies.txt* /app/
+RUN if [ -f /app/cookies.txt ]; then chmod 644 /app/cookies.txt; fi
 
 # Set Port & Environment untuk Render / Cloud Hosting
 ENV ASPNETCORE_URLS=http://+:8080
