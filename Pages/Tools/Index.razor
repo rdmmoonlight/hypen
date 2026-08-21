@@ -48,7 +48,7 @@
     <!-- Status -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-success")
+        <div class="alert @(isError ? "alert-danger bg-danger" : "alert-success bg-success")
                     bg-opacity-10 border-0 text-light alert-dismissible fade show
                     rounded-3 shadow-sm mb-4"
              role="alert">
@@ -70,7 +70,7 @@
     <!-- Initial State -->
     @if (!hasScanned && !isProcessing)
     {
-        <div class="vault-state-card card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center shadow">
+        <div class="vault-state-card card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
             <div class="card-body">
                 <i class="bi bi-cpu display-3 text-info mb-3"></i>
                 <h4 class="text-light fw-bold mb-2">Mulai Pemindaian Vault</h4>
@@ -85,9 +85,9 @@
     <!-- Loading State -->
     @if (isProcessing)
     {
-        <div class="vault-state-card card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center shadow">
+        <div class="vault-state-card card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
             <div class="card-body">
-                <div class="spinner-border text-info vault-spinner mb-3" role="status"></div>
+                <div class="spinner-border text-info vault-spinner mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
                 <h5 class="text-light fw-bold mb-2">Memindai Seluruh Isi Vault...</h5>
                 <p class="text-muted small mb-0">
                     Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
@@ -99,7 +99,7 @@
     <!-- Clean State -->
     @if (hasScanned && !isProcessing && duplicateGroups.Count == 0)
     {
-        <div class="vault-state-card card bg-dark bg-opacity-50 border-success border-opacity-25 rounded-4 text-center shadow">
+        <div class="vault-state-card card bg-dark bg-opacity-50 border-success border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
             <div class="card-body">
                 <i class="bi bi-shield-check display-3 text-success mb-3"></i>
                 <h4 class="text-light fw-bold mb-2">Vault Anda Clean & Pristine!</h4>
@@ -122,7 +122,7 @@
 
             <span class="badge bg-secondary bg-opacity-50 text-light fw-normal px-3 py-2 rounded-pill">
                 <i class="bi bi-lightbulb me-1"></i>
-                Klik kartu lagu untuk menentukan Master
+                Klik kartu atau tombol untuk menentukan Master
             </span>
         </div>
 
@@ -133,13 +133,13 @@
                     <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-25 rounded-4 shadow-sm overflow-hidden">
 
                         <!-- Cluster Header -->
-                        <div class="card-header cluster-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25">
+                        <div class="card-header cluster-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-3 px-4">
                             <div class="d-flex align-items-center gap-2 min-width-0">
-                                <span class="badge bg-warning text-dark fw-bold rounded-2">
+                                <span class="badge bg-warning text-dark fw-bold rounded-2 px-2.5 py-1.5">
                                     @group.MatchReason
                                 </span>
 
-                                <span class="text-light fw-semibold text-truncate">
+                                <span class="text-light fw-semibold text-truncate ms-1" style="max-width: 450px;">
                                     Grup: @group.GroupKey
                                 </span>
                             </div>
@@ -150,45 +150,35 @@
                         </div>
 
                         <!-- Songs -->
-                        <div class="card-body p-3">
+                        <div class="card-body p-4">
                             <div class="row g-3">
                                 @foreach (var song in group.Items)
                                 {
                                     bool isKeep = group.KeepSongId == song.Id;
 
                                     <div class="col-md-6">
-                                        <div class="card song-comparison-card h-100
-                                            @(isKeep
-                                                ? "border-success bg-success bg-opacity-10"
-                                                : "border-secondary border-opacity-25 bg-dark bg-opacity-50 opacity-75")"
+                                        <div class="card song-comparison-card h-100 @(isKeep ? "border-success bg-success bg-opacity-10 shadow-sm" : "border-secondary border-opacity-25 bg-dark bg-opacity-50 opacity-75")"
                                              @onclick="() => SelectMaster(group, song.Id)"
-                                             role="button">
+                                             role="button"
+                                             style="border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.2s ease;">
 
-                                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                            <div class="card-body p-3.5 d-flex flex-column justify-content-between">
 
                                                 <div>
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <div class="form-check mb-0">
-                                                            <input class="form-check-input"
-                                                                   type="radio"
-                                                                   name="keep-group-@group.GroupKey.GetHashCode()"
-                                                                   checked="@isKeep"
-                                                                   readOnly />
-
-                                                            <label class="form-check-label fw-bold small
-                                                                @(isKeep ? "text-success" : "text-danger")">
-                                                                @(isKeep
-                                                                    ? "🟢 SIMPAN (MASTER)"
-                                                                    : "🔴 HAPUS (KANDIDAT)")
-                                                            </label>
-                                                        </div>
+                                                        <button type="button" 
+                                                                class="btn btn-sm @(isKeep ? "btn-success" : "btn-outline-danger") fw-bold py-1 px-3 rounded-pill"
+                                                                @onclick:stopPropagation="true"
+                                                                @onclick="() => SelectMaster(group, song.Id)">
+                                                            @(isKeep ? "🟢 SIMPAN (MASTER)" : "🔴 PILIH JADI MASTER")
+                                                        </button>
 
                                                         <span class="badge bg-black bg-opacity-50 text-muted font-monospace border border-secondary border-opacity-25">
                                                             #@song.Id
                                                         </span>
                                                     </div>
 
-                                                    <h6 class="mb-1 text-light fw-bold text-truncate">
+                                                    <h6 class="mb-1 text-light fw-bold text-truncate fs-6">
                                                         @song.Title
                                                     </h6>
 
@@ -201,7 +191,7 @@
                                                     </p>
                                                 </div>
 
-                                                <div class="song-meta pt-2 mt-2 border-top border-secondary border-opacity-25">
+                                                <div class="song-meta pt-2 mt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center text-muted extra-small">
                                                     <span>
                                                         <i class="bi bi-clock me-1"></i>
                                                         @(song.DurationSeconds ?? 0)s
@@ -210,16 +200,12 @@
                                                     <div class="d-flex gap-2">
                                                         <span>
                                                             Cover:
-                                                            @(!string.IsNullOrEmpty(song.AlbumCoverUrl)
-                                                                ? "🖼️ Ada"
-                                                                : "❌ Absen")
+                                                            @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "🖼️ Ada" : "❌ Absen")
                                                         </span>
 
                                                         <span>
                                                             Source:
-                                                            @(string.IsNullOrEmpty(song.YoutubeVideoId)
-                                                                ? "LOCAL"
-                                                                : song.YoutubeVideoId)
+                                                            @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)
                                                         </span>
                                                     </div>
                                                 </div>
