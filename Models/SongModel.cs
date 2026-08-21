@@ -12,6 +12,11 @@ public enum CloudProvider
 }
 
 /// <summary>
+/// DTO Request untuk Hapus Batch Lagu
+/// </summary>
+public record BatchDeleteRequest(long[] Ids);
+
+/// <summary>
 /// Model Master Global SSOT (Tabel: songs)
 /// </summary>
 public class SongModel
