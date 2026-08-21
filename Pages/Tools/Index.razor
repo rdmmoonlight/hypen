@@ -1,6 +1,9 @@
 @page "/tools"
+@rendermode InteractiveServer
 @using Hypen.Web.Models
 @using Hypen.Web.Services
+@inject SongDeduplicationEngine DedupEngine
+@inject IJSRuntime JS
 
 <PageTitle>Vault Tools Center - Hypen</PageTitle>
 
@@ -115,13 +118,13 @@
                                     bool isKeep = group.KeepSongId == song.Id;
                                     <div class="col-md-6">
                                         <div class="card h-100 song-comparison-card @(isKeep ? "border-success bg-success bg-opacity-10 shadow-sm" : "border-secondary border-opacity-25 bg-dark bg-opacity-50 opacity-75")"
-                                             @onclick="() => SelectMaster(group, song.Id)" role="button" style="border-width: 2px; border-style: solid; transition: all 0.2s ease;">
+                                             @onclick="() => SelectMaster(group, song.Id)" role="button" style="border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.2s ease;">
                                             <div class="card-body d-flex flex-column justify-content-between p-3.5">
                                                 <div>
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <div class="form-check mb-0">
-                                                            <input class="form-check-input" type="radio" name="keep-group-@group.GroupKey.GetHashCode()" checked="@isKeep" @onchange="() => SelectMaster(group, song.Id)" />
-                                                            <label class="form-check-label fw-bold small @(isKeep ? "text-success" : "text-danger")">
+                                                            <input class="form-check-input" type="radio" name="keep-group-@group.GroupKey.GetHashCode()" checked="@isKeep" readOnly />
+                                                            <label class="form-check-label fw-bold small @(isKeep ? "text-success" : "text-danger")" style="cursor: pointer;">
                                                                 @(isKeep ? "🟢 SIMPAN (MASTER)" : "🔴 HAPUS (KANDIDAT)")
                                                             </label>
                                                         </div>
@@ -155,3 +158,73 @@
         </div>
     }
 </div>
+
+@code {
+    private List<DuplicateGroupModel> duplicateGroups = new();
+    private bool isProcessing;
+    private bool hasScanned;
+    private string statusMsg = string.Empty;
+    private bool isError;
+
+    private int TotalToDeleteCount => duplicateGroups.Sum(g => g.Items.Count - 1);
+
+    private async Task ScanDuplicates()
+    {
+        try
+        {
+            isProcessing = true;
+            statusMsg = string.Empty;
+
+            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
+            hasScanned = true;
+            
+            statusMsg = duplicateGroups.Count > 0 
+                ? $"Pemindaian selesai. Ditemukan {duplicateGroups.Count} kelompok lagu duplikat." 
+                : "Pemeriksaan selesai. Vault bersih dari duplikasi.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal memindai vault: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void SelectMaster(DuplicateGroupModel group, long songId)
+    {
+        group.KeepSongId = songId;
+        StateHasChanged();
+    }
+
+    private async Task PurgeSelected()
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {TotalToDeleteCount} lagu duplikat terpilih dari Vault secara permanen?");
+        if (!confirm) return;
+
+        try
+        {
+            isProcessing = true;
+
+            int deletedCount = await DedupEngine.PurgeDuplicatesAsync(duplicateGroups);
+            
+            statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Vault!";
+            isError = false;
+
+            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
+            hasScanned = true;
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal mengeksekusi purge: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}
