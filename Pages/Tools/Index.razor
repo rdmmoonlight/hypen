@@ -2,8 +2,6 @@
 @rendermode InteractiveServer
 @using Hypen.Web.Models
 @using Hypen.Web.Services
-@inject SongDeduplicationEngine DedupEngine
-@inject IJSRuntime JS
 
 <PageTitle>Vault Tools Center - Hypen</PageTitle>
 
@@ -49,7 +47,7 @@
         </div>
     }
 
-    <!-- Condition 1: Initial Unscanned State -->
+    <!-- Initial Unscanned State -->
     @if (!hasScanned && !isProcessing)
     {
         <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
@@ -63,7 +61,7 @@
         </div>
     }
 
-    <!-- Condition 2: Loading State -->
+    <!-- Loading State -->
     @if (isProcessing)
     {
         <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
@@ -75,7 +73,7 @@
         </div>
     }
 
-    <!-- Condition 3: Clean Vault State -->
+    <!-- Clean Vault State -->
     @if (hasScanned && !isProcessing && duplicateGroups.Count == 0)
     {
         <div class="card bg-dark bg-opacity-50 border-success border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
@@ -89,7 +87,7 @@
         </div>
     }
 
-    <!-- Condition 4: Cluster Items -->
+    <!-- Cluster Items -->
     @if (hasScanned && !isProcessing && duplicateGroups.Count > 0)
     {
         <div class="d-flex justify-content-between align-items-center mb-3">
