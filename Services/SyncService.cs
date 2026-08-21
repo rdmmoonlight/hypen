@@ -4,20 +4,34 @@ using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
-public class LocalMp3SyncService
+public class DuplicateSongException : Exception
+{
+    public DuplicateMatchResult MatchResult { get; }
+
+    public DuplicateSongException(DuplicateMatchResult matchResult)
+        : base($"Lagu terdeteksi duplikat ({matchResult.MatchReason}): '{matchResult.ExistingSong.Title}' oleh '{matchResult.ExistingSong.Artist}'.")
+    {
+        MatchResult = matchResult;
+    }
+}
+
+public class SyncService
 {
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly LocalMp3ExtractorService _extractorService;
     private readonly MusicSmartMatchService _smartMatchService;
+    private readonly SongDeduplicationEngine _deduplicationEngine;
 
-    public LocalMp3SyncService(
+    public SyncService(
         IDbContextFactory<AppDbContext> dbContextFactory,
         LocalMp3ExtractorService extractorService,
-        MusicSmartMatchService smartMatchService)
+        MusicSmartMatchService smartMatchService,
+        SongDeduplicationEngine deduplicationEngine)
     {
         _dbContextFactory = dbContextFactory;
         _extractorService = extractorService;
         _smartMatchService = smartMatchService;
+        _deduplicationEngine = deduplicationEngine;
     }
 
     // Wrapper delegasi ke Extractor Service
@@ -31,7 +45,7 @@ public class LocalMp3SyncService
     public Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
         => _smartMatchService.SmartMatchFromInternetAsync(item);
 
-    // Operational DB: Raw Ingestion
+    // Operational DB: Raw Ingestion (Staging)
     public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items)
         => await SaveSelectedToRawAsync(items);
 
@@ -76,10 +90,34 @@ public class LocalMp3SyncService
         return insertedCount;
     }
 
-    // Operational DB: Promotion ke Complete
+    // Operational DB: Promotion ke Complete (Dapat dipanggil dari Staging lokal maupun internet)
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+        // =========================================================================
+        // 1. MEKANISME DETEKSI DUPLIKASI (Pencegahan Masuk ke Library)
+        // =========================================================================
+        var candidateForCheck = new SongModel
+        {
+            Title = validatedData.CleanTitle,
+            Artist = validatedData.CleanArtist,
+            DurationSeconds = validatedData.DurationSeconds,
+            YoutubeVideoId = validatedData.YoutubeVideoId,
+            MusicBrainzId = validatedData.MusicBrainzId
+        };
+
+        var duplicateMatch = await _deduplicationEngine.FindDuplicateAsync(candidateForCheck);
+        if (duplicateMatch != null)
+        {
+            // Jika duplikat terdeteksi, lempar exception khusus agar proses berhenti
+            // dan lagu tertahan di Staging tanpa mengubah DB Transaction
+            throw new DuplicateSongException(duplicateMatch);
+        }
+
+        // =========================================================================
+        // 2. PROSES PROMOSI KE COMPLETE (Jika Tidak Ada Duplikat)
+        // =========================================================================
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         try
