@@ -9,22 +9,46 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     private readonly HttpClient _http = http;
     private readonly IJSRuntime _js = js;
 
-    public async Task<List<CloudSongModel>> GetSongsAsync()
+    public async Task<List<SongModel>> GetSongsAsync()
     {
-        var result = await _http.GetFromJsonAsync<List<CloudSongModel>>("/api/songs");
-        return result ?? [];
+        try
+        {
+            // Menggunakan SongModel agar konsisten dengan Index.razor.cs
+            var result = await _http.GetFromJsonAsync<List<SongModel>>("api/songs");
+            return result ?? [];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     public async Task<bool> DeleteSongAsync(long id)
     {
-        var response = await _http.DeleteAsync($"/api/songs/{id}");
-        return response.IsSuccessStatusCode;
+        try
+        {
+            // Mengirim DELETE request ke endpoint backend: DELETE api/songs/{id}
+            var response = await _http.DeleteAsync($"api/songs/{id}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<bool> DeleteBatchSongsAsync(long[] ids)
     {
-        var response = await _http.PostAsJsonAsync("/api/songs/delete-batch", new BatchDeleteRequest(ids));
-        return response.IsSuccessStatusCode;
+        try
+        {
+            // Mengirim POST request ke endpoint batch delete: POST api/songs/delete-batch
+            var response = await _http.PostAsJsonAsync("api/songs/delete-batch", new BatchDeleteRequest(ids));
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task DownloadSongAsync(string audioUrl, string title)
@@ -36,7 +60,7 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
             ? title 
             : $"{title}.mp3";
 
-        // Memicu fungsi JS Interop untuk mengunduh file audio statis/lengkap dari Vault
+        // Memicu JS Interop untuk mengunduh file
         await _js.InvokeVoidAsync("downloadFileFromUrl", audioUrl, fileName);
     }
 }
