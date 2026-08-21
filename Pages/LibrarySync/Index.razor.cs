@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
-namespace Hypen.Web.Pages.LibrarySync;
+namespace Hypen.Web.Pages.Extraction;
 
 public partial class Index : ComponentBase
 {
