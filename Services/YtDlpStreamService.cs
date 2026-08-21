@@ -11,6 +11,17 @@ public class YtDlpStreamService
         string outputDirectory, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        // =========================================================================
+        // PROSES 1: CEK & UPDATE YT-DLP TERLEBIH DAHULU
+        // =========================================================================
+        yield return "[INFO] Memeriksa pembaruan yt-dlp...";
+
+        var updateResult = await CheckAndUpdateYtDlpAsync(cancellationToken);
+        yield return updateResult;
+
+        // =========================================================================
+        // PROSES 2: INISIALISASI DIRECTORY
+        // =========================================================================
         string? initError = null;
 
         try
@@ -29,7 +40,7 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // UNIVERSAL URL & VIDEO ID PARSING (AMAN & PRESISI)
+        // PROSES 3: UNIVERSAL URL & VIDEO ID PARSING
         // =========================================================================
         string cleanUrl = youtubeUrlOrId.Trim();
         bool isPlaylist = cleanUrl.Contains("list=", StringComparison.OrdinalIgnoreCase);
@@ -66,6 +77,9 @@ public class YtDlpStreamService
             }
         }
 
+        // =========================================================================
+        // PROSES 4: KONFIGURASI PROSES PROSES UNDUHAN (STREAMING)
+        // =========================================================================
         var startInfo = new ProcessStartInfo
         {
             FileName = "yt-dlp",
@@ -196,6 +210,44 @@ public class YtDlpStreamService
             {
                 try { process.Kill(true); } catch { }
             }
+        }
+    }
+
+    /// <summary>
+    /// Helper method untuk menjalankan update yt-dlp (-U) sebelum eksekusi utama.
+    /// </summary>
+    private async Task<string> CheckAndUpdateYtDlpAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updateProcessInfo = new ProcessStartInfo
+            {
+                FileName = "yt-dlp",
+                Arguments = "-U",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var updateProcess = new Process { StartInfo = updateProcessInfo };
+            updateProcess.Start();
+
+            string output = await updateProcess.StandardOutput.ReadToEndAsync(cancellationToken);
+            await updateProcess.WaitForExitAsync(cancellationToken);
+
+            string cleanMessage = output.Replace("\r", "").Replace("\n", " ").Trim();
+            
+            if (string.IsNullOrWhiteSpace(cleanMessage))
+            {
+                cleanMessage = "Proses update selesai (tidak ada output).";
+            }
+
+            return $"[UPDATE] {cleanMessage}";
+        }
+        catch (Exception ex)
+        {
+            return $"[UPDATE WARNING] Gagal memeriksa update yt-dlp: {ex.Message}";
         }
     }
 }
