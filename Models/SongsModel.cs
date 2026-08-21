@@ -1,6 +1,6 @@
 // Global using wajib diletakkan di luar namespace agar berlaku untuk seluruh project
-global using RawSongModel = Hypen.Web.Models.SongModel;
-global using CloudSongModel = Hypen.Web.Models.SongModel;
+global using RawSongsModel = Hypen.Web.Models.SongsModel;
+global using CloudSongsModel = Hypen.Web.Models.SongsModel;
 
 namespace Hypen.Web.Models;
 
@@ -19,7 +19,7 @@ public record BatchDeleteRequest(long[] Ids);
 /// <summary>
 /// Model Master Global SSOT (Tabel: songs)
 /// </summary>
-public class SongModel
+public class SongsModel
 {
     // =========================================================================
     // 1. PRIMARY KEY & RELASI

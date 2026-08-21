@@ -38,7 +38,7 @@ public partial class Index
     // SMART MATCH OPERATIONS
     // =========================================================================
 
-    protected async Task SmartMatchSingleRaw(RawSongModel raw)
+    protected async Task SmartMatchSingleRaw(RawSongsModel raw)
     {
         try
         {
@@ -176,7 +176,7 @@ public partial class Index
     // UPLOAD / PROMOTION OPERATIONS (WITH DEDUPLICATION GUARD)
     // =========================================================================
 
-    protected async Task UploadSingleRawToComplete(RawSongModel raw)
+    protected async Task UploadSingleRawToComplete(RawSongsModel raw)
     {
         try
         {

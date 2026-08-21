@@ -64,7 +64,7 @@ public class SyncService
             bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == fakeYtId);
             if (exists) continue;
 
-            var rawEntity = new RawSongModel
+            var rawEntity = new RawSongsModel
             {
                 YoutubeVideoId = fakeYtId,
                 Title = item.CleanTitle,
@@ -105,7 +105,7 @@ public class SyncService
         // =========================================================================
         // 2. MEKANISME DETEKSI DUPLIKASI (Pencegahan Masuk ke Library)
         // =========================================================================
-        var candidateForCheck = new SongModel
+        var candidateForCheck = new SongsModel
         {
             Title = validatedData.CleanTitle,
             Artist = validatedData.CleanArtist,
@@ -151,7 +151,7 @@ public class SyncService
             }
             else
             {
-                var newComplete = new CloudSongModel
+                var newComplete = new CloudSongsModel
                 {
                     RawId = rawId,
                     YoutubeVideoId = ytId,

@@ -18,7 +18,7 @@ public class SongProcessorService : ISongProcessorService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<List<RawSongModel>> GetPendingRawAsync()
+    public async Task<List<RawSongsModel>> GetPendingRawAsync()
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
@@ -73,7 +73,7 @@ public class SongProcessorService : ISongProcessorService
                 }
                 else
                 {
-                    context.SongsComplete.Add(new CloudSongModel
+                    context.SongsComplete.Add(new CloudSongsModel
                     {
                         RawId = raw.Id,
                         YoutubeVideoId = raw.YoutubeVideoId ?? "",

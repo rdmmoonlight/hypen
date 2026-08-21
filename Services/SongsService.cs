@@ -4,16 +4,16 @@ using Microsoft.JSInterop;
 
 namespace Hypen.Web.Services;
 
-public class SongService(HttpClient http, IJSRuntime js) : ISongService
+public class SongsService(HttpClient http, IJSRuntime js) : ISongsService
 {
     private readonly HttpClient _http = http;
     private readonly IJSRuntime _js = js;
 
-    public async Task<List<SongModel>> GetSongsAsync()
+    public async Task<List<SongsModel>> GetSongsAsync()
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<List<SongModel>>("api/songs");
+            var result = await _http.GetFromJsonAsync<List<SongsModel>>("api/songs");
             return result ?? [];
         }
         catch

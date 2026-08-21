@@ -59,7 +59,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(dbConnectionStringConfig));
 
 // Business & Vault Services
-builder.Services.AddScoped<ISongService, SongService>();
+builder.Services.AddScoped<ISongsService, SongsService>();
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
 builder.Services.AddScoped(sp => new YouTubeOAuthService(

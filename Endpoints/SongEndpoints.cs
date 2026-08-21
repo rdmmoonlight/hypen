@@ -23,7 +23,7 @@ public static class SongEndpoints
                 var songs = await context.SongsComplete
                     .AsNoTracking()
                     .OrderByDescending(s => s.Id)
-                    .Select(s => new CloudSongModel
+                    .Select(s => new CloudSongsModel
                     {
                         Id = s.Id,
                         YoutubeVideoId = s.YoutubeVideoId ?? "",

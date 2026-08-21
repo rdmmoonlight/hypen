@@ -2,12 +2,12 @@ using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
-public interface ISongService
+public interface ISongsService
 {
     /// <summary>
     /// Mengambil seluruh daftar lagu dari basis data Vault.
     /// </summary>
-    Task<List<CloudSongModel>> GetSongsAsync();
+    Task<List<CloudSongsModel>> GetSongsAsync();
 
     /// <summary>
     /// Menghapus lagu dari basis data berdasarkan BIGINT ID.

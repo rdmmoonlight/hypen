@@ -13,7 +13,7 @@ public interface ISongProcessorService
     /// <summary>
     /// Mengambil daftar antrean lagu mentah berstatus PENDING dari Staging RAW.
     /// </summary>
-    Task<List<RawSongModel>> GetPendingRawAsync();
+    Task<List<RawSongsModel>> GetPendingRawAsync();
 
     /// <summary>
     /// Menghapus atau membatalkan (Undo) baris data mentah spesifik dari tabel songs_raw.

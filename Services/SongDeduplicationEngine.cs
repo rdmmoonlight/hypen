@@ -7,7 +7,7 @@ namespace Hypen.Web.Services;
 
 public class DuplicateMatchResult
 {
-    public SongModel ExistingSong { get; set; } = null!;
+    public SongsModel ExistingSong { get; set; } = null!;
     public string MatchReason { get; set; } = string.Empty;
     public int SimilarityScore { get; set; }
 }
@@ -22,7 +22,7 @@ public class SongDeduplicationEngine
     }
 
     public async Task<DuplicateMatchResult?> FindDuplicateAsync(
-        SongModel candidate, 
+        SongsModel candidate, 
         int durationToleranceSeconds = 3, 
         int minSimilarityScore = 85,
         CancellationToken cancellationToken = default)

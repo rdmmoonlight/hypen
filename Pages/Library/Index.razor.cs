@@ -8,7 +8,7 @@ namespace Hypen.Web.Pages.Library;
 public partial class Index : ComponentBase
 {
     [Inject]
-    protected ISongService SongService { get; set; } = default!;
+    protected ISongsService SongsService { get; set; } = default!;
 
     [Inject]
     protected IJSRuntime JS { get; set; } = default!;
@@ -16,7 +16,7 @@ public partial class Index : ComponentBase
     [Inject]
     protected NavigationManager Navigation { get; set; } = default!;
 
-    protected List<SongModel> songs = [];
+    protected List<SongsModel> songs = [];
     protected string searchQuery = "";
     protected string sortBy = "title_asc"; // Default: Judul A-Z
     protected string statusMsg = "";
@@ -35,7 +35,7 @@ public partial class Index : ComponentBase
     protected int TotalPages => (int)Math.Ceiling((double)SortedSongs.Count() / pageSize);
 
     // 1. Filtering
-    protected IEnumerable<SongModel> FilteredSongs =>
+    protected IEnumerable<SongsModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
             : songs.Where(song =>
@@ -44,7 +44,7 @@ public partial class Index : ComponentBase
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
     // 2. Sorting Logic (Tergantung Pilihan)
-    protected IEnumerable<SongModel> SortedSongs
+    protected IEnumerable<SongsModel> SortedSongs
     {
         get
         {
@@ -66,7 +66,7 @@ public partial class Index : ComponentBase
     }
 
     // 3. Paging
-    protected IEnumerable<SongModel> PagedSongs =>
+    protected IEnumerable<SongsModel> PagedSongs =>
         SortedSongs
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize);
@@ -94,7 +94,7 @@ public partial class Index : ComponentBase
         UpdateSelectAllStatus();
     }
 
-    protected bool IsLockedFromEdit(SongModel song) =>
+    protected bool IsLockedFromEdit(SongsModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
         !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
 
@@ -110,7 +110,7 @@ public partial class Index : ComponentBase
             isLoading = true;
             UpdateStatus("Memuat library vault...");
 
-            songs = await SongService.GetSongsAsync();
+            songs = await SongsService.GetSongsAsync();
             currentPage = 1;
             isSelectAllChecked = false;
             UpdateStatus("");
@@ -136,7 +136,7 @@ public partial class Index : ComponentBase
         UpdateStatus("");
     }
 
-    protected void OnSongSelectChanged(SongModel song, ChangeEventArgs e)
+    protected void OnSongSelectChanged(SongsModel song, ChangeEventArgs e)
     {
         song.IsSelected = e.Value is bool val && val;
         UpdateSelectAllStatus();
@@ -166,7 +166,7 @@ public partial class Index : ComponentBase
             isLoading = true;
             UpdateStatus("Menghapus lagu...");
 
-            if (await SongService.DeleteSongAsync(id))
+            if (await SongsService.DeleteSongAsync(id))
             {
                 UpdateStatus("Lagu berhasil dihapus.");
                 await LoadLibrary();
@@ -208,7 +208,7 @@ public partial class Index : ComponentBase
             isLoading = true;
             UpdateStatus($"Menghapus {selectedIds.Length} lagu...");
 
-            if (await SongService.DeleteBatchSongsAsync(selectedIds))
+            if (await SongsService.DeleteBatchSongsAsync(selectedIds))
             {
                 UpdateStatus($"{selectedIds.Length} lagu berhasil dihapus.");
                 await LoadLibrary();

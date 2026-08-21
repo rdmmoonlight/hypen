@@ -27,13 +27,13 @@ public partial class Index : ComponentBase
     protected HashSet<long> selectedRawIds = new();
 
     // STAGING STATE
-    protected List<RawSongModel> stagingList = [];
+    protected List<RawSongsModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
 
     // REVIEW UI STATE
     protected LocalMp3ExtractModel? activeReviewItem;
-    protected RawSongModel? activeReviewRawItem;
+    protected RawSongsModel? activeReviewRawItem;
 
     protected override async Task OnInitializedAsync()
     {

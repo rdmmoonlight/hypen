@@ -8,11 +8,11 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     // Master DbSet SSOT
-    public DbSet<SongModel> Songs { get; set; } = default!;
+    public DbSet<SongsModel> Songs { get; set; } = default!;
 
     // Alias Property: Menghubungkan pemanggilan SongsRaw dan SongsComplete lama ke DbSet Songs
-    public DbSet<SongModel> SongsRaw => Songs;
-    public DbSet<SongModel> SongsComplete => Songs;
+    public DbSet<SongsModel> SongsRaw => Songs;
+    public DbSet<SongsModel> SongsComplete => Songs;
 
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
 
@@ -23,7 +23,7 @@ public class AppDbContext : DbContext
         // =========================================================================
         // MAPPING TABEL TUNGGAL SSOT: songs
         // =========================================================================
-        modelBuilder.Entity<SongModel>(entity =>
+        modelBuilder.Entity<SongsModel>(entity =>
         {
             entity.ToTable("songs");
 

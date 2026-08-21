@@ -179,7 +179,7 @@ public class YouTubeSyncService : IYouTubeSyncService
         {
             if (existingVideoIds.Contains(song.VideoId)) continue;
 
-            var rawEntity = new SongModel
+            var rawEntity = new SongsModel
             {
                 YoutubeVideoId = song.VideoId,
                 Title = song.Title,
