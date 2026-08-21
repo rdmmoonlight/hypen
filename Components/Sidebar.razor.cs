@@ -22,7 +22,6 @@ namespace Hypen.Web.Components
             }
         }
 
-        // Helper untuk navigasi langsung via code (opsional jika dibutuhkan)
         protected void NavigateToStaging()
         {
             Navigation.NavigateTo("/staging");
