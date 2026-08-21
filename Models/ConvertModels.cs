@@ -23,6 +23,3 @@ public class PlaylistResponse
     public int TotalProcessed { get; set; }
     public List<ConvertResponse> Items { get; set; } = [];
 }
-
-// Request body untuk hapus banyak lagu sekaligus (Menggunakan long[] untuk BIGINT DB)
-public record BatchDeleteRequest(long[] Ids);
