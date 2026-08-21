@@ -27,11 +27,13 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
-    // Lagu yang bersumber dari YouTube dikunci hanya untuk fitur HAPUS (tidak bisa dihapus sembarangan),
-    // TETAPI SANGAT BISA DIPILIH DAN DIUNDUH KAPAN SAJA VIA DOWNLOADER PAGE.
-    protected bool IsLockedFromDeletion(SongModel song) =>
-        !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
-        !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
+    // ==========================================
+    // PAGINATION LOGIC (MAX 50 ITEMS PER PAGE)
+    // ==========================================
+    protected int currentPage = 1;
+    protected int pageSize = 50;
+
+    protected int TotalPages => (int)Math.Ceiling((double)FilteredSongs.Count() / pageSize);
 
     protected IEnumerable<SongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
@@ -40,6 +42,36 @@ public partial class Index : ComponentBase
                 song.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
+
+    // Mengambil data yang dipotong sesuai halaman aktif
+    protected IEnumerable<SongModel> PagedSongs =>
+        FilteredSongs
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected void GoToPage(int page)
+    {
+        if (page < 1) page = 1;
+        if (page > TotalPages && TotalPages > 0) page = TotalPages;
+
+        currentPage = page;
+        UpdateSelectAllStatus();
+    }
+
+    protected void OnSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        currentPage = 1; // Reset ke halaman pertama saat mencari
+        UpdateSelectAllStatus();
+    }
+
+    // ==========================================
+    // LOGIK LAINNYA
+    // ==========================================
+
+    protected bool IsLockedFromDeletion(SongModel song) =>
+        !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
+        !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
@@ -54,6 +86,7 @@ public partial class Index : ComponentBase
             UpdateStatus("Memuat library vault...");
 
             songs = await SongService.GetSongsAsync();
+            currentPage = 1; // Reset ke halaman 1 saat memuat ulang
             isSelectAllChecked = false;
             UpdateStatus("");
         }
@@ -68,14 +101,11 @@ public partial class Index : ComponentBase
         }
     }
 
-    // ==========================================
-    // SELEKSI FILE & CHECKBOX MANAGEMENT
-    // ==========================================
-
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
         isSelectAllChecked = e.Value is bool val && val;
-        foreach (var song in FilteredSongs)
+        // Hanya tandai/hapus centang pada lagu di halaman saat ini
+        foreach (var song in PagedSongs)
         {
             song.IsSelected = isSelectAllChecked;
         }
@@ -84,28 +114,31 @@ public partial class Index : ComponentBase
     protected void OnSongSelectChanged(SongModel song, ChangeEventArgs e)
     {
         song.IsSelected = e.Value is bool val && val;
-        var list = FilteredSongs.ToList();
-        if (list.Count > 0)
-        {
-            isSelectAllChecked = list.All(s => s.IsSelected);
-        }
+        UpdateSelectAllStatus();
     }
 
-    // ==========================================
-    // SISTEM UNDUH (REDIRECT KE DOWNLOADER PAGE)
-    // ==========================================
+    private void UpdateSelectAllStatus()
+    {
+        var currentPagedList = PagedSongs.ToList();
+        if (currentPagedList.Count > 0)
+        {
+            isSelectAllChecked = currentPagedList.All(s => s.IsSelected);
+        }
+        else
+        {
+            isSelectAllChecked = false;
+        }
+    }
 
     protected void DownloadSingle(SongModel song)
     {
         try
         {
-            // 1. Jika lagu memiliki YouTube Video ID, redirect ke halaman Downloader dengan URL YouTube
             if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
             {
                 string ytTargetUrl = $"https://www.youtube.com/watch?v={song.YoutubeVideoId}";
                 Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
             }
-            // 2. Jika lagu lokal yang memiliki AudioUrl langsung
             else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
             {
                 Navigation.NavigateTo(song.AudioUrl, forceLoad: true);
@@ -133,16 +166,11 @@ public partial class Index : ComponentBase
             return;
         }
 
-        // Ambil lagu pertama dari item terpilih dan alihkan ke halaman Downloader Engine
         var firstSong = selectedWithYt.First();
         string ytTargetUrl = $"https://www.youtube.com/watch?v={firstSong.YoutubeVideoId}";
         
         Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
     }
-
-    // ==========================================
-    // SISTEM HAPUS (SINGLE & BATCH)
-    // ==========================================
 
     protected async Task DeleteSingle(long id)
     {
