@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
-using Hypen.Web.Helpers;
 
 namespace Hypen.Web.Endpoints;
 
@@ -35,7 +34,7 @@ public static class SongEndpoints
                         AlbumCoverUrl = s.AlbumCoverUrl ?? "",
                         AudioUrl = s.AudioUrl ?? "",
                         IsDownloaded = s.IsDownloaded,
-                        DurationSeconds = 0 // Sesuaikan jika ada kolom Duration
+                        DurationSeconds = 0
                     })
                     .ToListAsync();
 
@@ -90,7 +89,6 @@ public static class SongEndpoints
             {
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                // Direct ExecuteDeleteAsync untuk efisiensi penanganan batch delete tanpa mengurutkan memori
                 int affected = await context.SongsComplete
                     .Where(s => req.Ids.Contains(s.Id))
                     .ExecuteDeleteAsync();
@@ -100,36 +98,6 @@ public static class SongEndpoints
             catch (Exception ex)
             {
                 logger.LogError(ex, "[DB ORM] Failed to delete batch songs");
-                return Results.Problem(detail: ex.Message, statusCode: 500);
-            }
-        });
-
-        // ------------------------------------------------------------
-        // DOWNLOAD PROXY REDIRECT (Convert & Serve MP3)
-        // ------------------------------------------------------------
-        app.MapGet("/api/download", async (
-            string url, 
-            ILogger<Program> logger, 
-            IWebHostEnvironment env, 
-            HttpContext httpContext) =>
-        {
-            if (string.IsNullOrWhiteSpace(url)) return Results.BadRequest("URL parameter is required.");
-
-            try
-            {
-                string downloadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "downloads");
-                
-                // Panggil method konversi MP3 dari YtDlpHelper
-                var ytdlpResult = await YtDlpHelper.ExtractAndConvertMp3Async(url, downloadsFolder, logger);
-
-                string host = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
-                string publicAudioUrl = $"{host}/downloads/{ytdlpResult.Mp3FileName}";
-
-                return Results.Redirect(publicAudioUrl);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[DOWNLOAD PROXY] Failed to process & redirect MP3 stream");
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
