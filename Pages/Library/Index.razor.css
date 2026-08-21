@@ -131,6 +131,23 @@
     cursor: not-allowed;
 }
 
+/* KELAS BARU: SELECT SORTING */
+.sort-select {
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e6e8ec;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.sort-select option {
+    background: #12141a;
+    color: #e6e8ec;
+}
+
 .search-input {
     padding: 6px 12px;
     width: 220px;
@@ -295,15 +312,11 @@
     padding: 4px 6px;
     font-size: 0.75rem;
     cursor: pointer;
+    transition: color 0.15s ease;
 }
 
-.btn-icon-locked {
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.15);
-    padding: 4px 6px;
-    font-size: 0.75rem;
-    cursor: not-allowed;
+.btn-icon-delete:hover {
+    color: #ff4d6d;
 }
 
 .table-empty {
