@@ -96,30 +96,57 @@
     overflow-x: hidden;
 }
 
+/* ----------------------------------------------------------------- */
+/* FIX SIMETRIS, WARNA, DAN UKURAN IKON                             */
+/* ----------------------------------------------------------------- */
+
 .nav-item-nebula {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     text-decoration: none;
     color: #c5c6c7;
-    padding: 10px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
     transition: all 0.2s ease-in-out;
     white-space: nowrap;
 }
 
-.hypen-sidebar.collapsed .nav-item-nebula {
+/* Pengaturan khusus wadah Ikon agar selalu Simetris Presisi di Tengah */
+.nav-item-nebula i {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    padding: 10px 0;
+    width: 24px;              /* Ukuran area simetris */
+    height: 24px;
+    font-size: 1.25rem !important; /* Ukuran proporsional jelas */
+    color: #4cc9f0 !important;  /* Paksa warna cyan mengkilap (Bukan Ungu) */
+    flex-shrink: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
+/* Saat Sidebar Menu di-Collapse/Disembunyikan */
+.hypen-sidebar.collapsed .nav-item-nebula {
+    justify-content: center;
+    padding: 12px 0;
+}
+
+/* Efek Hover dan State Aktif Menu */
 .nav-item-nebula:hover, 
 .nav-item-nebula.active {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    color: #ffffff !important;
+    background: rgba(76, 201, 240, 0.15);
+    box-shadow: 0 0 12px rgba(76, 201, 240, 0.3);
 }
+
+.nav-item-nebula:hover i, 
+.nav-item-nebula.active i {
+    color: #66fcf1 !important;  /* Mengkilap terang saat aktif/hover */
+    transform: scale(1.1);       /* Efek animasi membesar halus */
+}
+
+/* ----------------------------------------------------------------- */
 
 .sidebar-footer {
     padding-top: 12px;
