@@ -16,7 +16,7 @@
 
     <!-- Backend / Application -->
     <PackageReference Include="Npgsql" Version="9.0.0" />
-    <PackageReference Include="YoutubeExplode" Version="6.3.16" />
+    <!-- YoutubeExplode telah dicabut untuk mengeliminasi scraping dependency -->
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
     <PackageReference Include="AngleSharp" Version="1.2.0" />
