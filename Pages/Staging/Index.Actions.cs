@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Components;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
@@ -34,7 +35,7 @@ public partial class Index
     }
 
     // =========================================================================
-    // BATCH & SINGLE OPERATIONS
+    // SMART MATCH OPERATIONS
     // =========================================================================
 
     protected async Task SmartMatchSingleRaw(RawSongModel raw)
@@ -171,6 +172,10 @@ public partial class Index
         }
     }
 
+    // =========================================================================
+    // UPLOAD / PROMOTION OPERATIONS (WITH DEDUPLICATION GUARD)
+    // =========================================================================
+
     protected async Task UploadSingleRawToComplete(RawSongModel raw)
     {
         try
@@ -201,7 +206,6 @@ public partial class Index
         }
         catch (DuplicateSongException dupEx)
         {
-            // Menahan lagu di Staging dan memberikan notifikasi error
             UpdateStatus($"[Tertahan di Staging] {dupEx.Message}", true);
         }
         catch (Exception ex)
@@ -257,7 +261,6 @@ public partial class Index
                 }
                 catch (DuplicateSongException)
                 {
-                    // Item duplikat diabaikan agar tetap ada di staging list
                     duplicateCount++;
                 }
             }
@@ -340,6 +343,10 @@ public partial class Index
             StateHasChanged();
         }
     }
+
+    // =========================================================================
+    // DELETE OPERATIONS
+    // =========================================================================
 
     protected async Task DeleteRawItem(long rawId)
     {
