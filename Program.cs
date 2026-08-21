@@ -60,8 +60,6 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Business & Vault Services
 builder.Services.AddScoped<ISongService, SongService>();
-
-// --- [DIBERSIHKAN] YtDlpStreamService telah dihapus dari DI Container ---
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
@@ -122,7 +120,8 @@ app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () =>
 
 app.MapControllers();
 app.MapSongEndpoints();
-app.MapConvertEndpoints();
+
+// --- [DIBERSIHKAN] app.MapConvertEndpoints() telah dicabut sepenuhnya ---
 
 var oauthServiceForEndpoints = new YouTubeOAuthService(
     youtubeOAuthClientId,
