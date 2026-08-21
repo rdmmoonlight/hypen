@@ -38,7 +38,7 @@
         </div>
     }
 
-    <!-- TOOLBAR (AKSI BATCH, SORTING & PENCARIAN) -->
+    <!-- TOOLBAR -->
     <div class="toolbar">
         <div class="action-group">
             <button class="btn-delete" 
@@ -49,12 +49,14 @@
         </div>
 
         <div class="search-group">
-            <!-- DROPDOWN SORTING -->
+            <!-- DROPDOWN SORTING (ABJAD & TANGGAL) -->
             <select value="@sortBy" @onchange="OnSortChanged" class="sort-select" disabled="@isLoading">
-                <option value="title_asc">Judul (A - Z)</option>
-                <option value="title_desc">Judul (Z - A)</option>
-                <option value="date_desc">Terbaru Ditambahkan</option>
-                <option value="date_asc">Terlama Ditambahkan</option>
+                <option value="title_asc">Judul (A ➔ Z)</option>
+                <option value="title_desc">Judul (Z ➔ A)</option>
+                <option value="artist_asc">Artis (A ➔ Z)</option>
+                <option value="artist_desc">Artis (Z ➔ A)</option>
+                <option value="date_desc">Tanggal (Terbaru)</option>
+                <option value="date_asc">Tanggal (Terlama)</option>
             </select>
 
             <input type="text"
@@ -115,12 +117,10 @@
                     @foreach (var song in PagedSongs)
                     {
                         <tr @key="song.Id" class="data-row">
-                            <!-- CHECKBOX SELEKSI -->
                             <td class="col-checkbox">
                                 <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" class="checkbox-input" />
                             </td>
 
-                            <!-- COVER ART -->
                             <td class="col-cover">
                                 @if (!string.IsNullOrWhiteSpace(song.AlbumCoverUrl))
                                 {
@@ -132,7 +132,6 @@
                                 }
                             </td>
 
-                            <!-- STATUS BADGE -->
                             <td class="col-status">
                                 @if (song.IsComplete)
                                 {
@@ -163,7 +162,6 @@
                                 }
                             </td>
 
-                            <!-- AKSI PER BARIS -->
                             <td class="col-action">
                                 <button class="btn-icon-delete" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus Lagu">
                                     ✕
