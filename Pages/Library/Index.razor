@@ -38,17 +38,25 @@
         </div>
     }
 
-    <!-- TOOLBAR (AKSI BATCH & PENCARIAN) -->
+    <!-- TOOLBAR (AKSI BATCH, SORTING & PENCARIAN) -->
     <div class="toolbar">
         <div class="action-group">
             <button class="btn-delete" 
                     @onclick="DeleteSelected" 
-                    disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected && !IsLockedFromDeletion(s)))">
+                    disabled="@(isLoading || !SortedSongs.Any(s => s.IsSelected))">
                 ✕ HAPUS TERPILIH
             </button>
         </div>
 
         <div class="search-group">
+            <!-- DROPDOWN SORTING -->
+            <select value="@sortBy" @onchange="OnSortChanged" class="sort-select" disabled="@isLoading">
+                <option value="title_asc">Judul (A - Z)</option>
+                <option value="title_desc">Judul (Z - A)</option>
+                <option value="date_desc">Terbaru Ditambahkan</option>
+                <option value="date_asc">Terlama Ditambahkan</option>
+            </select>
+
             <input type="text"
                    value="@searchQuery"
                    @oninput="OnSearchInput"
@@ -157,18 +165,9 @@
 
                             <!-- AKSI PER BARIS -->
                             <td class="col-action">
-                                @if (IsLockedFromDeletion(song))
-                                {
-                                    <button class="btn-icon-locked" disabled title="Terkunci — Memiliki YouTube Video ID, tidak dapat dihapus dari Master Library">
-                                        🔒 ✕
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button class="btn-icon-delete" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus File">
-                                        ✕
-                                    </button>
-                                }
+                                <button class="btn-icon-delete" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus Lagu">
+                                    ✕
+                                </button>
                             </td>
                         </tr>
                     }
