@@ -22,14 +22,29 @@ namespace Hypen.Web.Components
             }
         }
 
-        protected void NavigateToStaging()
+        protected void NavigateToLibrary()
         {
-            Navigation.NavigateTo("/staging");
+            Navigation.NavigateTo("/library");
         }
 
         protected void NavigateToSync()
         {
             Navigation.NavigateTo("/extraction");
+        }
+
+        protected void NavigateToStaging()
+        {
+            Navigation.NavigateTo("/staging");
+        }
+
+        protected void NavigateToTools()
+        {
+            Navigation.NavigateTo("/tools");
+        }
+
+        protected void NavigateToSetting()
+        {
+            Navigation.NavigateTo("/setting");
         }
     }
 }
