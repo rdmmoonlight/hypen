@@ -78,7 +78,7 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // PROSES 4: KONFIGURASI PROSES UNDUHAN (BERSIH DARI DEPRECATED OPTIONS)
+        // PROSES 4: KONFIGURASI PROSES UNDUHAN (OPTIMIZED & ANTI-BLOCKING)
         // =========================================================================
         var startInfo = new ProcessStartInfo
         {
@@ -96,9 +96,10 @@ public class YtDlpStreamService
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- BYPASS BOT CHECK & DATACENTER BLOCK ---
+        // --- CLIENT ROTATION SAFE FOR EMBEDDED / SERVER ENVIRONMENT ---
+        // Menggunakan tv_embedded & web_embedded agar aman dari tantangan PO Token (mweb/android sering diblokir)
         startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=android,web,mweb");
+        startInfo.ArgumentList.Add("youtube:player_client=tv_embedded,web_embedded,web");
 
         // Auth via Cookies (jika file tersedia di server)
         string cookiePath = "/app/cookies.txt";
@@ -128,14 +129,13 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Extraksi Audio ke MP3
-        // (Opsi --prefer-ffmpeg & --geo-bypass sudah dibuang)
+        // Ekstraksi Audio ke MP3 Kualitas Maksimal
         startInfo.ArgumentList.Add("--add-metadata");
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("5");
+        startInfo.ArgumentList.Add("0"); // Set ke 0 (Kualitas VBR MP3 Terbaik)
 
         startInfo.ArgumentList.Add(cleanUrl);
 
