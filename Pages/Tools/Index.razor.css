@@ -2,29 +2,69 @@
     max-width: 1400px;
 }
 
-.cluster-card {
-    transition: all 0.2s ease-in-out;
+.tools-header {
+    min-height: 72px;
+}
+
+.vault-state-card {
+    margin: 1.5rem 0;
+    padding: 2.5rem 1rem;
+}
+
+.vault-state-card .card-body {
+    padding: 1rem;
+}
+
+.vault-spinner {
+    width: 3.5rem;
+    height: 3.5rem;
+}
+
+.cluster-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .75rem 1rem;
+}
+
+.min-width-0 {
+    min-width: 0;
 }
 
 .song-comparison-card {
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
     border-width: 2px !important;
+    border-style: solid;
+    transition:
+        transform .15s ease-in-out,
+        box-shadow .15s ease-in-out,
+        opacity .15s ease-in-out;
 }
 
 .song-comparison-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .3);
+    opacity: 1 !important;
 }
 
-.selected-keep {
-    box-shadow: 0 0 0 1px #198754;
+.song-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    color: var(--bs-secondary-color);
+    font-size: .75rem;
 }
 
-.selected-purge {
-    opacity: 0.75;
-}
+@media (max-width: 767.98px) {
+    .cluster-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 
-.selected-purge:hover {
-    opacity: 1;
+    .song-meta {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
