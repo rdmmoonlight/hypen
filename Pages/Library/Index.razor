@@ -3,27 +3,23 @@
 
 <PageTitle>Library Vault - Hypen Music</PageTitle>
 
-<div style="padding: 24px; background: #0a0b0e; color: #8a8f98; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+<div class="library-container">
 
     <!-- ALERT STATUS -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <div style="background: @(isError ? "rgba(247, 37, 133, 0.05)" : "rgba(76, 201, 240, 0.05)"); 
-                    border-left: 2px solid @(isError ? "#ff4d6d" : "#4cc9f0"); 
-                    padding: 8px 14px; margin-bottom: 20px; border-radius: 2px;">
-            <p style="color: @(isError ? "#ff4d6d" : "#4cc9f0"); font-weight: 400; font-size: 0.75rem; margin: 0; letter-spacing: 0.3px;">
-                @statusMsg
-            </p>
+        <div class="alert-box @(isError ? "error" : "success")">
+            <p class="alert-text">@statusMsg</p>
         </div>
     }
 
     <!-- HEADER -->
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+    <div class="header-section">
         <div>
-            <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px; color: #525866; margin-bottom: 4px; font-weight: 600;">Personal Vault</div>
-            <h1 style="font-size: 1.25rem; color: #e6e8ec; margin: 0; font-weight: 500; letter-spacing: -0.2px;">Master Library</h1>
+            <div class="subtitle">Personal Vault</div>
+            <h1 class="main-title">Master Library</h1>
         </div>
-        <div style="font-size: 0.75rem; color: #525866; font-family: monospace;">
+        <div class="track-counter">
             @songs.Count TRACKS
         </div>
     </div>
@@ -31,11 +27,11 @@
     <!-- BATCH QUEUE PROGRESS BAR -->
     @if (isLoading && totalQueueCount > 0)
     {
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; padding: 10px 14px; margin-bottom: 20px;">
-            <div style="background: rgba(0, 0, 0, 0.4); border-radius: 2px; overflow: hidden; height: 3px; position: relative;">
-                <div style="width: @(progressPercentage)%; background: #45a29e; height: 100%; transition: width 0.3s ease;"></div>
+        <div class="progress-wrapper">
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: @(progressPercentage)%;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #666c7a; margin-top: 8px; font-family: monospace;">
+            <div class="progress-info">
                 <span>PROCESSING QUEUE: @currentProcessedCount / @totalQueueCount</span>
                 <span>@progressPercentage%</span>
             </div>
@@ -43,28 +39,23 @@
     }
 
     <!-- TOOLBAR (AKSI BATCH & PENCARIAN) -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <button style="padding: 6px 14px; font-size: 0.75rem; background: rgba(69, 162, 158, 0.15); border: 1px solid rgba(69, 162, 158, 0.3); color: #45a29e; border-radius: 4px; cursor: pointer; font-family: monospace; transition: all 0.2s;"
-                    @onclick="DownloadSelected" 
-                    disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected))">
-                ↓ UNDUH TERPILIH (@FilteredSongs.Count(s => s.IsSelected))
-            </button>
-            <button style="padding: 6px 14px; font-size: 0.75rem; border-radius: 4px; background: transparent; border: 1px solid rgba(247, 37, 133, 0.3); color: #ff4d6d; cursor: pointer; font-family: monospace; transition: all 0.2s;" 
+    <div class="toolbar">
+        <div class="action-group">
+            <button class="btn-delete" 
                     @onclick="DeleteSelected" 
                     disabled="@(isLoading || !FilteredSongs.Any(s => s.IsSelected && !IsLockedFromDeletion(s)))">
                 ✕ HAPUS TERPILIH
             </button>
         </div>
 
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div class="search-group">
             <input type="text"
                    value="@searchQuery"
                    @oninput="OnSearchInput"
                    placeholder="Cari judul / artis / album..."
-                   style="padding: 6px 12px; width: 220px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; font-size: 0.75rem; outline: none;" />
+                   class="search-input" />
             
-            <button style="padding: 6px 12px; font-size: 0.75rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #a0a5aa; border-radius: 4px; cursor: pointer;" 
+            <button class="btn-refresh" 
                     @onclick="LoadLibrary" 
                     disabled="@isLoading">
                 Refresh
@@ -73,32 +64,32 @@
     </div>
 
     <!-- TABEL DATA MASTER LIBRARY -->
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem;">
+    <div class="table-responsive">
+        <table class="vault-table">
             <thead>
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); color: #525866; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px;">
-                    <th style="padding: 10px 6px; width: 32px; text-align: center;">
-                        <input type="checkbox" checked="@isSelectAllChecked" @onchange="ToggleSelectAll" style="cursor: pointer; opacity: 0.6;" />
+                <tr>
+                    <th class="col-checkbox">
+                        <input type="checkbox" checked="@isSelectAllChecked" @onchange="ToggleSelectAll" class="checkbox-input" />
                     </th>
-                    <th style="padding: 10px 6px; width: 36px; text-align: center;">Cover</th>
-                    <th style="padding: 10px 6px; width: 90px;">Status</th>
-                    <th style="padding: 10px 6px;">Judul</th>
-                    <th style="padding: 10px 6px;">Artis</th>
-                    <th style="padding: 10px 6px;">Album</th>
-                    <th style="padding: 10px 6px;">Tahun</th>
-                    <th style="padding: 10px 6px;">Negara</th>
-                    <th style="padding: 10px 6px;">Durasi</th>
-                    <th style="padding: 10px 6px;">YT ID</th>
-                    <th style="padding: 10px 6px;">MBID</th>
-                    <th style="padding: 10px 6px;">Audio Stream</th>
-                    <th style="padding: 10px 6px; text-align: right; padding-right: 12px;">Aksi</th>
+                    <th class="col-cover">Cover</th>
+                    <th class="col-status">Status</th>
+                    <th>Judul</th>
+                    <th>Artis</th>
+                    <th>Album</th>
+                    <th>Tahun</th>
+                    <th>Negara</th>
+                    <th>Durasi</th>
+                    <th>YT ID</th>
+                    <th>MBID</th>
+                    <th>Audio Stream</th>
+                    <th class="col-action">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @if (songs.Count == 0 && isLoading)
                 {
                     <tr>
-                        <td colspan="13" style="padding: 40px 16px; text-align: center; color: #525866; font-family: monospace;">
+                        <td colspan="13" class="table-empty">
                             MEMUAT DATA VAULT...
                         </td>
                     </tr>
@@ -106,7 +97,7 @@
                 else if (!PagedSongs.Any())
                 {
                     <tr>
-                        <td colspan="13" style="padding: 40px 16px; text-align: center; color: #525866;">
+                        <td colspan="13" class="table-empty">
                             Tidak ada trek ditemukan.
                         </td>
                     </tr>
@@ -115,100 +106,66 @@
                 {
                     @foreach (var song in PagedSongs)
                     {
-                        <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                        <tr @key="song.Id" class="data-row">
                             <!-- CHECKBOX SELEKSI -->
-                            <td style="padding: 8px 6px; text-align: center;">
-                                <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
+                            <td class="col-checkbox">
+                                <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" class="checkbox-input" />
                             </td>
 
                             <!-- COVER ART -->
-                            <td style="padding: 8px 6px; text-align: center;">
+                            <td class="col-cover">
                                 @if (!string.IsNullOrWhiteSpace(song.AlbumCoverUrl))
                                 {
-                                    <img src="@song.AlbumCoverUrl" alt="Cover" style="width: 32px; height: 32px; object-fit: cover; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1);" />
+                                    <img src="@song.AlbumCoverUrl" alt="Cover" class="cover-img" />
                                 }
                                 else
                                 {
-                                    <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; color: #525866;">
-                                        N/A
-                                    </div>
+                                    <div class="cover-placeholder">N/A</div>
                                 }
                             </td>
 
                             <!-- STATUS BADGE -->
-                            <td style="padding: 8px 6px;">
+                            <td class="col-status">
                                 @if (song.IsComplete)
                                 {
-                                    <span style="font-size: 0.6rem; padding: 2px 6px; border-radius: 2px; background: rgba(0, 230, 118, 0.1); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.2); font-family: monospace;">
-                                        COMPLETE
-                                    </span>
+                                    <span class="badge badge-complete">COMPLETE</span>
                                 }
                                 else
                                 {
-                                    <span style="font-size: 0.6rem; padding: 2px 6px; border-radius: 2px; background: rgba(255, 171, 0, 0.1); color: #ffab00; border: 1px solid rgba(255, 171, 0, 0.2); font-family: monospace;">
-                                        INCOMPLETE
-                                    </span>
+                                    <span class="badge badge-incomplete">INCOMPLETE</span>
                                 }
                             </td>
 
-                            <td style="padding: 8px 6px; font-weight: 500; color: #d0d3d8; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @song.Title
-                            </td>
-                            <td style="padding: 8px 6px; color: #8a8f98; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @song.Artist
-                            </td>
-                            <td style="padding: 8px 6px; color: #666c7a; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @(string.IsNullOrWhiteSpace(song.Album) ? "-" : song.Album)
-                            </td>
-                            <td style="padding: 8px 6px; color: #666c7a; font-family: monospace;">
-                                @(song.ReleaseYear.HasValue ? song.ReleaseYear.Value : "-")
-                            </td>
-                            <td style="padding: 8px 6px; color: #666c7a;">
-                                @(string.IsNullOrWhiteSpace(song.Country) ? "-" : song.Country)
-                            </td>
-                            <td style="padding: 8px 6px; color: #666c7a; font-family: monospace;">
-                                @(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")
-                            </td>
-                            <td style="padding: 8px 6px; color: #525866; font-family: monospace; font-size: 0.7rem; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @(string.IsNullOrWhiteSpace(song.YoutubeVideoId) ? "-" : song.YoutubeVideoId)
-                            </td>
-                            <td style="padding: 8px 6px; color: #525866; font-family: monospace; font-size: 0.7rem; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @(string.IsNullOrWhiteSpace(song.MusicBrainzId) ? "-" : song.MusicBrainzId)
-                            </td>
-                            <td style="padding: 8px 6px;">
+                            <td class="cell-title">@song.Title</td>
+                            <td class="cell-artist">@song.Artist</td>
+                            <td class="cell-album">@(string.IsNullOrWhiteSpace(song.Album) ? "-" : song.Album)</td>
+                            <td class="cell-mono">@(song.ReleaseYear.HasValue ? song.ReleaseYear.Value : "-")</td>
+                            <td class="cell-country">@(string.IsNullOrWhiteSpace(song.Country) ? "-" : song.Country)</td>
+                            <td class="cell-mono">@(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</td>
+                            <td class="cell-id">@(string.IsNullOrWhiteSpace(song.YoutubeVideoId) ? "-" : song.YoutubeVideoId)</td>
+                            <td class="cell-id">@(string.IsNullOrWhiteSpace(song.MusicBrainzId) ? "-" : song.MusicBrainzId)</td>
+                            <td>
                                 @if (!string.IsNullOrWhiteSpace(song.AudioUrl) || !string.IsNullOrWhiteSpace(song.YoutubeVideoId))
                                 {
-                                    <span style="color: #4cc9f0; font-size: 0.65rem; font-family: monospace;">READY</span>
+                                    <span class="stream-ready">READY</span>
                                 }
                                 else
                                 {
-                                    <span style="color: #525866; font-size: 0.65rem; font-family: monospace;">EMPTY</span>
+                                    <span class="stream-empty">EMPTY</span>
                                 }
                             </td>
 
                             <!-- AKSI PER BARIS -->
-                            <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
-                                <button style="background: rgba(69, 162, 158, 0.1); border: 1px solid rgba(69, 162, 158, 0.3); color: #45a29e; padding: 4px 8px; border-radius: 3px; font-size: 0.75rem; cursor: pointer; margin-right: 4px; font-family: monospace;" 
-                                        @onclick="() => DownloadSingle(song)" 
-                                        disabled="@isLoading" 
-                                        title="Unduh MP3 via yt-dlp">
-                                    ↓ UNDUH
-                                </button>
-
+                            <td class="col-action">
                                 @if (IsLockedFromDeletion(song))
                                 {
-                                    <button style="background: transparent; border: none; color: rgba(255,255,255,0.15); padding: 4px 6px; font-size: 0.75rem; cursor: not-allowed;" 
-                                            disabled 
-                                            title="Terkunci — Memiliki YouTube Video ID, tidak dapat dihapus dari Master Library">
+                                    <button class="btn-icon-locked" disabled title="Terkunci — Memiliki YouTube Video ID, tidak dapat dihapus dari Master Library">
                                         🔒 ✕
                                     </button>
                                 }
                                 else
                                 {
-                                    <button style="background: transparent; border: none; color: rgba(247, 37, 133, 0.5); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;" 
-                                            @onclick="() => DeleteSingle(song.Id)" 
-                                            disabled="@isLoading" 
-                                            title="Hapus File">
+                                    <button class="btn-icon-delete" @onclick="() => DeleteSingle(song.Id)" disabled="@isLoading" title="Hapus File">
                                         ✕
                                     </button>
                                 }
@@ -220,53 +177,23 @@
         </table>
     </div>
 
-    <!-- PAGINATION CONTROL (IKON TANPA TULISAN) -->
+    <!-- PAGINATION CONTROL -->
     @if (TotalPages > 1)
     {
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06);">
-            
-            <!-- BEGINNING LIST («) -->
-            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == 1 ? "not-allowed" : "pointer"); opacity: @(currentPage == 1 ? "0.3" : "1");"
-                    @onclick="() => GoToPage(1)"
-                    disabled="@(currentPage == 1)"
-                    title="Awal List">
-                «
-            </button>
+        <div class="pagination-wrapper">
+            <button class="btn-page" @onclick="() => GoToPage(1)" disabled="@(currentPage == 1)" title="Awal List">«</button>
+            <button class="btn-page" @onclick="() => GoToPage(currentPage - 1)" disabled="@(currentPage == 1)" title="Sebelumnya">‹</button>
 
-            <!-- PREVIOUS (‹) -->
-            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == 1 ? "not-allowed" : "pointer"); opacity: @(currentPage == 1 ? "0.3" : "1");"
-                    @onclick="() => GoToPage(currentPage - 1)"
-                    disabled="@(currentPage == 1)"
-                    title="Sebelumnya">
-                ‹
-            </button>
-
-            <!-- NOMOR HALAMAN (1, 2, 3, DST.) -->
             @for (int i = 1; i <= TotalPages; i++)
             {
                 var pageNumber = i;
-                <button style="padding: 6px 12px; font-size: 0.75rem; border-radius: 4px; font-family: monospace; cursor: pointer; transition: all 0.2s; @(currentPage == pageNumber ? "background: #45a29e; color: #0a0b0e; border: 1px solid #45a29e; font-weight: bold;" : "background: rgba(255,255,255,0.03); color: #e6e8ec; border: 1px solid rgba(255,255,255,0.08);")"
-                        @onclick="() => GoToPage(pageNumber)">
+                <button class="btn-page @(currentPage == pageNumber ? "active" : "")" @onclick="() => GoToPage(pageNumber)">
                     @pageNumber
                 </button>
             }
 
-            <!-- NEXT (›) -->
-            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == TotalPages ? "not-allowed" : "pointer"); opacity: @(currentPage == TotalPages ? "0.3" : "1");"
-                    @onclick="() => GoToPage(currentPage + 1)"
-                    disabled="@(currentPage == TotalPages)"
-                    title="Selanjutnya">
-                ›
-            </button>
-
-            <!-- END LIST (») -->
-            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == TotalPages ? "not-allowed" : "pointer"); opacity: @(currentPage == TotalPages ? "0.3" : "1");"
-                    @onclick="() => GoToPage(TotalPages)"
-                    disabled="@(currentPage == TotalPages)"
-                    title="Akhir List">
-                »
-            </button>
-
+            <button class="btn-page" @onclick="() => GoToPage(currentPage + 1)" disabled="@(currentPage == TotalPages)" title="Selanjutnya">›</button>
+            <button class="btn-page" @onclick="() => GoToPage(TotalPages)" disabled="@(currentPage == TotalPages)" title="Akhir List">»</button>
         </div>
     }
 
