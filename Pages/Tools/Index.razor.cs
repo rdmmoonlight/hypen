@@ -70,7 +70,6 @@ public partial class Index : ComponentBase
             statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Vault!";
             isError = false;
 
-            // Refresh ulang hasil scan setelah purge
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             hasScanned = true;
         }
