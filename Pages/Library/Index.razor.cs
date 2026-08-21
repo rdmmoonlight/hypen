@@ -43,7 +43,6 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
-    // Mengambil data yang dipotong sesuai halaman aktif
     protected IEnumerable<SongModel> PagedSongs =>
         FilteredSongs
             .Skip((currentPage - 1) * pageSize)
@@ -61,12 +60,12 @@ public partial class Index : ComponentBase
     protected void OnSearchInput(ChangeEventArgs e)
     {
         searchQuery = e.Value?.ToString() ?? "";
-        currentPage = 1; // Reset ke halaman pertama saat mencari
+        currentPage = 1;
         UpdateSelectAllStatus();
     }
 
     // ==========================================
-    // LOGIK LAINNYA
+    // LOGIK UTAMA
     // ==========================================
 
     protected bool IsLockedFromDeletion(SongModel song) =>
@@ -86,7 +85,7 @@ public partial class Index : ComponentBase
             UpdateStatus("Memuat library vault...");
 
             songs = await SongService.GetSongsAsync();
-            currentPage = 1; // Reset ke halaman 1 saat memuat ulang
+            currentPage = 1;
             isSelectAllChecked = false;
             UpdateStatus("");
         }
@@ -104,7 +103,6 @@ public partial class Index : ComponentBase
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
         isSelectAllChecked = e.Value is bool val && val;
-        // Hanya tandai/hapus centang pada lagu di halaman saat ini
         foreach (var song in PagedSongs)
         {
             song.IsSelected = isSelectAllChecked;
@@ -128,48 +126,6 @@ public partial class Index : ComponentBase
         {
             isSelectAllChecked = false;
         }
-    }
-
-    protected void DownloadSingle(SongModel song)
-    {
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(song.YoutubeVideoId))
-            {
-                string ytTargetUrl = $"https://www.youtube.com/watch?v={song.YoutubeVideoId}";
-                Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
-            }
-            else if (!string.IsNullOrWhiteSpace(song.AudioUrl))
-            {
-                Navigation.NavigateTo(song.AudioUrl, forceLoad: true);
-            }
-            else
-            {
-                UpdateStatus($"Gagal: Lagu '{song.Title}' tidak memiliki Youtube Video ID atau Audio URL yang valid.", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            UpdateStatus($"Gagal mengalihkan ke Downloader: {ex.Message}", true);
-        }
-    }
-
-    protected void DownloadSelected()
-    {
-        var selectedWithYt = FilteredSongs
-            .Where(song => song.IsSelected && !string.IsNullOrWhiteSpace(song.YoutubeVideoId))
-            .ToList();
-
-        if (selectedWithYt.Count == 0)
-        {
-            UpdateStatus("Pilih setidaknya satu lagu dengan YouTube Video ID untuk diunduh.", true);
-            return;
-        }
-
-        var firstSong = selectedWithYt.First();
-        string ytTargetUrl = $"https://www.youtube.com/watch?v={firstSong.YoutubeVideoId}";
-        
-        Navigation.NavigateTo($"/downloader?url={Uri.EscapeDataString(ytTargetUrl)}");
     }
 
     protected async Task DeleteSingle(long id)
