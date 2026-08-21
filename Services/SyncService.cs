@@ -95,15 +95,22 @@ public class SyncService
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
+        // 1. Ambil data raw dari DB terlebih dahulu untuk mendapatkan YoutubeVideoId dan AudioUrl asli
+        var rawItem = await context.SongsRaw.FindAsync(rawId);
+        if (rawItem == null) return false;
+
+        string ytId = rawItem.YoutubeVideoId ?? "";
+        string audioUrl = rawItem.AudioUrl ?? "";
+
         // =========================================================================
-        // 1. MEKANISME DETEKSI DUPLIKASI (Pencegahan Masuk ke Library)
+        // 2. MEKANISME DETEKSI DUPLIKASI (Pencegahan Masuk ke Library)
         // =========================================================================
         var candidateForCheck = new SongModel
         {
             Title = validatedData.CleanTitle,
             Artist = validatedData.CleanArtist,
             DurationSeconds = validatedData.DurationSeconds,
-            YoutubeVideoId = validatedData.YoutubeVideoId,
+            YoutubeVideoId = ytId, // Ambil dari entitas raw DB
             MusicBrainzId = validatedData.MusicBrainzId
         };
 
@@ -116,18 +123,12 @@ public class SyncService
         }
 
         // =========================================================================
-        // 2. PROSES PROMOSI KE COMPLETE (Jika Tidak Ada Duplikat)
+        // 3. PROSES PROMOSI KE COMPLETE (Jika Tidak Ada Duplikat)
         // =========================================================================
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         try
         {
-            var rawItem = await context.SongsRaw.FindAsync(rawId);
-            if (rawItem == null) return false;
-
-            string ytId = rawItem.YoutubeVideoId ?? "";
-            string audioUrl = rawItem.AudioUrl ?? "";
-
             var existingComplete = await context.SongsComplete
                 .FirstOrDefaultAsync(c => c.YoutubeVideoId == ytId);
 
