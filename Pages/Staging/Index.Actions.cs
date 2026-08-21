@@ -47,8 +47,8 @@ public partial class Index
 
             var modelToMatch = new LocalMp3ExtractModel
             {
-                CleanArtist = (raw.Artist ?? string.Empty)!,
-                CleanTitle = (raw.Title ?? string.Empty)!,
+                CleanArtist = raw.Artist ?? string.Empty,
+                CleanTitle = raw.Title ?? string.Empty,
                 DurationSeconds = raw.DurationSeconds
             };
 
@@ -100,8 +100,8 @@ public partial class Index
 
                 var modelToMatch = new LocalMp3ExtractModel
                 {
-                    CleanArtist = (raw.Artist ?? string.Empty)!,
-                    CleanTitle = (raw.Title ?? string.Empty)!,
+                    CleanArtist = raw.Artist ?? string.Empty,
+                    CleanTitle = raw.Title ?? string.Empty,
                     DurationSeconds = raw.DurationSeconds
                 };
 
@@ -144,8 +144,8 @@ public partial class Index
 
                 var modelToMatch = new LocalMp3ExtractModel
                 {
-                    CleanArtist = (raw.Artist ?? string.Empty)!,
-                    CleanTitle = (raw.Title ?? string.Empty)!,
+                    CleanArtist = raw.Artist ?? string.Empty,
+                    CleanTitle = raw.Title ?? string.Empty,
                     DurationSeconds = raw.DurationSeconds
                 };
 
@@ -185,14 +185,13 @@ public partial class Index
 
             var validatedModel = new LocalMp3ExtractModel
             {
-                CleanArtist = (raw.Artist ?? string.Empty)!,
-                CleanTitle = (raw.Title ?? string.Empty)!,
+                CleanArtist = raw.Artist ?? string.Empty,
+                CleanTitle = raw.Title ?? string.Empty,
                 Album = raw.Album,
                 ReleaseYear = raw.ReleaseYear,
                 AlbumCoverUrl = raw.AlbumCoverUrl,
                 Country = raw.Country,
                 DurationSeconds = raw.DurationSeconds,
-                YoutubeVideoId = raw.YoutubeVideoId,
                 MusicBrainzId = raw.MusicBrainzId
             };
 
@@ -239,14 +238,13 @@ public partial class Index
 
                 var validatedModel = new LocalMp3ExtractModel
                 {
-                    CleanArtist = (item.Artist ?? string.Empty)!,
-                    CleanTitle = (item.Title ?? string.Empty)!,
+                    CleanArtist = item.Artist ?? string.Empty,
+                    CleanTitle = item.Title ?? string.Empty,
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
                     Country = item.Country,
                     DurationSeconds = item.DurationSeconds,
-                    YoutubeVideoId = item.YoutubeVideoId,
                     MusicBrainzId = item.MusicBrainzId
                 };
 
@@ -301,14 +299,13 @@ public partial class Index
 
                 var validatedModel = new LocalMp3ExtractModel
                 {
-                    CleanArtist = (item.Artist ?? string.Empty)!,
-                    CleanTitle = (item.Title ?? string.Empty)!,
+                    CleanArtist = item.Artist ?? string.Empty,
+                    CleanTitle = item.Title ?? string.Empty,
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
                     Country = item.Country,
                     DurationSeconds = item.DurationSeconds,
-                    YoutubeVideoId = item.YoutubeVideoId,
                     MusicBrainzId = item.MusicBrainzId
                 };
 
