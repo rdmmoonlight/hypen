@@ -1,49 +1,89 @@
-using System.Net.Http.Json;
-using Hypen.Web.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
+using Hypen.Web.Data;
+using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
-public class SongsService(HttpClient http, IJSRuntime js) : ISongsService
+public class SongsService : ISongsService
 {
-    private readonly HttpClient _http = http;
-    private readonly IJSRuntime _js = js;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+    private readonly IJSRuntime _js;
 
+    public SongsService(IDbContextFactory<AppDbContext> dbContextFactory, IJSRuntime js)
+    {
+        _dbContextFactory = dbContextFactory;
+        _js = js;
+    }
+
+    /// <summary>
+    /// Mengambil seluruh lagu yang tersimpan di tabel SSOT 'songs' tanpa memfilter status
+    /// </summary>
     public async Task<List<SongsModel>> GetSongsAsync()
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<List<SongsModel>>("api/songs");
-            return result ?? [];
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            
+            // Baca SELURUH baris dari tabel songs
+            return await context.Songs
+                .AsNoTracking()
+                .OrderByDescending(s => s.Id)
+                .ToListAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Error GetSongsAsync: {ex.Message}");
             return [];
         }
     }
 
+    /// <summary>
+    /// Hapus lagu tunggal dari tabel songs
+    /// </summary>
     public async Task<bool> DeleteSongAsync(long id)
     {
         try
         {
-            var response = await _http.DeleteAsync($"api/songs/{id}");
-            return response.IsSuccessStatusCode;
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            var song = await context.Songs.FindAsync(id);
+            if (song == null) return false;
+
+            context.Songs.Remove(song);
+            await context.SaveChangesAsync();
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Error DeleteSongAsync: {ex.Message}");
             return false;
         }
     }
 
+    /// <summary>
+    /// Hapus lagu massal dari tabel songs
+    /// </summary>
     public async Task<bool> DeleteBatchSongsAsync(long[] ids)
     {
+        if (ids == null || ids.Length == 0) return false;
+
         try
         {
-            var response = await _http.PostAsJsonAsync("api/songs/delete-batch", new BatchDeleteRequest(ids));
-            return response.IsSuccessStatusCode;
+            await using var context = await _dbContextFactory.CreateDbContextAsync();
+            
+            var targets = await context.Songs
+                .Where(s => ids.Contains(s.Id))
+                .ToListAsync();
+
+            if (targets.Count == 0) return false;
+
+            context.Songs.RemoveRange(targets);
+            await context.SaveChangesAsync();
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Error DeleteBatchSongsAsync: {ex.Message}");
             return false;
         }
     }
