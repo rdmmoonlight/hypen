@@ -19,7 +19,7 @@
     <!-- YoutubeExplode telah dicabut untuk mengeliminasi scraping dependency -->
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
-    <PackageReference Include="AngleSharp" Version="1.2.0" />
+    <PackageReference Include="AngleSharp" Version="1.2.2 />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
