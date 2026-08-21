@@ -8,17 +8,20 @@ namespace Hypen.Web.Pages.Tools;
 public partial class Index : ComponentBase
 {
     [Inject]
-    private SongDeduplicationEngine DedupEngine { get; set; } = default!;
+    protected SongDeduplicationEngine DedupEngine { get; set; } = default!;
 
-    private List<DuplicateGroupModel> duplicateGroups = new();
-    private bool isProcessing;
-    private bool hasScanned;
-    private string statusMsg = string.Empty;
-    private bool isError;
+    [Inject]
+    protected IJSRuntime JS { get; set; } = default!;
 
-    private int TotalToDeleteCount => duplicateGroups.Sum(g => g.Items.Count - 1);
+    protected List<DuplicateGroupModel> duplicateGroups = new();
+    protected bool isProcessing;
+    protected bool hasScanned;
+    protected string statusMsg = string.Empty;
+    protected bool isError;
 
-    private async Task ScanDuplicates()
+    protected int TotalToDeleteCount => duplicateGroups.Sum(g => g.Items.Count - 1);
+
+    protected async Task ScanDuplicates()
     {
         try
         {
@@ -28,9 +31,9 @@ public partial class Index : ComponentBase
 
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             hasScanned = true;
-            
-            statusMsg = duplicateGroups.Count > 0 
-                ? $"Pemindaian selesai. Ditemukan {duplicateGroups.Count} kelompok lagu duplikat." 
+
+            statusMsg = duplicateGroups.Count > 0
+                ? $"Pemindaian selesai. Ditemukan {duplicateGroups.Count} kelompok lagu duplikat."
                 : "Pemeriksaan selesai. Vault bersih dari duplikasi.";
             isError = false;
         }
@@ -46,13 +49,13 @@ public partial class Index : ComponentBase
         }
     }
 
-    private void SelectMaster(DuplicateGroupModel group, long songId)
+    protected void SelectMaster(DuplicateGroupModel group, long songId)
     {
         group.KeepSongId = songId;
         StateHasChanged();
     }
 
-    private async Task PurgeSelected()
+    protected async Task PurgeSelected()
     {
         bool confirm = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {TotalToDeleteCount} lagu duplikat terpilih dari Vault secara permanen?");
         if (!confirm) return;
@@ -63,7 +66,7 @@ public partial class Index : ComponentBase
             StateHasChanged();
 
             int deletedCount = await DedupEngine.PurgeDuplicatesAsync(duplicateGroups);
-            
+
             statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Vault!";
             isError = false;
 
