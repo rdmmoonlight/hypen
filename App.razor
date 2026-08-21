@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
 
-    <title>Hypen Vault Library & Downloader</title>
+    <title>Hypen Vault Library</title>
 
     <!-- Favicon -->
     <link rel="icon"
@@ -29,7 +29,7 @@
     <!-- Theme Global -->
     <link rel="stylesheet" href="theme.css?v=9.0" />
 
-    <!-- 🔥 WAJIB: Blazor CSS Isolation Bundle (Agar file .razor.css termuat) -->
+    <!-- Blazor CSS Isolation Bundle -->
     <link rel="stylesheet" href="Hypen.Web.styles.css" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
@@ -41,9 +41,8 @@
 
     <script src="_framework/blazor.web.js"></script>
 
-    <!-- Script Helper JS Download & Web Terminal Streaming -->
+    <!-- Script Helper JS Download Single File -->
     <script>
-        // 1. Helper Download Single File (Dengan Fallback Anti-Block)
         window.downloadFileFromUrl = async (fileUrl, fileName) => {
             const cleanFileName = fileName && fileName.toLowerCase().endsWith('.mp3')
                 ? fileName
@@ -78,108 +77,6 @@
                 fallbackAnchor.click();
                 document.body.removeChild(fallbackAnchor);
             }
-        };
-
-        // 2. Helper Download Multiple Files (ZIP via Controller)
-        window.downloadZipFromController = async (relativePaths) => {
-            try {
-                const response = await fetch('/api/download/download-to-client', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(relativePaths)
-                });
-
-                if (!response.ok) throw new Error('Gagal mengunduh file dari server.');
-
-                const blob = await response.blob();
-                const blobUrl = window.URL.createObjectURL(blob);
-                const anchor = document.createElement('a');
-                anchor.href = blobUrl;
-                anchor.download = `hypen_playlist_${Date.now()}.zip`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                document.body.removeChild(anchor);
-                window.URL.revokeObjectURL(blobUrl);
-            } catch (err) {
-                console.error("Gagal mengunduh ZIP:", err);
-            }
-        };
-
-        // 3. Helper Real-Time SSE Terminal Streamer
-        let activeEventSource = null;
-
-        window.startTerminalStream = (youtubeUrl, dotNetHelper) => {
-            if (activeEventSource) {
-                activeEventSource.close();
-            }
-
-            const encodedUrl = encodeURIComponent(youtubeUrl);
-            activeEventSource = new EventSource(`/api/convert-stream?url=${encodedUrl}`);
-
-            const extractedFiles = [];
-
-            activeEventSource.onmessage = (event) => {
-                const logLine = event.data;
-
-                if (logLine.includes('Destination:') && logLine.includes('.mp3')) {
-                    const match = logLine.match(/Destination:\s*(.+)$/);
-                    if (match && match[1]) {
-                        const fullPath = match[1].trim();
-                        
-                        let relativePath = fullPath;
-                        if (fullPath.includes('/downloads/')) {
-                            relativePath = fullPath.split('/downloads/')[1];
-                        } else if (fullPath.includes('\\downloads\\')) {
-                            relativePath = fullPath.split('\\downloads\\')[1];
-                        }
-
-                        relativePath = relativePath.replace(/\\/g, '/');
-
-                        if (!extractedFiles.includes(relativePath)) {
-                            extractedFiles.push(relativePath);
-                        }
-                    }
-                }
-
-                if (dotNetHelper) {
-                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', logLine);
-                }
-
-                setTimeout(() => {
-                    const terminalBox = document.getElementById('terminal-box');
-                    if (terminalBox) {
-                        terminalBox.scrollTop = terminalBox.scrollHeight;
-                    }
-                }, 50);
-
-                if (logLine.includes('[COMPLETED]')) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-
-                    if (extractedFiles.length === 1) {
-                        const rawRelPath = extractedFiles[0];
-                        const downloadUrl = `/downloads/${encodeURIComponent(rawRelPath)}`;
-                        const fileNameOnly = rawRelPath.split('/').pop();
-                        window.downloadFileFromUrl(downloadUrl, fileNameOnly);
-                    } else if (extractedFiles.length > 1) {
-                        window.downloadZipFromController(extractedFiles);
-                    }
-                } else if (logLine.includes('[ERROR]')) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-                }
-            };
-
-            activeEventSource.onerror = (error) => {
-                console.error("SSE Stream Error:", error);
-                if (dotNetHelper) {
-                    dotNetHelper.invokeMethodAsync('OnTerminalLogReceived', '[ERROR] Stream terputus dari server.');
-                }
-                if (activeEventSource) {
-                    activeEventSource.close();
-                    activeEventSource = null;
-                }
-            };
         };
     </script>
 
