@@ -1,72 +1,30 @@
-/* Styling Utama Halaman Tools */
-.tools-container {
-    max-width: 1200px;
-    margin: 0 auto;
+.tools-vault-container {
+    max-width: 1400px;
 }
 
-/* Empty State Card */
-.empty-state {
-    background-color: rgba(33, 37, 41, 0.5);
-}
-
-/* Duplicate Group Card Wrapper */
-.duplicate-group-card {
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Comparison Cards (Side-by-Side) */
-.comparison-card {
-    cursor: pointer;
+.cluster-card {
     transition: all 0.2s ease-in-out;
-    background-color: rgba(33, 37, 41, 0.7);
-    border-width: 2px;
 }
 
-.comparison-card:hover {
+.song-comparison-card {
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    border-width: 2px !important;
+}
+
+.song-comparison-card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
 }
 
-/* State Simpan (Keep/Master Target) */
-.comparison-card.keep-state {
-    border-color: #198754 !important;
-    background-color: rgba(25, 135, 84, 0.08) !important;
-    box-shadow: 0 0 10px rgba(25, 135, 84, 0.15);
+.selected-keep {
+    box-shadow: 0 0 0 1px #198754;
 }
 
-.comparison-card.keep-state .form-check-input:checked {
-    background-color: #198754;
-    border-color: #198754;
+.selected-purge {
+    opacity: 0.75;
 }
 
-/* State Hapus (Purge Target) */
-.comparison-card.purge-state {
-    border-color: #dc3545 !important;
-    background-color: rgba(220, 53, 69, 0.05) !important;
-    opacity: 0.85;
-}
-
-.comparison-card.purge-state:hover {
+.selected-purge:hover {
     opacity: 1;
-}
-
-/* Image Cover Display */
-.cover-wrapper {
-    width: 48px;
-    height: 48px;
-}
-
-.cover-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.cover-placeholder {
-    font-size: 1.2rem;
-}
-
-/* Metadata Text Helpers */
-.ms-title {
-    max-width: 200px;
 }
