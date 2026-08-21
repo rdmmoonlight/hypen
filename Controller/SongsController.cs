@@ -41,7 +41,6 @@ public class SongsController(IDbContextFactory<AppDbContext> dbFactory, ILogger<
         {
             await using var db = await _dbFactory.CreateDbContextAsync();
             
-            // Cari data lagu berdasarkan ID
             var song = await db.Songs.FindAsync(id);
             if (song == null)
             {
@@ -51,8 +50,8 @@ public class SongsController(IDbContextFactory<AppDbContext> dbFactory, ILogger<
             db.Songs.Remove(song);
             await db.SaveChangesAsync();
 
-            _logger.LogInformation("Lagu dengan ID {Id} berhasil dihapus.", id);
-            return NoContent(); // HTTP 204
+            _logger.LogInformation("Lagu ID {Id} berhasil dihapus dari database.", id);
+            return NoContent();
         }
         catch (Exception ex)
         {
@@ -87,12 +86,12 @@ public class SongsController(IDbContextFactory<AppDbContext> dbFactory, ILogger<
             await db.SaveChangesAsync();
 
             _logger.LogInformation("{Count} lagu berhasil dihapus secara batch.", songsToDelete.Count);
-            return NoContent(); // HTTP 204
+            return NoContent();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Gagal menghapus batch lagu");
-            return StatusCode(500, new { message = "Gagal menghapus beberapa lagu dari database." });
+            return StatusCode(500, new { message = "Gagal menghapus lagu terpilih." });
         }
     }
 }
