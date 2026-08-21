@@ -65,7 +65,7 @@ public partial class Index : ComponentBase
             selectedRawIds.Remove(id);
     }
 
-    private async Task LoadStagingData()
+    protected async Task LoadStagingData()
     {
         try
         {
@@ -83,7 +83,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    private async Task RefreshMetrics()
+    protected async Task RefreshMetrics()
     {
         try
         {
@@ -100,7 +100,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    private void UpdateStatus(string msg, bool error = false)
+    protected void UpdateStatus(string msg, bool error = false)
     {
         statusMsg = msg;
         isError = error;
