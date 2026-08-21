@@ -71,8 +71,10 @@ builder.Services.AddScoped(sp => new YouTubeOAuthService(
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 
+// Extractor, Smart Match, Deduplication & Sync Engine Services
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
+builder.Services.AddScoped<SongDeduplicationEngine>(); // <-- DITAMBAHKAN: Mencegah InvalidOperationException di SyncService
 builder.Services.AddScoped<SyncService>();
 
 // =========================================================================
@@ -120,8 +122,6 @@ app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () =>
 
 app.MapControllers();
 app.MapSongEndpoints();
-
-// --- [DIBERSIHKAN] app.MapConvertEndpoints() telah dicabut sepenuhnya ---
 
 var oauthServiceForEndpoints = new YouTubeOAuthService(
     youtubeOAuthClientId,
