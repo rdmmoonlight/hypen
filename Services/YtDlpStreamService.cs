@@ -1,236 +1,100 @@
-using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace Hypen.Web.Services;
 
 public class YtDlpStreamService
 {
+    private readonly HttpClient _httpClient;
+    private readonly string _dockerApiBaseUrl;
+
+    public YtDlpStreamService(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+        // Alamat Docker API Wrapper (sesuaikan port / host jika beda container)
+        _dockerApiBaseUrl = "http://localhost:8080"; 
+    }
+
     public async IAsyncEnumerable<string> StreamDownloadAsync(
         string youtubeUrlOrId, 
         string outputDirectory, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // =========================================================================
-        // PROSES 1: CEK & UPDATE YT-DLP TERLEBIH DAHULU
-        // =========================================================================
-        yield return "[INFO] Memeriksa pembaruan yt-dlp...";
+        yield return "[INFO] Mengirim permintaan ke Docker yt-dlp API Service...";
 
-        var updateResult = await CheckAndUpdateYtDlpAsync(cancellationToken);
-        yield return updateResult;
-
-        // =========================================================================
-        // PROSES 2: INISIALISASI DIRECTORY
-        // =========================================================================
-        string? initError = null;
-
-        try
+        // 1. Cek kesehatan service Docker API
+        bool isApiHealthy = await CheckDockerApiHealthAsync(cancellationToken);
+        if (!isApiHealthy)
         {
-            Directory.CreateDirectory(outputDirectory);
-        }
-        catch (Exception ex)
-        {
-            initError = $"[ERROR] Gagal membuat folder downloads: {ex.Message}";
-        }
-
-        if (initError != null)
-        {
-            yield return initError;
+            yield return "[ERROR] Docker yt-dlp API Service tidak dapat dihubungi di " + _dockerApiBaseUrl;
             yield break;
         }
 
-        // =========================================================================
-        // PROSES 3: UNIVERSAL URL & VIDEO ID PARSING
-        // =========================================================================
-        string cleanUrl = youtubeUrlOrId.Trim();
-        bool isPlaylist = cleanUrl.Contains("list=", StringComparison.OrdinalIgnoreCase);
-
-        if (!isPlaylist)
+        // 2. Siapkan Request Body untuk Docker API Wrapper
+        var payload = new
         {
-            if (cleanUrl.Contains("music.youtube.com", StringComparison.OrdinalIgnoreCase))
-            {
-                cleanUrl = cleanUrl.Replace("music.youtube.com", "www.youtube.com", StringComparison.OrdinalIgnoreCase);
-            }
-
-            string? extractedId = null;
-
-            if (Regex.IsMatch(cleanUrl, @"^[a-zA-Z0-9_-]{11}$"))
-            {
-                extractedId = cleanUrl;
-            }
-            else if (Uri.TryCreate(cleanUrl, UriKind.Absolute, out var uri))
-            {
-                if (uri.Host.Contains("youtu.be", StringComparison.OrdinalIgnoreCase))
-                {
-                    extractedId = uri.AbsolutePath.TrimStart('/').Split('?')[0];
-                }
-                else if (uri.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase))
-                {
-                    var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
-                    extractedId = queryParams["v"];
-                }
-            }
-
-            if (!string.IsNullOrEmpty(extractedId) && extractedId.Length == 11)
-            {
-                cleanUrl = $"https://www.youtube.com/watch?v={extractedId}";
-            }
-        }
-
-        // =========================================================================
-        // PROSES 4: KONFIGURASI PROSES UNDUHAN (MIMIC TERMINAL LOKAL)
-        // =========================================================================
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "yt-dlp",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
+            url = youtubeUrlOrId,
+            format = "mp3",
+            quality = "best",
+            outDir = outputDirectory
         };
 
-        // --- ARGUMEN DASAR TERMINAL ---
-        startInfo.ArgumentList.Add("--no-warnings");
-        startInfo.ArgumentList.Add("--no-cache-dir");
-        startInfo.ArgumentList.Add("--newline");
-        startInfo.ArgumentList.Add("--ignore-config");
-        startInfo.ArgumentList.Add("--force-overwrites");
-
-        // Auth via Cookies (Wajib jika berada di IP Data Center / Cloud Server)
-        string cookiePath = "/app/cookies.txt";
-        if (File.Exists(cookiePath))
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"{_dockerApiBaseUrl}/download")
         {
-            startInfo.ArgumentList.Add("--cookies");
-            startInfo.ArgumentList.Add(cookiePath);
-        }
-
-        // Logika Playlist vs Single Track
-        if (isPlaylist)
-        {
-            startInfo.ArgumentList.Add("--yes-playlist");
-            startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(playlist_title)s/%(playlist_index)s - %(title)s.%(ext)s"));
-        }
-        else
-        {
-            startInfo.ArgumentList.Add("--no-playlist");
-            startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
-        }
-
-        // Ekstraksi Audio ke MP3 (Kualitas VBR 0 / Terbaik)
-        startInfo.ArgumentList.Add("--add-metadata");
-        startInfo.ArgumentList.Add("-x");
-        startInfo.ArgumentList.Add("--audio-format");
-        startInfo.ArgumentList.Add("mp3");
-        startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("0");
-
-        startInfo.ArgumentList.Add(cleanUrl);
-
-        using var process = new Process { StartInfo = startInfo };
-        var errorLog = new List<string>();
-
-        process.ErrorDataReceived += (sender, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                errorLog.Add(e.Data);
-            }
+            Content = JsonContent.Create(payload)
         };
 
-        string? startError = null;
+        HttpResponseMessage? response = null;
         try
         {
-            process.Start();
-            process.BeginErrorReadLine();
+            // Kirim request dan baca respon secara streaming (ResponseHeadersRead)
+            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
         catch (Exception ex)
         {
-            startError = $"[ERROR] yt-dlp gagal dijalankan di server: {ex.Message}";
-        }
-
-        if (startError != null)
-        {
-            yield return startError;
+            yield return $"[ERROR] Koneksi ke Docker API gagal: {ex.Message}";
             yield break;
         }
 
-        // =========================================================================
-        // PROSES 5: READING OUTPUT STREAM
-        // =========================================================================
-        try
+        if (!response.IsSuccessStatusCode)
         {
-            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    yield return "[CANCELLED] Pemrosesan terminal dihentikan oleh pengguna.";
-                    yield break;
-                }
+            yield return $"[ERROR] Docker API merespons dengan HTTP Status: {response.StatusCode}";
+            yield break;
+        }
 
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    yield return line;
-                }
+        // 3. Stream output dari Docker API ke C# AsyncEnumerable
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield return "[CANCELLED] Pemrosesan dibatalkan oleh pengguna.";
+                yield break;
             }
 
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode == 0)
+            string? line = await reader.ReadLineAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(line))
             {
-                yield return "[COMPLETED] File audio berhasil diekstraksi ke MP3!";
-            }
-            else
-            {
-                string lastError = errorLog.Count > 0 ? string.Join(" | ", errorLog.TakeLast(3)) : "Unknown Error";
-                yield return $"[ERROR] Proses yt-dlp keluar dengan kode {process.ExitCode}: {lastError}";
+                yield return line;
             }
         }
-        finally
-        {
-            if (!process.HasExited)
-            {
-                try { process.Kill(true); } catch { }
-            }
-        }
+
+        yield return "[COMPLETED] Pemrosesan melalui Docker API selesai!";
     }
 
-    /// <summary>
-    /// Helper method untuk menjalankan update yt-dlp (-U) di awal proses.
-    /// </summary>
-    private async Task<string> CheckAndUpdateYtDlpAsync(CancellationToken cancellationToken)
+    private async Task<bool> CheckDockerApiHealthAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var updateProcessInfo = new ProcessStartInfo
-            {
-                FileName = "yt-dlp",
-                Arguments = "-U",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var updateProcess = new Process { StartInfo = updateProcessInfo };
-            updateProcess.Start();
-
-            string output = await updateProcess.StandardOutput.ReadToEndAsync(cancellationToken);
-            await updateProcess.WaitForExitAsync(cancellationToken);
-
-            string cleanMessage = output.Replace("\r", "").Replace("\n", " ").Trim();
-
-            if (string.IsNullOrWhiteSpace(cleanMessage))
-            {
-                cleanMessage = "Proses update selesai (tidak ada output).";
-            }
-
-            return $"[UPDATE] {cleanMessage}";
+            var res = await _httpClient.GetAsync($"{_dockerApiBaseUrl}/ping", cancellationToken);
+            return res.IsSuccessStatusCode;
         }
-        catch (Exception ex)
+        catch
         {
-            return $"[UPDATE WARNING] Gagal memeriksa update yt-dlp: {ex.Message}";
+            return false;
         }
     }
 }
