@@ -18,7 +18,7 @@ public partial class Index : ComponentBase
 
     protected List<SongModel> songs = [];
     protected string searchQuery = "";
-    protected string sortBy = "date_desc"; // Default: Tanggal Terbaru
+    protected string sortBy = "title_asc"; // Default: Judul A-Z
     protected string statusMsg = "";
     protected bool isLoading;
     protected bool isError;
@@ -45,25 +45,27 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
-    // 2. Sorting
+    // 2. Sorting Logic
     protected IEnumerable<SongModel> SortedSongs
     {
-        get;
+        get
         {
             var query = FilteredSongs;
 
             return sortBy switch
             {
-                "title_asc" => query.OrderBy(s => s.Title),
+                "title_asc"  => query.OrderBy(s => s.Title),
                 "title_desc" => query.OrderByDescending(s => s.Title),
-                "date_asc" => query.OrderBy(s => s.CreatedAt), // Sesuaikan properti tanggal pada SongModel (misal: CreatedAt/AddedDate)
-                "date_desc" => query.OrderByDescending(s => s.CreatedAt),
-                _ => query
+                "artist_asc"  => query.OrderBy(s => s.Artist),
+                "artist_desc" => query.OrderByDescending(s => s.Artist),
+                "date_asc"   => query.OrderBy(s => s.CreatedAt), // Sesuaikan dengan properti tanggal di SongModel
+                "date_desc"  => query.OrderByDescending(s => s.CreatedAt),
+                _            => query.OrderBy(s => s.Title)
             };
         }
     }
 
-    // 3. Paging (Mengambil dari SortedSongs)
+    // 3. Pagination (Diambil dari hasil Sorting)
     protected IEnumerable<SongModel> PagedSongs =>
         SortedSongs
             .Skip((currentPage - 1) * pageSize)
@@ -71,7 +73,7 @@ public partial class Index : ComponentBase
 
     protected void OnSortChanged(ChangeEventArgs e)
     {
-        sortBy = e.Value?.ToString() ?? "date_desc";
+        sortBy = e.Value?.ToString() ?? "title_asc";
         currentPage = 1;
         UpdateSelectAllStatus();
     }
