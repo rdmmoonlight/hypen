@@ -18,6 +18,7 @@ public partial class Index : ComponentBase
 
     protected List<SongModel> songs = [];
     protected string searchQuery = "";
+    protected string sortBy = "date_desc"; // Default: Tanggal Terbaru
     protected string statusMsg = "";
     protected bool isLoading;
     protected bool isError;
@@ -33,8 +34,9 @@ public partial class Index : ComponentBase
     protected int currentPage = 1;
     protected int pageSize = 50;
 
-    protected int TotalPages => (int)Math.Ceiling((double)FilteredSongs.Count() / pageSize);
+    protected int TotalPages => (int)Math.Ceiling((double)SortedSongs.Count() / pageSize);
 
+    // 1. Filtering
     protected IEnumerable<SongModel> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchQuery)
             ? songs
@@ -43,10 +45,36 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
+    // 2. Sorting
+    protected IEnumerable<SongModel> SortedSongs
+    {
+        get;
+        {
+            var query = FilteredSongs;
+
+            return sortBy switch
+            {
+                "title_asc" => query.OrderBy(s => s.Title),
+                "title_desc" => query.OrderByDescending(s => s.Title),
+                "date_asc" => query.OrderBy(s => s.CreatedAt), // Sesuaikan properti tanggal pada SongModel (misal: CreatedAt/AddedDate)
+                "date_desc" => query.OrderByDescending(s => s.CreatedAt),
+                _ => query
+            };
+        }
+    }
+
+    // 3. Paging (Mengambil dari SortedSongs)
     protected IEnumerable<SongModel> PagedSongs =>
-        FilteredSongs
+        SortedSongs
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize);
+
+    protected void OnSortChanged(ChangeEventArgs e)
+    {
+        sortBy = e.Value?.ToString() ?? "date_desc";
+        currentPage = 1;
+        UpdateSelectAllStatus();
+    }
 
     protected void GoToPage(int page)
     {
@@ -68,7 +96,6 @@ public partial class Index : ComponentBase
     // LOGIK UTAMA
     // ==========================================
 
-    // Method ini tetap disimpang jika masih dibutuhkan UI untuk memblokir aksi Edit
     protected bool IsLockedFromEdit(SongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
         !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
@@ -144,7 +171,7 @@ public partial class Index : ComponentBase
 
     protected async Task DeleteSelected()
     {
-        long[] selectedIds = FilteredSongs
+        long[] selectedIds = SortedSongs
             .Where(song => song.IsSelected)
             .Select(song => song.Id)
             .ToArray();
