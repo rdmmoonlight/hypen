@@ -28,9 +28,7 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
-    // ==========================================
-    // PAGINATION LOGIC (MAX 50 ITEMS PER PAGE)
-    // ==========================================
+    // PAGINATION LOGIC
     protected int currentPage = 1;
     protected int pageSize = 50;
 
@@ -45,7 +43,7 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
-    // 2. Sorting Logic (Diperbaiki)
+    // 2. Sorting Logic (Tergantung Pilihan)
     protected IEnumerable<SongModel> SortedSongs
     {
         get
@@ -58,16 +56,16 @@ public partial class Index : ComponentBase
                 "title_desc"  => query.OrderByDescending(s => s.Title),
                 "artist_asc"  => query.OrderBy(s => s.Artist),
                 "artist_desc" => query.OrderByDescending(s => s.Artist),
-                // date_asc = Terlama (Yang pertama dicatat / ID terkecil tampil paling atas)
-                "date_asc"    => query.OrderBy(s => s.Id), 
-                // date_desc = Terbaru (Yang baru dicatat / ID terbesar tampil paling atas)
-                "date_desc"   => query.OrderByDescending(s => s.Id), 
+                // date_asc = Paling Tua / Pertama Di-input tampil di Urutan No. 1
+                "date_asc"    => query.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id), 
+                // date_desc = Paling Baru / Terakhir Di-input
+                "date_desc"   => query.OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id), 
                 _             => query.OrderBy(s => s.Title)
             };
         }
     }
 
-    // 3. Pagination (Diambil dari hasil Sorting)
+    // 3. Paging
     protected IEnumerable<SongModel> PagedSongs =>
         SortedSongs
             .Skip((currentPage - 1) * pageSize)
@@ -95,10 +93,6 @@ public partial class Index : ComponentBase
         currentPage = 1;
         UpdateSelectAllStatus();
     }
-
-    // ==========================================
-    // LOGIK UTAMA
-    // ==========================================
 
     protected bool IsLockedFromEdit(SongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
@@ -162,7 +156,6 @@ public partial class Index : ComponentBase
         }
     }
 
-    // Perbaikan metode Hapus Tunggal
     protected async Task DeleteSingle(long id)
     {
         try
@@ -173,20 +166,19 @@ public partial class Index : ComponentBase
             isLoading = true;
             UpdateStatus("Menghapus lagu...");
 
-            bool success = await SongService.DeleteSongAsync(id);
-            if (success)
+            if (await SongService.DeleteSongAsync(id))
             {
                 UpdateStatus("Lagu berhasil dihapus.");
                 await LoadLibrary();
             }
             else
             {
-                UpdateStatus("Gagal menghapus lagu. Respon API menunjukkan kegagalan.", true);
+                UpdateStatus("Gagal menghapus lagu dari server.", true);
             }
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Terjadi kesalahan saat menghapus: {ex.Message}", true);
+            UpdateStatus($"Terjadi kesalahan: {ex.Message}", true);
         }
         finally
         {
@@ -195,7 +187,6 @@ public partial class Index : ComponentBase
         }
     }
 
-    // Perbaikan metode Hapus Terpilih
     protected async Task DeleteSelected()
     {
         try
@@ -217,20 +208,19 @@ public partial class Index : ComponentBase
             isLoading = true;
             UpdateStatus($"Menghapus {selectedIds.Length} lagu...");
 
-            bool success = await SongService.DeleteBatchSongsAsync(selectedIds);
-            if (success)
+            if (await SongService.DeleteBatchSongsAsync(selectedIds))
             {
                 UpdateStatus($"{selectedIds.Length} lagu berhasil dihapus.");
                 await LoadLibrary();
             }
             else
             {
-                UpdateStatus("Gagal menghapus beberapa atau semua lagu terpilih.", true);
+                UpdateStatus("Gagal menghapus lagu terpilih.", true);
             }
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Terjadi kesalahan saat menghapus batch: {ex.Message}", true);
+            UpdateStatus($"Terjadi kesalahan: {ex.Message}", true);
         }
         finally
         {
