@@ -207,34 +207,97 @@ public class SongDeduplicationEngine
 
     /// <summary>
     /// Eksekusi pembersihan massal lagu duplikat berdasarkan pilihan user dari Halaman /tools
+    /// Lengkap dengan migrasi relasi Foreign Key (PlaylistItems & Favorites)
     /// </summary>
     public async Task<int> PurgeDuplicatesAsync(List<DuplicateGroupModel> groups, CancellationToken cancellationToken = default)
     {
-        var deleteIds = new List<long>();
-
-        foreach (var group in groups)
-        {
-            var toDelete = group.Items
-                .Where(x => x.Id != group.KeepSongId)
-                .Select(x => x.Id);
-
-            deleteIds.AddRange(toDelete);
-        }
-
-        if (deleteIds.Count == 0) return 0;
+        if (groups == null || groups.Count == 0) return 0;
 
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            var targets = await _dbContext.Songs
-                .Where(s => deleteIds.Contains(s.Id))
-                .ToListAsync(cancellationToken);
+            int totalDeleted = 0;
 
-            _dbContext.Songs.RemoveRange(targets);
-            int rowsAffected = await _dbContext.SaveChangesAsync(cancellationToken);
-            
+            foreach (var group in groups)
+            {
+                long keepId = group.KeepSongId;
+                var deleteIds = group.Items
+                    .Where(x => x.Id != keepId)
+                    .Select(x => x.Id)
+                    .ToList();
+
+                if (!deleteIds.Any()) continue;
+
+                // 1. MIGRASI RELASI PLAYLIST ITEMS (Jika entitas PlaylistItemModel ada di AppDbContext)
+                var playlistItemsToMigrate = await _dbContext.Set<PlaylistItemModel>()
+                    .Where(pi => deleteIds.Contains(pi.SongId))
+                    .ToListAsync(cancellationToken);
+
+                if (playlistItemsToMigrate.Any())
+                {
+                    var existingKeepPlaylistIds = await _dbContext.Set<PlaylistItemModel>()
+                        .Where(pi => pi.SongId == keepId)
+                        .Select(pi => pi.PlaylistId)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var item in playlistItemsToMigrate)
+                    {
+                        if (existingKeepPlaylistIds.Contains(item.PlaylistId))
+                        {
+                            // Jika playlist target sudah punya KeepSongId, hapus record duplikat ini
+                            _dbContext.Set<PlaylistItemModel>().Remove(item);
+                        }
+                        else
+                        {
+                            // Pindahkan referensi SongId ke KeepSongId
+                            item.SongId = keepId;
+                            existingKeepPlaylistIds.Add(item.PlaylistId);
+                        }
+                    }
+                }
+
+                // 2. MIGRASI RELASI FAVORITES (Jika entitas FavoriteModel ada di AppDbContext)
+                var favoritesToMigrate = await _dbContext.Set<FavoriteModel>()
+                    .Where(f => deleteIds.Contains(f.SongId))
+                    .ToListAsync(cancellationToken);
+
+                if (favoritesToMigrate.Any())
+                {
+                    var existingKeepUserIds = await _dbContext.Set<FavoriteModel>()
+                        .Where(f => f.SongId == keepId)
+                        .Select(f => f.UserId)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var fav in favoritesToMigrate)
+                    {
+                        if (existingKeepUserIds.Contains(fav.UserId))
+                        {
+                            _dbContext.Set<FavoriteModel>().Remove(fav);
+                        }
+                        else
+                        {
+                            fav.SongId = keepId;
+                            existingKeepUserIds.Add(fav.UserId);
+                        }
+                    }
+                }
+
+                // Simpan perubahan migrasi relasi
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                // 3. HAPUS LAGU DUPLIKAT DARI TABEL SONGS
+                var targetSongs = await _dbContext.Songs
+                    .Where(s => deleteIds.Contains(s.Id))
+                    .ToListAsync(cancellationToken);
+
+                _dbContext.Songs.RemoveRange(targetSongs);
+                totalDeleted += targetSongs.Count;
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return rowsAffected;
+
+            return totalDeleted;
         }
         catch
         {
