@@ -78,7 +78,7 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // PROSES 4: KONFIGURASI PROSES UNDUHAN (OPTIMIZED & ANTI-BLOCKING)
+        // PROSES 4: KONFIGURASI PROSES UNDUHAN (MIMIC TERMINAL LOKAL)
         // =========================================================================
         var startInfo = new ProcessStartInfo
         {
@@ -89,31 +89,20 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // --- KONFIGURASI DAN ARGUMEN UTAMA ---
+        // --- ARGUMEN DASAR TERMINAL ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- CLIENT ROTATION SAFE FOR EMBEDDED / SERVER ENVIRONMENT ---
-        // Menggunakan tv_embedded & web_embedded agar aman dari tantangan PO Token (mweb/android sering diblokir)
-        startInfo.ArgumentList.Add("--extractor-args");
-        startInfo.ArgumentList.Add("youtube:player_client=tv_embedded,web_embedded,web");
-
-        // Auth via Cookies (jika file tersedia di server)
+        // Auth via Cookies (Wajib jika berada di IP Data Center / Cloud Server)
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
             startInfo.ArgumentList.Add("--cookies");
             startInfo.ArgumentList.Add(cookiePath);
         }
-
-        // Header User-Agent & Referer
-        startInfo.ArgumentList.Add("--user-agent");
-        startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
-        startInfo.ArgumentList.Add("--referer");
-        startInfo.ArgumentList.Add("https://www.youtube.com/");
 
         // Logika Playlist vs Single Track
         if (isPlaylist)
@@ -129,13 +118,13 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Ekstraksi Audio ke MP3 Kualitas Maksimal
+        // Ekstraksi Audio ke MP3 (Kualitas VBR 0 / Terbaik)
         startInfo.ArgumentList.Add("--add-metadata");
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
-        startInfo.ArgumentList.Add("0"); // Set ke 0 (Kualitas VBR MP3 Terbaik)
+        startInfo.ArgumentList.Add("0");
 
         startInfo.ArgumentList.Add(cleanUrl);
 
