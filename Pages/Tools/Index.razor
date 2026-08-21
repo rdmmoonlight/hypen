@@ -1,158 +1,87 @@
-@page "/tools"
-@rendermode InteractiveServer
-@using Hypen.Web.Models
-@using Hypen.Web.Services
+using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using Hypen.Web.Models;
+using Hypen.Web.Services;
 
-<PageTitle>Vault Tools Center - Hypen</PageTitle>
+namespace Hypen.Web.Pages.Tools;
 
-<div class="container-fluid py-4 tools-vault-container">
-    <!-- Header Controls -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary border-opacity-25 gap-3">
-        <div>
-            <h3 class="mb-1 text-light fw-bold">
-                <i class="bi bi-tools text-info me-2"></i>Vault Maintenance Center
-            </h3>
-            <p class="text-muted mb-0 small">Pusat pemeliharaan data, pembersihan duplikasi, dan optimalisasi struktur vault.</p>
-        </div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button class="btn btn-outline-info px-4 py-2 rounded-3 text-nowrap fw-semibold shadow-sm" @onclick="ScanDuplicates" disabled="@isProcessing">
-                @if (isProcessing)
-                {
-                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                    <span>Memindai...</span>
-                }
-                else
-                {
-                    <i class="bi bi-search me-2"></i>
-                    <span>Scan Vault</span>
-                }
-            </button>
+public partial class Index : ComponentBase
+{
+    [Inject]
+    protected SongDeduplicationEngine DedupEngine { get; set; } = default!;
 
-            @if (duplicateGroups.Count > 0)
-            {
-                <button class="btn btn-danger px-4 py-2 rounded-3 text-nowrap fw-semibold shadow-sm" @onclick="PurgeSelected" disabled="@isProcessing">
-                    <i class="bi bi-trash me-2"></i> Purge Selected (@TotalToDeleteCount)
-                </button>
-            }
-        </div>
-    </div>
+    [Inject]
+    protected IJSRuntime JS { get; set; } = default!;
 
-    <!-- Status Alert -->
-    @if (!string.IsNullOrEmpty(statusMsg))
+    protected List<DuplicateGroupModel> duplicateGroups = new();
+    protected bool isProcessing;
+    protected bool hasScanned;
+    protected string statusMsg = string.Empty;
+    protected bool isError;
+
+    protected int TotalToDeleteCount => duplicateGroups.Sum(g => g.Items.Count - 1);
+
+    protected async Task ScanDuplicates()
     {
-        <div class="alert @(isError ? "alert-danger bg-danger" : "alert-success bg-success") bg-opacity-10 border-0 text-light alert-dismissible fade show rounded-3 shadow-sm mb-4" role="alert">
-            <i class="bi @(isError ? "bi-exclamation-triangle-fill text-danger" : "bi-check-circle-fill text-success") me-2 fs-5 align-middle"></i>
-            <span class="align-middle">@statusMsg</span>
-            <button type="button" class="btn-close btn-close-white" @onclick="() => statusMsg = string.Empty"></button>
-        </div>
+        try
+        {
+            isProcessing = true;
+            statusMsg = string.Empty;
+            StateHasChanged();
+
+            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
+            hasScanned = true;
+
+            statusMsg = duplicateGroups.Count > 0
+                ? $"Pemindaian selesai. Ditemukan {duplicateGroups.Count} kelompok lagu duplikat."
+                : "Pemeriksaan selesai. Vault bersih dari duplikasi.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal memindai vault: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
     }
 
-    <!-- Initial Unscanned State -->
-    @if (!hasScanned && !isProcessing)
+    protected void SelectMaster(DuplicateGroupModel group, long songId)
     {
-        <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
-            <div class="card-body py-4">
-                <div class="icon-wrapper mb-3 text-info">
-                    <i class="bi bi-cpu display-3"></i>
-                </div>
-                <h4 class="text-light fw-bold mb-2">Mulai Pemindaian Vault</h4>
-                <p class="text-muted small mb-0">Klik tombol <strong class="text-info">Scan Vault</strong> di atas untuk mendeteksi klaster duplikat secara otomatis.</p>
-            </div>
-        </div>
+        group.KeepSongId = songId;
+        StateHasChanged();
     }
 
-    <!-- Loading State -->
-    @if (isProcessing)
+    protected async Task PurgeSelected()
     {
-        <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
-            <div class="card-body py-4">
-                <div class="spinner-border text-info mb-3" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
-                <h5 class="text-light fw-bold mb-2">Memindai Seluruh Isi Vault...</h5>
-                <p class="text-muted small mb-0">Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.</p>
-            </div>
-        </div>
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {TotalToDeleteCount} lagu duplikat terpilih dari Vault secara permanen?");
+        if (!confirm) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            int deletedCount = await DedupEngine.PurgeDuplicatesAsync(duplicateGroups);
+
+            statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Vault!";
+            isError = false;
+
+            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
+            hasScanned = true;
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal mengeksekusi purge: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
     }
-
-    <!-- Clean Vault State -->
-    @if (hasScanned && !isProcessing && duplicateGroups.Count == 0)
-    {
-        <div class="card bg-dark bg-opacity-50 border-success border-opacity-25 rounded-4 text-center py-5 my-4 shadow">
-            <div class="card-body py-4">
-                <div class="icon-wrapper mb-3 text-success">
-                    <i class="bi bi-shield-check display-3"></i>
-                </div>
-                <h4 class="text-light fw-bold mb-2">Vault Anda Clean & Pristine!</h4>
-                <p class="text-muted small mb-0">Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.</p>
-            </div>
-        </div>
-    }
-
-    <!-- Cluster Items -->
-    @if (hasScanned && !isProcessing && duplicateGroups.Count > 0)
-    {
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-muted small">Terdeteksi <strong class="text-warning">@duplicateGroups.Count</strong> kelompok duplikat.</span>
-            <span class="badge bg-secondary bg-opacity-50 text-light fw-normal px-3 py-2 rounded-pill">
-                💡 Klik kartu lagu untuk menentukan target Master (Simpan)
-            </span>
-        </div>
-
-        <div class="row g-4">
-            @foreach (var group in duplicateGroups)
-            {
-                <div class="col-12">
-                    <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-25 rounded-4 shadow-sm overflow-hidden">
-                        <div class="card-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-3 px-4">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-warning text-dark fw-bold px-2.5 py-1.5 rounded-2">@group.MatchReason</span>
-                                <span class="text-light fw-semibold text-truncate ms-1" style="max-width: 450px;">Grup: @group.GroupKey</span>
-                            </div>
-                            <span class="text-muted small font-monospace">Kemiripan: @group.SimilarityScore%</span>
-                        </div>
-                        <div class="card-body p-4">
-                            <div class="row g-3">
-                                @foreach (var song in group.Items)
-                                {
-                                    bool isKeep = group.KeepSongId == song.Id;
-                                    <div class="col-md-6">
-                                        <div class="card h-100 song-comparison-card @(isKeep ? "border-success bg-success bg-opacity-10 shadow-sm" : "border-secondary border-opacity-25 bg-dark bg-opacity-50 opacity-75")"
-                                             @onclick="() => SelectMaster(group, song.Id)" role="button" style="border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.2s ease;">
-                                            <div class="card-body d-flex flex-column justify-content-between p-3.5">
-                                                <div>
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                                        <div class="form-check mb-0">
-                                                            <input class="form-check-input" type="radio" name="keep-group-@group.GroupKey.GetHashCode()" checked="@isKeep" readOnly />
-                                                            <label class="form-check-label fw-bold small @(isKeep ? "text-success" : "text-danger")" style="cursor: pointer;">
-                                                                @(isKeep ? "🟢 SIMPAN (MASTER)" : "🔴 HAPUS (KANDIDAT)")
-                                                            </label>
-                                                        </div>
-                                                        <span class="badge bg-black bg-opacity-50 text-muted font-monospace border border-secondary border-opacity-25">#@song.Id</span>
-                                                    </div>
-
-                                                    <h6 class="mb-1 text-light fw-bold text-truncate fs-6">@song.Title</h6>
-                                                    <p class="small text-muted mb-2 text-truncate">
-                                                        <i class="bi bi-mic me-1"></i>@(song.Artist ?? "Unknown Artist") 
-                                                        <span class="mx-1">•</span> 
-                                                        <i class="bi bi-disc me-1"></i>@(song.Album ?? "-")
-                                                    </p>
-                                                </div>
-
-                                                <div class="pt-2 mt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between align-items-center text-muted extra-small">
-                                                    <span><i class="bi bi-clock me-1"></i>@(song.DurationSeconds ?? 0)s</span>
-                                                    <div class="d-flex gap-2">
-                                                        <span>Cover: @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "🖼️ Ada" : "❌ Absen")</span>
-                                                        <span>Source: @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    }
-</div>
+}
