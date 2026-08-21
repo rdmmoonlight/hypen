@@ -59,8 +59,8 @@
 
         <div style="display: flex; gap: 8px; align-items: center;">
             <input type="text"
-                   @bind="searchQuery"
-                   @bind:event="oninput"
+                   value="@searchQuery"
+                   @oninput="OnSearchInput"
                    placeholder="Cari judul / artis / album..."
                    style="padding: 6px 12px; width: 220px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; font-size: 0.75rem; outline: none;" />
             
@@ -103,7 +103,7 @@
                         </td>
                     </tr>
                 }
-                else if (!FilteredSongs.Any())
+                else if (!PagedSongs.Any())
                 {
                     <tr>
                         <td colspan="13" style="padding: 40px 16px; text-align: center; color: #525866;">
@@ -113,10 +113,10 @@
                 }
                 else
                 {
-                    @foreach (var song in FilteredSongs)
+                    @foreach (var song in PagedSongs)
                     {
                         <tr @key="song.Id" style="border-bottom: 1px solid rgba(255, 255, 255, 0.02); transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                            <!-- CHECKBOX SELEKSI (Selalu Buka Untuk Unduh) -->
+                            <!-- CHECKBOX SELEKSI -->
                             <td style="padding: 8px 6px; text-align: center;">
                                 <input type="checkbox" checked="@song.IsSelected" @onchange="(e) => OnSongSelectChanged(song, e)" style="cursor: pointer; opacity: 0.6;" />
                             </td>
@@ -186,9 +186,8 @@
                                 }
                             </td>
 
-                            <!-- AKSI PER BARIS (UNDUH & HAPUS) -->
+                            <!-- AKSI PER BARIS -->
                             <td style="padding: 8px 6px; text-align: right; white-space: nowrap;">
-                                <!-- TOMBOL UNDUH SINGLE -->
                                 <button style="background: rgba(69, 162, 158, 0.1); border: 1px solid rgba(69, 162, 158, 0.3); color: #45a29e; padding: 4px 8px; border-radius: 3px; font-size: 0.75rem; cursor: pointer; margin-right: 4px; font-family: monospace;" 
                                         @onclick="() => DownloadSingle(song)" 
                                         disabled="@isLoading" 
@@ -196,7 +195,6 @@
                                     ↓ UNDUH
                                 </button>
 
-                                <!-- TOMBOL HAPUS SINGLE (TERKUNCI JIKA DARI YT) -->
                                 @if (IsLockedFromDeletion(song))
                                 {
                                     <button style="background: transparent; border: none; color: rgba(255,255,255,0.15); padding: 4px 6px; font-size: 0.75rem; cursor: not-allowed;" 
@@ -221,5 +219,55 @@
             </tbody>
         </table>
     </div>
+
+    <!-- PAGINATION CONTROL (IKON TANPA TULISAN) -->
+    @if (TotalPages > 1)
+    {
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06);">
+            
+            <!-- BEGINNING LIST («) -->
+            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == 1 ? "not-allowed" : "pointer"); opacity: @(currentPage == 1 ? "0.3" : "1");"
+                    @onclick="() => GoToPage(1)"
+                    disabled="@(currentPage == 1)"
+                    title="Awal List">
+                «
+            </button>
+
+            <!-- PREVIOUS (‹) -->
+            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == 1 ? "not-allowed" : "pointer"); opacity: @(currentPage == 1 ? "0.3" : "1");"
+                    @onclick="() => GoToPage(currentPage - 1)"
+                    disabled="@(currentPage == 1)"
+                    title="Sebelumnya">
+                ‹
+            </button>
+
+            <!-- NOMOR HALAMAN (1, 2, 3, DST.) -->
+            @for (int i = 1; i <= TotalPages; i++)
+            {
+                var pageNumber = i;
+                <button style="padding: 6px 12px; font-size: 0.75rem; border-radius: 4px; font-family: monospace; cursor: pointer; transition: all 0.2s; @(currentPage == pageNumber ? "background: #45a29e; color: #0a0b0e; border: 1px solid #45a29e; font-weight: bold;" : "background: rgba(255,255,255,0.03); color: #e6e8ec; border: 1px solid rgba(255,255,255,0.08);")"
+                        @onclick="() => GoToPage(pageNumber)">
+                    @pageNumber
+                </button>
+            }
+
+            <!-- NEXT (›) -->
+            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == TotalPages ? "not-allowed" : "pointer"); opacity: @(currentPage == TotalPages ? "0.3" : "1");"
+                    @onclick="() => GoToPage(currentPage + 1)"
+                    disabled="@(currentPage == TotalPages)"
+                    title="Selanjutnya">
+                ›
+            </button>
+
+            <!-- END LIST (») -->
+            <button style="padding: 6px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #e6e8ec; border-radius: 4px; cursor: @(currentPage == TotalPages ? "not-allowed" : "pointer"); opacity: @(currentPage == TotalPages ? "0.3" : "1");"
+                    @onclick="() => GoToPage(TotalPages)"
+                    disabled="@(currentPage == TotalPages)"
+                    title="Akhir List">
+                »
+            </button>
+
+        </div>
+    }
 
 </div>
