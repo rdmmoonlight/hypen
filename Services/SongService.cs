@@ -13,7 +13,6 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     {
         try
         {
-            // Menggunakan SongModel agar konsisten dengan Index.razor.cs
             var result = await _http.GetFromJsonAsync<List<SongModel>>("api/songs");
             return result ?? [];
         }
@@ -27,7 +26,6 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     {
         try
         {
-            // Mengirim DELETE request ke endpoint backend: DELETE api/songs/{id}
             var response = await _http.DeleteAsync($"api/songs/{id}");
             return response.IsSuccessStatusCode;
         }
@@ -41,7 +39,6 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     {
         try
         {
-            // Mengirim POST request ke endpoint batch delete: POST api/songs/delete-batch
             var response = await _http.PostAsJsonAsync("api/songs/delete-batch", new BatchDeleteRequest(ids));
             return response.IsSuccessStatusCode;
         }
@@ -55,12 +52,10 @@ public class SongService(HttpClient http, IJSRuntime js) : ISongService
     {
         if (string.IsNullOrWhiteSpace(audioUrl)) return;
 
-        // Format nama file agar selalu berakhiran .mp3
         string fileName = title.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) 
             ? title 
             : $"{title}.mp3";
 
-        // Memicu JS Interop untuk mengunduh file
         await _js.InvokeVoidAsync("downloadFileFromUrl", audioUrl, fileName);
     }
 }
