@@ -78,7 +78,7 @@ public class YtDlpStreamService
         }
 
         // =========================================================================
-        // PROSES 4: KONFIGURASI PROSES PROSES UNDUHAN (STREAMING)
+        // PROSES 4: KONFIGURASI PROSES UNDUHAN (BERSIH DARI DEPRECATED OPTIONS)
         // =========================================================================
         var startInfo = new ProcessStartInfo
         {
@@ -89,18 +89,18 @@ public class YtDlpStreamService
             CreateNoWindow = true
         };
 
-        // --- KONFIGURASI DAN ARGUMEN AWAL ---
+        // --- KONFIGURASI DAN ARGUMEN UTAMA ---
         startInfo.ArgumentList.Add("--no-warnings");
         startInfo.ArgumentList.Add("--no-cache-dir");
         startInfo.ArgumentList.Add("--newline");
         startInfo.ArgumentList.Add("--ignore-config");
         startInfo.ArgumentList.Add("--force-overwrites");
 
-        // --- BYPASS BOT CHECK & DATACENTER BLOCK (ANDROID & WEB ROTATION) ---
+        // --- BYPASS BOT CHECK & DATACENTER BLOCK ---
         startInfo.ArgumentList.Add("--extractor-args");
         startInfo.ArgumentList.Add("youtube:player_client=android,web,mweb");
 
-        // Auth via Cookies (jika tersedia)
+        // Auth via Cookies (jika file tersedia di server)
         string cookiePath = "/app/cookies.txt";
         if (File.Exists(cookiePath))
         {
@@ -108,16 +108,7 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(cookiePath);
         }
 
-        // Anti-Bot Sleep & Geo-Bypass
-        startInfo.ArgumentList.Add("--sleep-requests");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("--min-sleep-interval");
-        startInfo.ArgumentList.Add("1");
-        startInfo.ArgumentList.Add("--max-sleep-interval");
-        startInfo.ArgumentList.Add("3");
-        startInfo.ArgumentList.Add("--geo-bypass");
-
-        // User-Agent & Referer
+        // Header User-Agent & Referer
         startInfo.ArgumentList.Add("--user-agent");
         startInfo.ArgumentList.Add("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
         startInfo.ArgumentList.Add("--referer");
@@ -137,15 +128,15 @@ public class YtDlpStreamService
             startInfo.ArgumentList.Add(Path.Combine(outputDirectory, "%(title)s.%(ext)s"));
         }
 
-        // Konversi Audio ke MP3 Kualitas Menengah (Hemat Resource)
-        startInfo.ArgumentList.Add("--prefer-ffmpeg");
+        // Extraksi Audio ke MP3
+        // (Opsi --prefer-ffmpeg & --geo-bypass sudah dibuang)
         startInfo.ArgumentList.Add("--add-metadata");
         startInfo.ArgumentList.Add("-x");
         startInfo.ArgumentList.Add("--audio-format");
         startInfo.ArgumentList.Add("mp3");
         startInfo.ArgumentList.Add("--audio-quality");
         startInfo.ArgumentList.Add("5");
-        
+
         startInfo.ArgumentList.Add(cleanUrl);
 
         using var process = new Process { StartInfo = startInfo };
@@ -176,6 +167,9 @@ public class YtDlpStreamService
             yield break;
         }
 
+        // =========================================================================
+        // PROSES 5: READING OUTPUT STREAM
+        // =========================================================================
         try
         {
             while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
@@ -185,7 +179,7 @@ public class YtDlpStreamService
                     yield return "[CANCELLED] Pemrosesan terminal dihentikan oleh pengguna.";
                     yield break;
                 }
-                
+
                 if (!string.IsNullOrWhiteSpace(line))
                 {
                     yield return line;
@@ -214,7 +208,7 @@ public class YtDlpStreamService
     }
 
     /// <summary>
-    /// Helper method untuk menjalankan update yt-dlp (-U) sebelum eksekusi utama.
+    /// Helper method untuk menjalankan update yt-dlp (-U) di awal proses.
     /// </summary>
     private async Task<string> CheckAndUpdateYtDlpAsync(CancellationToken cancellationToken)
     {
@@ -237,7 +231,7 @@ public class YtDlpStreamService
             await updateProcess.WaitForExitAsync(cancellationToken);
 
             string cleanMessage = output.Replace("\r", "").Replace("\n", " ").Trim();
-            
+
             if (string.IsNullOrWhiteSpace(cleanMessage))
             {
                 cleanMessage = "Proses update selesai (tidak ada output).";
