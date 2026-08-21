@@ -29,7 +29,7 @@ namespace Hypen.Web.Components
 
         protected void NavigateToSync()
         {
-            Navigation.NavigateTo("/library/sync");
+            Navigation.NavigateTo("/extraction");
         }
     }
 }
