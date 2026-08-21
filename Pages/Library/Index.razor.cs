@@ -45,7 +45,7 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
-    // 2. Sorting Logic
+    // 2. Sorting Logic (Diperbaiki)
     protected IEnumerable<SongModel> SortedSongs
     {
         get
@@ -54,13 +54,15 @@ public partial class Index : ComponentBase
 
             return sortBy switch
             {
-                "title_asc"  => query.OrderBy(s => s.Title),
-                "title_desc" => query.OrderByDescending(s => s.Title),
+                "title_asc"   => query.OrderBy(s => s.Title),
+                "title_desc"  => query.OrderByDescending(s => s.Title),
                 "artist_asc"  => query.OrderBy(s => s.Artist),
                 "artist_desc" => query.OrderByDescending(s => s.Artist),
-                "date_asc"   => query.OrderBy(s => s.CreatedAt), // Sesuaikan dengan properti tanggal di SongModel
-                "date_desc"  => query.OrderByDescending(s => s.CreatedAt),
-                _            => query.OrderBy(s => s.Title)
+                // date_asc = Terlama (Yang pertama dicatat / ID terkecil tampil paling atas)
+                "date_asc"    => query.OrderBy(s => s.Id), 
+                // date_desc = Terbaru (Yang baru dicatat / ID terbesar tampil paling atas)
+                "date_desc"   => query.OrderByDescending(s => s.Id), 
+                _             => query.OrderBy(s => s.Title)
             };
         }
     }
@@ -160,36 +162,80 @@ public partial class Index : ComponentBase
         }
     }
 
+    // Perbaikan metode Hapus Tunggal
     protected async Task DeleteSingle(long id)
     {
-        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
-        if (!confirmed) return;
-
-        if (await SongService.DeleteSongAsync(id))
+        try
         {
-            await LoadLibrary();
+            bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
+            if (!confirmed) return;
+
+            isLoading = true;
+            UpdateStatus("Menghapus lagu...");
+
+            bool success = await SongService.DeleteSongAsync(id);
+            if (success)
+            {
+                UpdateStatus("Lagu berhasil dihapus.");
+                await LoadLibrary();
+            }
+            else
+            {
+                UpdateStatus("Gagal menghapus lagu. Respon API menunjukkan kegagalan.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Terjadi kesalahan saat menghapus: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
+    // Perbaikan metode Hapus Terpilih
     protected async Task DeleteSelected()
     {
-        long[] selectedIds = SortedSongs
-            .Where(song => song.IsSelected)
-            .Select(song => song.Id)
-            .ToArray();
-
-        if (selectedIds.Length == 0)
+        try
         {
-            UpdateStatus("Tidak ada lagu yang dipilih untuk dihapus.", true);
-            return;
+            long[] selectedIds = songs
+                .Where(song => song.IsSelected)
+                .Select(song => song.Id)
+                .ToArray();
+
+            if (selectedIds.Length == 0)
+            {
+                UpdateStatus("Tidak ada lagu yang dipilih untuk dihapus.", true);
+                return;
+            }
+
+            bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu terpilih?");
+            if (!confirmed) return;
+
+            isLoading = true;
+            UpdateStatus($"Menghapus {selectedIds.Length} lagu...");
+
+            bool success = await SongService.DeleteBatchSongsAsync(selectedIds);
+            if (success)
+            {
+                UpdateStatus($"{selectedIds.Length} lagu berhasil dihapus.");
+                await LoadLibrary();
+            }
+            else
+            {
+                UpdateStatus("Gagal menghapus beberapa atau semua lagu terpilih.", true);
+            }
         }
-
-        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {selectedIds.Length} lagu terpilih?");
-        if (!confirmed) return;
-
-        if (await SongService.DeleteBatchSongsAsync(selectedIds))
+        catch (Exception ex)
         {
-            await LoadLibrary();
+            UpdateStatus($"Terjadi kesalahan saat menghapus batch: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
