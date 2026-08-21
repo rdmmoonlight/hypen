@@ -43,20 +43,20 @@
         <div class="action-group">
             <button class="btn-delete" 
                     @onclick="DeleteSelected" 
-                    disabled="@(isLoading || !SortedSongs.Any(s => s.IsSelected))">
+                    disabled="@(isLoading || !songs.Any(s => s.IsSelected))">
                 ✕ HAPUS TERPILIH
             </button>
         </div>
 
         <div class="search-group">
-            <!-- DROPDOWN SORTING (ABJAD & TANGGAL) -->
+            <!-- DROPDOWN SORTING -->
             <select value="@sortBy" @onchange="OnSortChanged" class="sort-select" disabled="@isLoading">
                 <option value="title_asc">Judul (A ➔ Z)</option>
                 <option value="title_desc">Judul (Z ➔ A)</option>
                 <option value="artist_asc">Artis (A ➔ Z)</option>
                 <option value="artist_desc">Artis (Z ➔ A)</option>
-                <option value="date_desc">Tanggal (Terbaru)</option>
-                <option value="date_asc">Tanggal (Terlama)</option>
+                <option value="date_asc">Terlama (Catatan Pertama)</option>
+                <option value="date_desc">Terbaru (Catatan Terakhir)</option>
             </select>
 
             <input type="text"
