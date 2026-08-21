@@ -53,8 +53,8 @@ public partial class Index
 
                 var modelToMatch = new LocalMp3ExtractModel
                 {
-                    CleanArtist = raw.Artist,
-                    CleanTitle = raw.Title,
+                    CleanArtist = raw.Artist ?? string.Empty,
+                    CleanTitle = raw.Title ?? string.Empty,
                     DurationSeconds = raw.DurationSeconds
                 };
 
@@ -98,8 +98,8 @@ public partial class Index
 
                 var validatedModel = new LocalMp3ExtractModel
                 {
-                    CleanArtist = item.Artist,
-                    CleanTitle = item.Title,
+                    CleanArtist = item.Artist ?? string.Empty,
+                    CleanTitle = item.Title ?? string.Empty,
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
@@ -165,8 +165,8 @@ public partial class Index
 
             var modelToMatch = new LocalMp3ExtractModel
             {
-                CleanArtist = raw.Artist,
-                CleanTitle = raw.Title,
+                CleanArtist = raw.Artist ?? string.Empty,
+                CleanTitle = raw.Title ?? string.Empty,
                 DurationSeconds = raw.DurationSeconds
             };
 
@@ -217,8 +217,8 @@ public partial class Index
 
                 var modelToMatch = new LocalMp3ExtractModel
                 {
-                    CleanArtist = raw.Artist,
-                    CleanTitle = raw.Title,
+                    CleanArtist = raw.Artist ?? string.Empty,
+                    CleanTitle = raw.Title ?? string.Empty,
                     DurationSeconds = raw.DurationSeconds
                 };
 
@@ -254,8 +254,8 @@ public partial class Index
 
             var validatedModel = new LocalMp3ExtractModel
             {
-                CleanArtist = raw.Artist,
-                CleanTitle = raw.Title,
+                CleanArtist = raw.Artist ?? string.Empty,
+                CleanTitle = raw.Title ?? string.Empty,
                 Album = raw.Album,
                 ReleaseYear = raw.ReleaseYear,
                 AlbumCoverUrl = raw.AlbumCoverUrl,
@@ -299,8 +299,8 @@ public partial class Index
 
                 var validatedModel = new LocalMp3ExtractModel
                 {
-                    CleanArtist = item.Artist,
-                    CleanTitle = item.Title,
+                    CleanArtist = item.Artist ?? string.Empty,
+                    CleanTitle = item.Title ?? string.Empty,
                     Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
                     AlbumCoverUrl = item.AlbumCoverUrl,
