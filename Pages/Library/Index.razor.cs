@@ -68,7 +68,8 @@ public partial class Index : ComponentBase
     // LOGIK UTAMA
     // ==========================================
 
-    protected bool IsLockedFromDeletion(SongModel song) =>
+    // Method ini tetap disimpang jika masih dibutuhkan UI untuk memblokir aksi Edit
+    protected bool IsLockedFromEdit(SongModel song) =>
         !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
         !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
 
@@ -107,12 +108,14 @@ public partial class Index : ComponentBase
         {
             song.IsSelected = isSelectAllChecked;
         }
+        UpdateStatus("");
     }
 
     protected void OnSongSelectChanged(SongModel song, ChangeEventArgs e)
     {
         song.IsSelected = e.Value is bool val && val;
         UpdateSelectAllStatus();
+        UpdateStatus("");
     }
 
     private void UpdateSelectAllStatus()
@@ -130,13 +133,6 @@ public partial class Index : ComponentBase
 
     protected async Task DeleteSingle(long id)
     {
-        var target = songs.FirstOrDefault(s => s.Id == id);
-        if (target != null && IsLockedFromDeletion(target))
-        {
-            UpdateStatus("Lagu terkunci (memiliki YouTube Video ID) tidak dapat dihapus dari Master Library.", true);
-            return;
-        }
-
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Yakin ingin menghapus lagu ini dari vault?");
         if (!confirmed) return;
 
@@ -149,13 +145,13 @@ public partial class Index : ComponentBase
     protected async Task DeleteSelected()
     {
         long[] selectedIds = FilteredSongs
-            .Where(song => song.IsSelected && !IsLockedFromDeletion(song))
+            .Where(song => song.IsSelected)
             .Select(song => song.Id)
             .ToArray();
 
         if (selectedIds.Length == 0)
         {
-            UpdateStatus("Tidak ada lagu tidak terkunci yang dipilih untuk dihapus.", true);
+            UpdateStatus("Tidak ada lagu yang dipilih untuk dihapus.", true);
             return;
         }
 
