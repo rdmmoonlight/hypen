@@ -32,7 +32,8 @@ public partial class Index : ComponentBase
     protected int currentPage = 1;
     protected int pageSize = 50;
 
-    protected int TotalPages => (int)Math.Ceiling((double)SortedSongs.Count() / pageSize);
+    // Evaluasi 1x per panggilan pagination untuk efisiensi
+    protected int TotalPages => (int)Math.Ceiling((double)SortedSongsList.Count / pageSize);
 
     // 1. Filtering
     protected IEnumerable<SongsModel> FilteredSongs =>
@@ -43,33 +44,34 @@ public partial class Index : ComponentBase
                 song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
                 (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
 
-    // 2. Sorting Logic (Tergantung Pilihan)
-    protected IEnumerable<SongsModel> SortedSongs
+    // 2. Sorting Logic
+    protected List<SongsModel> SortedSongsList
     {
         get
         {
             var query = FilteredSongs;
 
-            return sortBy switch
+            var sorted = sortBy switch
             {
                 "title_asc"   => query.OrderBy(s => s.Title),
                 "title_desc"  => query.OrderByDescending(s => s.Title),
                 "artist_asc"  => query.OrderBy(s => s.Artist),
                 "artist_desc" => query.OrderByDescending(s => s.Artist),
-                // date_asc = Paling Tua / Pertama Di-input tampil di Urutan No. 1
                 "date_asc"    => query.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id), 
-                // date_desc = Paling Baru / Terakhir Di-input
                 "date_desc"   => query.OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id), 
                 _             => query.OrderBy(s => s.Title)
             };
+
+            return sorted.ToList();
         }
     }
 
     // 3. Paging
-    protected IEnumerable<SongsModel> PagedSongs =>
-        SortedSongs
+    protected List<SongsModel> PagedSongs =>
+        SortedSongsList
             .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize);
+            .Take(pageSize)
+            .ToList();
 
     protected void OnSortChanged(ChangeEventArgs e)
     {
@@ -113,6 +115,8 @@ public partial class Index : ComponentBase
             songs = await SongsService.GetSongsAsync();
             currentPage = 1;
             isSelectAllChecked = false;
+            
+            // Clear status message jika sukses
             UpdateStatus("");
         }
         catch (Exception ex)
@@ -145,7 +149,7 @@ public partial class Index : ComponentBase
 
     private void UpdateSelectAllStatus()
     {
-        var currentPagedList = PagedSongs.ToList();
+        var currentPagedList = PagedSongs;
         if (currentPagedList.Count > 0)
         {
             isSelectAllChecked = currentPagedList.All(s => s.IsSelected);
