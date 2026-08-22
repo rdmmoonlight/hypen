@@ -11,10 +11,10 @@
         </div>
         <div class="nav-actions">
             <a href="/staging" class="btn-nav btn-staging">
-                STAGING BUFFER (@pendingRawCount:N0) →
+                STAGING BUFFER (@pendingRawCount) →
             </a>
             <a href="/library" class="btn-nav btn-library">
-                ← LIBRARY (@completedSongsCount:N0)
+                ← LIBRARY (@completedSongsCount)
             </a>
         </div>
     </div>
@@ -36,7 +36,7 @@
 
             <div class="form-group">
                 <label class="form-label">Playlist / Video ID</label>
-                <input type="text" @bind="targetPlaylistId" placeholder="LL atau Playlist ID..." class="form-control" />
+                <input type="text" @bind="targetPlaylistId" placeholder="URL atau Playlist ID..." class="form-control" />
             </div>
 
             <button class="btn-action" @onclick="FetchYouTubeToPreview" disabled="@isProcessing">
