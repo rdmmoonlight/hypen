@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
 
@@ -12,13 +13,16 @@ public class GoogleDriveScannerEngine
 {
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
     public GoogleDriveScannerEngine(
         IDbContextFactory<AppDbContext> dbContextFactory,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _dbContextFactory = dbContextFactory;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -26,7 +30,7 @@ public class GoogleDriveScannerEngine
     /// </summary>
     public async Task<int> FetchAndMapDriveFolderAsync(string? folderInput = null, CancellationToken cancellationToken = default)
     {
-        // 1. Ambil Access Token yang Valid & Masih Fresh (Auto Refresh jika expired)
+        // 1. Ambil Access Token yang Valid & Fresh
         string accessToken = await GetFreshAccessTokenAsync(cancellationToken);
 
         var client = _httpClientFactory.CreateClient();
@@ -110,7 +114,7 @@ public class GoogleDriveScannerEngine
     }
 
     /// <summary>
-    /// Memeriksa status Access Token di DB dan memperbaruinya via Refresh Token jika sudah expired.
+    /// Memeriksa status Access Token di DB dan memperbaruinya via Refresh Token jika diperlukan.
     /// </summary>
     private async Task<string> GetFreshAccessTokenAsync(CancellationToken cancellationToken)
     {
@@ -125,22 +129,21 @@ public class GoogleDriveScannerEngine
             throw new InvalidOperationException("Tidak ditemukan rekaman token di tabel GoogleDriveOAuthTokens. Silakan lakukan login Google Drive terlebih dahulu.");
         }
 
-        // Jika RefreshToken ada dan Token sudah expired (atau diduga expired), minta Access Token baru dari Google
-        if (!string.IsNullOrWhiteSpace(tokenRecord.RefreshToken) && 
-            (tokenRecord.ExpiresAt == null || tokenRecord.ExpiresAt <= DateTime.UtcNow.AddMinutes(2)))
-        {
-            if (!string.IsNullOrWhiteSpace(tokenRecord.ClientId) && !string.IsNullOrWhiteSpace(tokenRecord.ClientSecret))
-            {
-                var refreshedToken = await RefreshGoogleAccessTokenAsync(tokenRecord.ClientId, tokenRecord.ClientSecret, tokenRecord.RefreshToken, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(refreshedToken))
-                {
-                    tokenRecord.AccessToken = refreshedToken;
-                    tokenRecord.ExpiresAt = DateTime.UtcNow.AddHours(1);
-                    tokenRecord.UpdatedAt = DateTime.UtcNow;
+        // Ambil Client ID & Secret dari IConfiguration
+        string clientId = _configuration["Authentication:Google:ClientId"] ?? _configuration["GoogleDrive:ClientId"] ?? "";
+        string clientSecret = _configuration["Authentication:Google:ClientSecret"] ?? _configuration["GoogleDrive:ClientSecret"] ?? "";
 
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    return refreshedToken;
-                }
+        // Jika RefreshToken ada, coba perbarui Access Token
+        if (!string.IsNullOrWhiteSpace(tokenRecord.RefreshToken) && !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret))
+        {
+            var refreshedToken = await RefreshGoogleAccessTokenAsync(clientId, clientSecret, tokenRecord.RefreshToken, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(refreshedToken))
+            {
+                tokenRecord.AccessToken = refreshedToken;
+                tokenRecord.UpdatedAt = DateTime.UtcNow;
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return refreshedToken;
             }
         }
 
