@@ -26,21 +26,11 @@ public class GoogleDriveScannerEngine
     /// </summary>
     public async Task<int> FetchAndMapDriveFolderAsync(string? folderInput = null, CancellationToken cancellationToken = default)
     {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        // 1. Ambil Token dari tabel GoogleDriveOAuthTokens
-        var tokenRecord = await dbContext.GoogleDriveOAuthTokens
-            .Where(t => t.AccessToken != null && t.AccessToken != "")
-            .OrderByDescending(t => t.UpdatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (tokenRecord == null)
-        {
-            throw new InvalidOperationException("Tidak ditemukan token aktif di tabel GoogleDriveOAuthTokens. Silakan hubungkan akun Google Drive Anda.");
-        }
+        // 1. Ambil Access Token yang Valid & Masih Fresh (Auto Refresh jika expired)
+        string accessToken = await GetFreshAccessTokenAsync(cancellationToken);
 
         var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenRecord.AccessToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         // Extract Clean Folder ID jika input berupa URL
         string? cleanFolderId = ExtractFolderId(folderInput);
@@ -55,6 +45,7 @@ public class GoogleDriveScannerEngine
                 $"Pastikan akun Google yang Anda hubungkan adalah pemilik/memiliki akses ke folder tersebut.");
         }
 
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
         int addedCount = 0;
 
         foreach (var file in driveFiles)
@@ -118,24 +109,98 @@ public class GoogleDriveScannerEngine
         return addedCount;
     }
 
+    /// <summary>
+    /// Memeriksa status Access Token di DB dan memperbaruinya via Refresh Token jika sudah expired.
+    /// </summary>
+    private async Task<string> GetFreshAccessTokenAsync(CancellationToken cancellationToken)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var tokenRecord = await dbContext.GoogleDriveOAuthTokens
+            .OrderByDescending(t => t.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tokenRecord == null)
+        {
+            throw new InvalidOperationException("Tidak ditemukan rekaman token di tabel GoogleDriveOAuthTokens. Silakan lakukan login Google Drive terlebih dahulu.");
+        }
+
+        // Jika RefreshToken ada dan Token sudah expired (atau diduga expired), minta Access Token baru dari Google
+        if (!string.IsNullOrWhiteSpace(tokenRecord.RefreshToken) && 
+            (tokenRecord.ExpiresAt == null || tokenRecord.ExpiresAt <= DateTime.UtcNow.AddMinutes(2)))
+        {
+            if (!string.IsNullOrWhiteSpace(tokenRecord.ClientId) && !string.IsNullOrWhiteSpace(tokenRecord.ClientSecret))
+            {
+                var refreshedToken = await RefreshGoogleAccessTokenAsync(tokenRecord.ClientId, tokenRecord.ClientSecret, tokenRecord.RefreshToken, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(refreshedToken))
+                {
+                    tokenRecord.AccessToken = refreshedToken;
+                    tokenRecord.ExpiresAt = DateTime.UtcNow.AddHours(1);
+                    tokenRecord.UpdatedAt = DateTime.UtcNow;
+
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    return refreshedToken;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(tokenRecord.AccessToken))
+        {
+            throw new InvalidOperationException("AccessToken Google Drive kosong atau tidak valid. Silakan hubungkan ulang akun Google Drive Anda.");
+        }
+
+        return tokenRecord.AccessToken;
+    }
+
+    private async Task<string?> RefreshGoogleAccessTokenAsync(string clientId, string clientSecret, string refreshToken, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var dict = new Dictionary<string, string>
+            {
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
+                { "refresh_token", refreshToken },
+                { "grant_type", "refresh_token" }
+            };
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://oauth2.googleapis.com/token")
+            {
+                Content = new FormUrlEncodedContent(dict)
+            };
+
+            using var res = await client.SendAsync(req, cancellationToken);
+            if (res.IsSuccessStatusCode)
+            {
+                string json = await res.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("access_token", out var tokenProp))
+                {
+                    return tokenProp.GetString();
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
     private async Task<List<DriveFileItemDto>> FetchFilesFromApiAsync(HttpClient client, string? folderId, CancellationToken cancellationToken)
     {
         var resultList = new List<DriveFileItemDto>();
 
-        // Strategi A: Jika Folder ID Spesifik Diisi
         if (!string.IsNullOrWhiteSpace(folderId))
         {
-            // Kueri 1: Cari langsung di parent folder
             string q1 = $"'{folderId}' in parents and trashed = false";
             resultList = await ExecuteDriveQueryAsync(client, q1, cancellationToken);
 
-            // Kueri 2 (Fallback): Jika Kueri 1 bernilai 0, coba cari dengan sub-folder rekursif
             if (resultList.Count == 0)
             {
                 var subFolderIds = await GetSubFolderIdsAsync(client, folderId, cancellationToken);
                 subFolderIds.Add(folderId);
 
-                var chunks = ChunkList(subFolderIds, 10); // Pecah per 10 folder untuk batas panjang query URL
+                var chunks = ChunkList(subFolderIds, 10);
                 foreach (var chunk in chunks)
                 {
                     string parentClause = string.Join(" or ", chunk.Select(id => $"'{id}' in parents"));
@@ -147,7 +212,6 @@ public class GoogleDriveScannerEngine
         }
         else
         {
-            // Strategi B: Tanpa Folder ID (Scan Global)
             string qGlobal = "trashed = false";
             resultList = await ExecuteDriveQueryAsync(client, qGlobal, cancellationToken);
         }
@@ -160,7 +224,6 @@ public class GoogleDriveScannerEngine
         string requestUrl = $"https://www.googleapis.com/drive/v3/files" +
             $"?q={Uri.EscapeDataString(query)}" +
             $"&fields=files(id,name,mimeType,size,webViewLink,webContentLink)" +
-            $"&corpora=allDrives" +
             $"&supportsAllDrives=true" +
             $"&includeItemsFromAllDrives=true" +
             $"&pageSize=1000";
@@ -170,7 +233,6 @@ public class GoogleDriveScannerEngine
 
         if (!response.IsSuccessStatusCode)
         {
-            // Fallback jika corpora=allDrives ditolak oleh tipe akun Google tertentu
             if (body.Contains("corpora") || body.Contains("invalidEnumValue"))
             {
                 string fallbackUrl = $"https://www.googleapis.com/drive/v3/files" +
