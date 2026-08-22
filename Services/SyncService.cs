@@ -46,22 +46,20 @@ public class SyncService
         => _smartMatchService.SmartMatchFromInternetAsync(item);
 
     // Operational DB: Raw Ingestion (Staging)
-    // Menampung semua data yang dipilih tanpa penolakan/rejection.
-    public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items)
-        => await SaveSelectedToRawAsync(items);
+    // Menampung SEMUA data tanpa batasan jumlah list (Unlimited Mode).
+    public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
+        => await SaveSelectedToRawAsync(items, delayMilliseconds);
 
-    private async Task<int> SaveSelectedToRawAsync(List<LocalMp3ExtractModel> items)
+    private async Task<int> SaveSelectedToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
     {
         var selectedItems = items.Where(i => i.IsSelected).ToList();
         if (selectedItems.Count == 0) return 0;
 
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        int insertedCount = 0;
-        int batchSize = 500;
 
         foreach (var item in selectedItems)
         {
-            // Buat Identifier Staging Unik untuk menghindari bentrokan YoutubeVideoId di tabel Raw
+            // Buat Identifier Staging Unik agar tidak bentrok
             string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
 
             var rawEntity = new RawSongsModel
@@ -79,29 +77,23 @@ public class SyncService
             };
 
             await context.SongsRaw.AddAsync(rawEntity);
-            insertedCount++;
 
-            if (insertedCount % batchSize == 0)
+            // Jika butuh jeda waktu antar elemen (throttling)
+            if (delayMilliseconds > 0)
             {
-                await context.SaveChangesAsync();
+                await Task.Delay(delayMilliseconds);
             }
         }
 
-        if (insertedCount % batchSize != 0)
-        {
-            await context.SaveChangesAsync();
-        }
-
-        return insertedCount;
+        // Simpan seluruh item sekaligus tanpa pembatasan batch size
+        return await context.SaveChangesAsync();
     }
 
     // Operational DB: Promotion ke Complete
-    // Validasi duplikasi ketat dilakukan DI SINI sebelum masuk ke perpustakaan utama.
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        // 1. Ambil data raw dari DB Staging
         var rawItem = await context.SongsRaw.FindAsync(rawId);
         if (rawItem == null) return false;
 
@@ -109,7 +101,7 @@ public class SyncService
         string audioUrl = rawItem.AudioUrl ?? "";
 
         // =========================================================================
-        // 2. DETEKSI DUPLIKASI (Pencegahan Masuk ke SongsComplete)
+        // DETEKSI DUPLIKASI (Pencegahan Masuk ke SongsComplete)
         // =========================================================================
         var candidateForCheck = new SongsModel
         {
@@ -123,12 +115,11 @@ public class SyncService
         var duplicateMatch = await _deduplicationEngine.FindDuplicateAsync(candidateForCheck);
         if (duplicateMatch != null)
         {
-            // Lagu tertahan di Staging dan memicu exception agar UI menangkap informasi duplikat
             throw new DuplicateSongException(duplicateMatch);
         }
 
         // =========================================================================
-        // 3. PROSES PROMOSI KE COMPLETE
+        // PROSES PROMOSI KE COMPLETE
         // =========================================================================
         await using var transaction = await context.Database.BeginTransactionAsync();
 
