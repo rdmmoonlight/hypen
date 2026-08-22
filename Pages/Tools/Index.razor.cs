@@ -19,7 +19,6 @@ public partial class Index : ComponentBase
     protected string statusMsg = string.Empty;
     protected bool isError;
 
-    // Menghitung total lagu yang AKAN DIHAPUS (Sama seperti Library)
     protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
 
     protected async Task ScanDuplicates()
@@ -33,7 +32,6 @@ public partial class Index : ComponentBase
 
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             
-            // Inisialisasi Master Default (Pilih ID lagu pertama dalam grup jika belum ada yang diset)
             foreach (var group in duplicateGroups)
             {
                 if (group.KeepSongId == 0 && group.Items.Count > 0)
@@ -59,19 +57,14 @@ public partial class Index : ComponentBase
         }
     }
 
-    /// <summary>
-    /// Handler pemilihan lagu master (dipanggil dari radio button @onchange di View)
-    /// </summary>
     protected void OnMasterSelected(DuplicateGroupModel group, long songId)
     {
         group.KeepSongId = songId;
         StateHasChanged();
     }
 
-    // Alias pendukung jika ada pemanggilan SelectMaster dari komponen lain
     protected void SelectMaster(DuplicateGroupModel group, long songId) => OnMasterSelected(group, songId);
 
-    // Eksekusi Hapus Batch ke Database (Pola Batch Delete Library)
     protected async Task PurgeSelected()
     {
         if (TotalToDeleteCount == 0) return;
@@ -90,7 +83,6 @@ public partial class Index : ComponentBase
 
             statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Database!";
             
-            // Auto re-scan setelah berhasil menghapus
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             
             foreach (var group in duplicateGroups)
