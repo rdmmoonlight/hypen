@@ -160,46 +160,50 @@ public class YouTubeSyncService : IYouTubeSyncService
         if (fetched.Count == 0) return 0;
 
         // =========================================================================
-        // 2. SIMPAN KE DATABASE (BATCH INSERT & EFFICEINT DEDUPLICATION)
+        // 2. SIMPAN KE DATABASE (TAMPUNG SEMUA TANPA BATCHING & TANPA REJECTION)
         // =========================================================================
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         
-        var fetchedVideoIds = fetched.Select(f => f.VideoId).Distinct().ToList();
-        
-        // Ambil ID video yang sudah ada di database untuk mencegah error duplikasi
-        var existingVideoIds = await context.Songs
-            .Where(r => r.YoutubeVideoId != null && fetchedVideoIds.Contains(r.YoutubeVideoId))
-            .Select(r => r.YoutubeVideoId!)
+        // Ambil data Title & Artist yang sudah ada di database untuk deteksi bentrokan Unique Constraint
+        var existingFingerprints = await context.Songs
+            .Select(s => (s.Title ?? "").Trim().ToLower() + "|" + (s.Artist ?? "").Trim().ToLower())
             .ToHashSetAsync();
 
         int insertedCount = 0;
-        int batchSize = 500; // Commit per 500 baris agar memori hemat
 
         foreach (var song in fetched)
         {
-            if (existingVideoIds.Contains(song.VideoId)) continue;
+            string currentTitle = song.Title ?? "Untitled";
+            string currentArtist = song.ChannelTitle ?? "Unknown Artist";
+            string fingerprint = $"{currentTitle.Trim().ToLower()}|{currentArtist.Trim().ToLower()}";
+
+            // Solusi 2: Jika terdeteksi duplikat Title+Artist, modifikasi Title agar tidak bentrok dengan Unique Index DB
+            if (existingFingerprints.Contains(fingerprint))
+            {
+                string uniqueTag = Guid.NewGuid().ToString("N")[..4].ToUpper();
+                currentTitle = $"{currentTitle} [{uniqueTag}]";
+                
+                // Perbarui fingerprint baru agar duplikat beruntun dalam loop ini tetap unik
+                fingerprint = $"{currentTitle.Trim().ToLower()}|{currentArtist.Trim().ToLower()}";
+            }
 
             var rawEntity = new SongsModel
             {
                 YoutubeVideoId = song.VideoId,
-                Title = song.Title,
-                Artist = song.ChannelTitle,
+                Title = currentTitle,
+                Artist = currentArtist,
                 Status = "PENDING"
             };
 
             await context.Songs.AddAsync(rawEntity);
-            existingVideoIds.Add(song.VideoId);
+            
+            // Masukkan fingerprint baru ke HashSet lokal
+            existingFingerprints.Add(fingerprint);
             insertedCount++;
-
-            // Simpan bertahap setiap 500 baris baru
-            if (insertedCount % batchSize == 0)
-            {
-                await context.SaveChangesAsync();
-            }
         }
 
-        // Simpan sisa data
-        if (insertedCount % batchSize != 0)
+        // Simpan semua baris sekaligus dalam satu transaksi tunggal (Unlimited mode)
+        if (insertedCount > 0)
         {
             await context.SaveChangesAsync();
         }
