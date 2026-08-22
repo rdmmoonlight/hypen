@@ -20,6 +20,9 @@ public class AppDbContext : DbContext
     public DbSet<GoogleDriveOAuthTokenModel> GoogleDriveOAuthTokens { get; set; } = default!;
     public DbSet<GDriveTrackModel> GDriveTracks { get; set; } = default!;
 
+    // TABEL BARU: Local Sync Tracks
+    public DbSet<LocalTrackModel> LocalTracks { get; set; } = default!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -96,7 +99,7 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // MAPPING TABEL BARU: gdrive_tracks
+        // MAPPING TABEL: gdrive_tracks
         // =========================================================================
         modelBuilder.Entity<GDriveTrackModel>(entity =>
         {
@@ -118,7 +121,35 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
 
-            // Relasi opsional ke tabel songs master
+            entity.HasOne(e => e.Song)
+                .WithMany()
+                .HasForeignKey(e => e.SongId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // =========================================================================
+        // MAPPING TABEL BARU: local_tracks (Local Sync Engine)
+        // =========================================================================
+        modelBuilder.Entity<LocalTrackModel>(entity =>
+        {
+            entity.ToTable("local_tracks");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.FilePath).HasColumnName("file_path").IsRequired();
+            entity.Property(e => e.FileName).HasColumnName("file_name").IsRequired();
+            entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes").HasDefaultValue(0);
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Artist).HasColumnName("artist");
+            entity.Property(e => e.Album).HasColumnName("album");
+            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds").HasDefaultValue(0);
+            entity.Property(e => e.IsSyncedToDb).HasColumnName("is_synced_to_db").HasDefaultValue(false);
+            entity.Property(e => e.SongId).HasColumnName("song_id");
+            entity.Property(e => e.LastScannedAt).HasColumnName("last_scanned_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+
+            // Relasi opsional ke master tabel songs
             entity.HasOne(e => e.Song)
                 .WithMany()
                 .HasForeignKey(e => e.SongId)
