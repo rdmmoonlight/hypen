@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
@@ -20,67 +21,71 @@ public class GoogleDriveScannerEngine
     }
 
     /// <summary>
-    /// Membaca seluruh file audio MP3 dari Google Drive milik user yang sudah login OAuth
+    /// Membaca seluruh file audio MP3 dari Google Drive milik user via Token dari tabel GoogleDriveOAuthTokens.
     /// </summary>
     public async Task<int> FetchAndMapDriveFolderAsync(string? folderId = null, CancellationToken cancellationToken = default)
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        // 1. Ambil Token Google OAuth terbaru dari Database
-        var tokenRecord = await dbContext.YouTubeOAuthTokens
+        // 1. Ambil data Token langsung dari tabel GoogleDriveOAuthTokens
+        var tokenRecord = await dbContext.GoogleDriveOAuthTokens
+            .Where(t => t.AccessToken != null && t.AccessToken != "")
             .OrderByDescending(t => t.UpdatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (tokenRecord == null || string.IsNullOrWhiteSpace(tokenRecord.AccessToken))
+        if (tokenRecord == null)
         {
-            throw new InvalidOperationException("User belum terautentikasi dengan Akun Google / Drive OAuth!");
+            int totalRows = await dbContext.GoogleDriveOAuthTokens.CountAsync(cancellationToken);
+            throw new InvalidOperationException($"Tabel GoogleDriveOAuthTokens berisi {totalRows} baris, tetapi tidak ditemukan record dengan AccessToken aktif. Silakan hubungkan akun Google Drive Anda terlebih dahulu.");
         }
 
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenRecord.AccessToken);
 
-        // 2. Buat Query Drive API v3 (Jika folderId diisi, scan spesifik folder. Jika kosong, scan seluruh MP3 di Drive user)
-        string queryParam = "mimeType='audio/mpeg' and trashed=false";
+        // 2. Query Fleksibel untuk membaca file audio MP3
+        string queryParam = "(mimeType='audio/mpeg' or mimeType='audio/mp3' or mimeType='audio/x-mp3' or name contains '.mp3') and trashed=false";
         if (!string.IsNullOrWhiteSpace(folderId))
         {
             queryParam = $"'{folderId}' in parents and {queryParam}";
         }
 
-        string requestUrl = $"https://www.googleapis.com/drive/v3/files?q={Uri.EscapeDataString(queryParam)}&fields=files(id,name,mimeType,size,webViewLink,webContentLink)&pageSize=1000";
+        string requestUrl = $"https://www.googleapis.com/drive/v3/files" +
+            $"?q={Uri.EscapeDataString(queryParam)}" +
+            $"&fields=files(id,name,mimeType,size,webViewLink,webContentLink)" +
+            $"&supportsAllDrives=true" +
+            $"&includeItemsFromAllDrives=true" +
+            $"&pageSize=1000";
 
-        var response = await client.GetAsync(requestUrl, cancellationToken);
-        
-        // Jika token kedaluwarsa (401), berikan pesan penanganan khusus
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        {
-            throw new UnauthorizedAccessException("Sesi Login Google telah habis. Silakan refresh token login Google Anda.");
-        }
+        using var response = await client.GetAsync(requestUrl, cancellationToken);
+        string body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            string errContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new Exception($"Gagal membaca Google Drive API ({response.StatusCode}): {errContent}");
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden || response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new InvalidOperationException($"[Drive API {response.StatusCode}] Akses ditolak atau sesi login kedaluwarsa. Silakan lakukan re-login/refresh pada koneksi Google Drive Anda. Detail: {body}");
+            }
+
+            throw new InvalidOperationException($"[Drive API {response.StatusCode}] Gagal membaca Google Drive: {body}");
         }
 
-        var jsonStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var jsonDoc = await JsonDocument.ParseAsync(jsonStream, cancellationToken: cancellationToken);
-
-        if (!jsonDoc.RootElement.TryGetProperty("files", out var filesElement))
+        var parsed = JsonSerializer.Deserialize<DriveFilesResponse>(body, JsonOpts);
+        if (parsed?.Files == null || parsed.Files.Count == 0)
             return 0;
 
         int addedCount = 0;
 
-        foreach (var file in filesElement.EnumerateArray())
+        foreach (var file in parsed.Files)
         {
-            string fileId = file.GetProperty("id").GetString() ?? "";
-            string fileName = file.GetProperty("name").GetString() ?? "Unknown.mp3";
-            long fileSize = file.TryGetProperty("size", out var sProp) && long.TryParse(sProp.GetString(), out long sz) ? sz : 0;
-            string webViewLink = file.TryGetProperty("webViewLink", out var wProp) ? wProp.GetString() ?? "" : "";
-            
-            // Format Direct Stream / Download Link
+            if (string.IsNullOrWhiteSpace(file.Id)) continue;
+
+            string fileId = file.Id;
+            string fileName = file.Name ?? "Unknown.mp3";
+            long fileSize = long.TryParse(file.Size, out long sz) ? sz : 0;
+            string webViewLink = file.WebViewLink ?? "";
             string downloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
 
-            // Cek apakah file sudah ada di database
+            // Upsert Logic pada tabel gdrive_tracks
             var existing = await dbContext.GDriveTracks.FirstOrDefaultAsync(g => g.FileId == fileId, cancellationToken);
 
             if (existing == null)
@@ -91,7 +96,7 @@ public class GoogleDriveScannerEngine
                 {
                     FileId = fileId,
                     FileName = fileName,
-                    MimeType = "audio/mpeg",
+                    MimeType = file.MimeType ?? "audio/mpeg",
                     FileSizeBytes = fileSize,
                     DownloadUrl = downloadUrl,
                     WebViewLink = webViewLink,
@@ -102,7 +107,7 @@ public class GoogleDriveScannerEngine
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                dbContext.GDriveTracks.Add(newTrack);
+                await dbContext.GDriveTracks.AddAsync(newTrack, cancellationToken);
                 addedCount++;
             }
             else
@@ -130,5 +135,34 @@ public class GoogleDriveScannerEngine
             return (parts[0].Trim(), parts[1].Trim());
         }
         return (null, clean.Trim());
+    }
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private class DriveFilesResponse
+    {
+        [JsonPropertyName("files")]
+        public List<DriveFileItemDto>? Files { get; set; }
+    }
+
+    private class DriveFileItemDto
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("mimeType")]
+        public string? MimeType { get; set; }
+
+        [JsonPropertyName("size")]
+        public string? Size { get; set; }
+
+        [JsonPropertyName("webViewLink")]
+        public string? WebViewLink { get; set; }
     }
 }
