@@ -23,14 +23,17 @@ public class YouTubeSyncService : IYouTubeSyncService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<int> SyncPlaylistToRawAsync(string input, int maxResults)
+    /// <summary>
+    /// Menarik metadata playlist dari YouTube API ke memori tanpa langsung menyimpan ke database.
+    /// Digunakan untuk penampungan preview di UI Extraction Engine.
+    /// </summary>
+    public async Task<List<(string VideoId, string Title, string ChannelTitle)>> FetchPlaylistItemsAsync(string input, int maxResults)
     {
         if (string.IsNullOrWhiteSpace(input))
             throw new ArgumentException("Input URL atau ID tidak boleh kosong.", nameof(input));
 
         input = input.Trim();
 
-        // 1. Deteksi Jenis Input (Video Satuan vs Liked Videos vs Playlist)
         string? singleVideoId = ExtractSingleVideoId(input);
         bool isLikedVideos = IsLikedVideosQuery(input);
         string cleanPlaylistId = ExtractPlaylistId(input);
@@ -41,12 +44,10 @@ public class YouTubeSyncService : IYouTubeSyncService
         http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
         var fetched = new List<(string VideoId, string Title, string ChannelTitle)>();
-
-        // Tentukan batas maksimal penarikan. Jika maxResults <= 0 atau int.MaxValue, anggap UNLIMITED.
         int targetMaxResults = (maxResults <= 0) ? int.MaxValue : maxResults;
 
         // =========================================================================
-        // SKENARIO A: SINGLE VIDEO (Link/ID Lagu Satuan, misal music.youtube.com/watch?v=...)
+        // SKENARIO A: SINGLE VIDEO
         // =========================================================================
         if (!string.IsNullOrEmpty(singleVideoId) && !input.Contains("list=", StringComparison.OrdinalIgnoreCase))
         {
@@ -72,7 +73,7 @@ public class YouTubeSyncService : IYouTubeSyncService
             }
         }
         // =========================================================================
-        // SKENARIO B: LIKED VIDEOS (LL / LM / liked) -> UNLIMITED LOOPING
+        // SKENARIO B: LIKED VIDEOS
         // =========================================================================
         else if (isLikedVideos)
         {
@@ -81,7 +82,6 @@ public class YouTubeSyncService : IYouTubeSyncService
 
             do
             {
-                // Minta 50 item per page request API (maksimum dari API YouTube)
                 int pageSize = Math.Min(targetMaxResults - fetched.Count, 50);
                 if (pageSize <= 0) break;
 
@@ -110,7 +110,7 @@ public class YouTubeSyncService : IYouTubeSyncService
             while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
         }
         // =========================================================================
-        // SKENARIO C: PLAYLIST STANDARD (PL...) -> UNLIMITED LOOPING
+        // SKENARIO C: PLAYLIST STANDARD
         // =========================================================================
         else
         {
@@ -139,7 +139,6 @@ public class YouTubeSyncService : IYouTubeSyncService
                     var vId = item.Snippet?.ResourceId?.VideoId;
                     var title = item.Snippet?.Title;
                     
-                    // Filter video privat / terhapus
                     if (string.IsNullOrWhiteSpace(vId) || title == "Private video" || title == "Deleted video") 
                         continue;
 
@@ -157,14 +156,27 @@ public class YouTubeSyncService : IYouTubeSyncService
             while (!string.IsNullOrEmpty(pageToken) && fetched.Count < targetMaxResults);
         }
 
+        return fetched;
+    }
+
+    /// <summary>
+    /// Langsung melakukan sync dan memasukkan data playlist ke Staging Database.
+    /// Memastikan seluruh data masuk tanpa gagal transaksi akibat constraint PostgreSQL.
+    /// </summary>
+    public async Task<int> SyncPlaylistToRawAsync(string input, int maxResults)
+    {
+        var fetched = await FetchPlaylistItemsAsync(input, maxResults);
         if (fetched.Count == 0) return 0;
 
-        // =========================================================================
-        // 2. SIMPAN KE DATABASE (TAMPUNG SEMUA TANPA BATCHING & TANPA REJECTION)
-        // =========================================================================
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        
-        // Ambil data Title & Artist yang sudah ada di database untuk deteksi bentrokan Unique Constraint
+
+        // 1. Ambil YoutubeVideoId yang sudah ada di DB untuk pencegahan bentrok uq_songs_youtube_video_id
+        var existingVideoIds = await context.Songs
+            .Where(s => s.YoutubeVideoId != null)
+            .Select(s => s.YoutubeVideoId!)
+            .ToHashSetAsync();
+
+        // 2. Ambil Title & Artist yang sudah ada di DB untuk pencegahan bentrok idx_unique_title_artist
         var existingFingerprints = await context.Songs
             .Select(s => (s.Title ?? "").Trim().ToLower() + "|" + (s.Artist ?? "").Trim().ToLower())
             .ToHashSetAsync();
@@ -173,36 +185,41 @@ public class YouTubeSyncService : IYouTubeSyncService
 
         foreach (var song in fetched)
         {
+            string currentVideoId = song.VideoId;
             string currentTitle = song.Title ?? "Untitled";
             string currentArtist = song.ChannelTitle ?? "Unknown Artist";
             string fingerprint = $"{currentTitle.Trim().ToLower()}|{currentArtist.Trim().ToLower()}";
 
-            // Solusi 2: Jika terdeteksi duplikat Title+Artist, modifikasi Title agar tidak bentrok dengan Unique Index DB
+            // Tangani bentrok uq_songs_youtube_video_id
+            if (existingVideoIds.Contains(currentVideoId))
+            {
+                string dupSuffix = Guid.NewGuid().ToString("N")[..4].ToUpper();
+                currentVideoId = $"{currentVideoId}-DUP-{dupSuffix}";
+            }
+
+            // Tangani bentrok idx_unique_title_artist
             if (existingFingerprints.Contains(fingerprint))
             {
                 string uniqueTag = Guid.NewGuid().ToString("N")[..4].ToUpper();
                 currentTitle = $"{currentTitle} [{uniqueTag}]";
-                
-                // Perbarui fingerprint baru agar duplikat beruntun dalam loop ini tetap unik
                 fingerprint = $"{currentTitle.Trim().ToLower()}|{currentArtist.Trim().ToLower()}";
             }
 
             var rawEntity = new SongsModel
             {
-                YoutubeVideoId = song.VideoId,
+                YoutubeVideoId = currentVideoId,
                 Title = currentTitle,
                 Artist = currentArtist,
                 Status = "PENDING"
             };
 
             await context.Songs.AddAsync(rawEntity);
-            
-            // Masukkan fingerprint baru ke HashSet lokal
+
+            existingVideoIds.Add(currentVideoId);
             existingFingerprints.Add(fingerprint);
             insertedCount++;
         }
 
-        // Simpan semua baris sekaligus dalam satu transaksi tunggal (Unlimited mode)
         if (insertedCount > 0)
         {
             await context.SaveChangesAsync();
@@ -223,9 +240,6 @@ public class YouTubeSyncService : IYouTubeSyncService
         return await context.Songs.CountAsync(s => s.Status == "COMPLETED" || s.IsComplete);
     }
 
-    /// <summary>
-    /// Ekstrak ID Video jika input berupa URL YouTube Music / YouTube / ID Video 11 karakter
-    /// </summary>
     private static string? ExtractSingleVideoId(string input)
     {
         var matchUrl = Regex.Match(input, @"[?&]v=([^&]+)", RegexOptions.IgnoreCase);
