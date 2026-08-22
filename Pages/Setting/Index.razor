@@ -3,108 +3,154 @@
 
 <PageTitle>Pengaturan Akun - Hypen Vault</PageTitle>
 
-<div class="container-fluid py-4 px-4 text-light" style="max-width: 900px;">
+<div class="matte-settings-container">
     <!-- Header Section -->
-    <div class="border-bottom border-secondary pb-3 mb-4">
-        <h2 class="fw-bold text-white mb-1">Pengaturan Akun</h2>
-        <p class="text-muted small mb-0">Kelola integrasi dan otentikasi akun YouTube Anda untuk ekosistem Hypen Vault.</p>
+    <div class="matte-settings-header">
+        <h2>Pengaturan Akun</h2>
+        <p>Kelola integrasi OAuth YouTube dan Google Drive untuk ekosistem Hypen Vault.</p>
     </div>
 
     @if (IsLoading)
     {
-        <div class="alert alert-info d-flex align-items-center gap-3 bg-dark border-info text-info">
-            <div class="spinner-border spinner-border-sm text-info" role="status"></div>
-            <span>Memeriksa status otentikasi YouTube...</span>
+        <div class="status-alert alert-loading">
+            <div class="d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+                <span>Memeriksa status otentikasi layanan Google...</span>
+            </div>
         </div>
     }
     else
     {
         @if (!string.IsNullOrEmpty(ErrorMessage))
         {
-            <div class="alert alert-danger d-flex justify-content-between align-items-center bg-danger bg-opacity-25 border-danger text-danger">
+            <div class="status-alert alert-error">
                 <span>@ErrorMessage</span>
-                <button type="button" class="btn-close btn-close-white" @onclick="DismissError"></button>
+                <button type="button" class="btn-dismiss" @onclick="DismissError">&times;</button>
             </div>
         }
 
         @if (!string.IsNullOrEmpty(SuccessMessage))
         {
-            <div class="alert alert-success d-flex justify-content-between align-items-center bg-success bg-opacity-25 border-success text-success">
+            <div class="status-alert alert-success">
                 <span>@SuccessMessage</span>
-                <button type="button" class="btn-close btn-close-white" @onclick="DismissSuccess"></button>
+                <button type="button" class="btn-dismiss" @onclick="DismissSuccess">&times;</button>
             </div>
         }
 
-        <!-- Card Status YouTube -->
-        <div class="card bg-dark border-secondary shadow-sm rounded-4 p-4">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="p-3 bg-danger bg-opacity-25 text-danger rounded-3">
-                        <i class="bi bi-youtube fs-3"></i>
+        <div class="integration-grid">
+            <!-- 1. CARD INTEGRASI YOUTUBE -->
+            <div class="matte-card">
+                <div class="matte-card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box icon-youtube">
+                            <i class="bi bi-youtube"></i>
+                        </div>
+                        <div class="card-info">
+                            <h5>YouTube Integration</h5>
+                            <p>Sinkronisasi playlist, metadata, dan musik secara otomatis.</p>
+                        </div>
                     </div>
                     <div>
-                        <h5 class="fw-semibold text-white mb-1">YouTube OAuth Integration</h5>
-                        <p class="text-muted small mb-0">Gunakan token untuk sinkronisasi playlist dan metadata YouTube.</p>
+                        <span class="status-badge @(IsYouTubeConnected ? "badge-connected" : "badge-disconnected")">
+                            @(IsYouTubeConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
+                        </span>
                     </div>
                 </div>
 
-                <div>
-                    @if (IsConnected)
-                    {
-                        <span class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-2 rounded-pill">
-                            Terhubung
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-3 py-2 rounded-pill">
-                            Belum Terhubung
-                        </span>
-                    }
-                </div>
+                <hr class="matte-divider" />
+
+                @if (IsYouTubeConnected)
+                {
+                    <div class="details-list">
+                        <div class="detail-item">
+                            <span class="detail-label">Account / Channel:</span>
+                            <span class="detail-value highlight">@YouTubeAccountIdentifier</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Terakhir Diperbarui:</span>
+                            <span class="detail-value">@(YouTubeLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Status Token Refresh:</span>
+                            <span class="detail-value success">Aktif</span>
+                        </div>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn-matte" @onclick="ReauthenticateYouTube">Hubungkan Ulang</button>
+                        <button class="btn-matte btn-danger" @onclick="DisconnectYouTube">Putuskan Koneksi</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted style-small mb-3" style="font-size: 0.75rem;">
+                        Login untuk memberikan otorisasi akses pustaka musik dan playlist YouTube Anda.
+                    </p>
+                    <div class="card-actions">
+                        <button class="btn-matte btn-danger d-flex align-items-center gap-2" @onclick="InitiateYouTubeLogin">
+                            <i class="bi bi-youtube"></i>
+                            <span>Login dengan YouTube</span>
+                        </button>
+                    </div>
+                }
             </div>
 
-            <hr class="border-secondary my-3" />
-
-            @if (IsConnected)
-            {
-                <div class="vstack gap-2 mb-4 small text-light">
-                    <div class="d-flex justify-content-between py-2 border-bottom border-secondary border-opacity-50">
-                        <span class="text-muted">Account ID / Scope:</span>
-                        <span class="font-monospace text-info">@AccountIdentifier</span>
+            <!-- 2. CARD INTEGRASI GOOGLE DRIVE -->
+            <div class="matte-card">
+                <div class="matte-card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box icon-gdrive">
+                            <i class="bi bi-google-drive"></i>
+                        </div>
+                        <div class="card-info">
+                            <h5>Google Drive Sync</h5>
+                            <p>Sinkronisasi file cadangan, database, dan file audio ke Google Drive.</p>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between py-2 border-bottom border-secondary border-opacity-50">
-                        <span class="text-muted">Terakhir Diperbarui:</span>
-                        <span>@(LastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
+                    <div>
+                        <span class="status-badge @(IsGDriveConnected ? "badge-connected" : "badge-disconnected")">
+                            @(IsGDriveConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
+                        </span>
                     </div>
-                    <div class="d-flex justify-content-between py-2">
-                        <span class="text-muted">Status Token Refresh:</span>
-                        <span class="text-success fw-semibold">Aktif</span>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-light btn-sm px-3" @onclick="Reauthenticate">
-                        Hubungkan Ulang
-                    </button>
-                    <button class="btn btn-danger btn-sm px-3" @onclick="DisconnectAccount">
-                        Putuskan Koneksi
-                    </button>
-                </div>
-            }
-            else
-            {
-                <div class="text-muted small mb-4">
-                    <p class="mb-0">Akun YouTube Anda belum dikonfigurasi. Login untuk mengizinkan aplikasi melakukan sinkronisasi lagu dan playlist secara otomatis.</p>
                 </div>
 
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-danger d-flex align-items-center gap-2 px-4 py-2" @onclick="InitiateLogin">
-                        <i class="bi bi-youtube"></i>
-                        <span>Login dengan YouTube</span>
-                    </button>
-                </div>
-            }
+                <hr class="matte-divider" />
+
+                @if (IsGDriveConnected)
+                {
+                    <div class="details-list">
+                        <div class="detail-item">
+                            <span class="detail-label">Akun Google:</span>
+                            <span class="detail-value highlight">@GDriveAccountIdentifier</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Terakhir Diperbarui:</span>
+                            <span class="detail-value">@(GDriveLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Akses Folder Sync:</span>
+                            <span class="detail-value success">Siap</span>
+                        </div>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn-matte" @onclick="ReauthenticateGDrive">Hubungkan Ulang</button>
+                        <button class="btn-matte btn-danger" @onclick="DisconnectGDrive">Putuskan Koneksi</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted style-small mb-3" style="font-size: 0.75rem;">
+                        Hubungkan akun Google Drive Anda untuk pencadangan file dan sinkronisasi pustaka lokal secara otomatis.
+                    </p>
+                    <div class="card-actions">
+                        <button class="btn-matte btn-primary d-flex align-items-center gap-2" @onclick="InitiateGDriveLogin">
+                            <i class="bi bi-google"></i>
+                            <span>Login Google Drive</span>
+                        </button>
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
