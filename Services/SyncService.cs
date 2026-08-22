@@ -46,6 +46,7 @@ public class SyncService
         => _smartMatchService.SmartMatchFromInternetAsync(item);
 
     // Operational DB: Raw Ingestion (Staging)
+    // Menampung semua data yang dipilih tanpa penolakan/rejection.
     public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items)
         => await SaveSelectedToRawAsync(items);
 
@@ -56,23 +57,22 @@ public class SyncService
 
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         int insertedCount = 0;
+        int batchSize = 500;
 
         foreach (var item in selectedItems)
         {
+            // Buat Identifier Staging Unik untuk menghindari bentrokan YoutubeVideoId di tabel Raw
             string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
-
-            bool exists = await context.SongsRaw.AnyAsync(r => r.YoutubeVideoId == fakeYtId);
-            if (exists) continue;
 
             var rawEntity = new RawSongsModel
             {
                 YoutubeVideoId = fakeYtId,
-                Title = item.CleanTitle,
-                Artist = item.CleanArtist,
+                Title = string.IsNullOrWhiteSpace(item.CleanTitle) ? "Untitled" : item.CleanTitle,
+                Artist = string.IsNullOrWhiteSpace(item.CleanArtist) ? "Unknown Artist" : item.CleanArtist,
                 Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album,
                 ReleaseYear = item.ReleaseYear,
                 Country = string.IsNullOrWhiteSpace(item.Country) ? "Unknown" : item.Country,
-                AlbumCoverUrl = item.AlbumCoverUrl,
+                AlbumCoverUrl = item.AlbumCoverUrl ?? "",
                 AudioUrl = $"/downloads/{item.FileName}",
                 DurationSeconds = item.DurationSeconds,
                 Status = "PENDING"
@@ -80,9 +80,14 @@ public class SyncService
 
             await context.SongsRaw.AddAsync(rawEntity);
             insertedCount++;
+
+            if (insertedCount % batchSize == 0)
+            {
+                await context.SaveChangesAsync();
+            }
         }
 
-        if (insertedCount > 0)
+        if (insertedCount % batchSize != 0)
         {
             await context.SaveChangesAsync();
         }
@@ -90,12 +95,13 @@ public class SyncService
         return insertedCount;
     }
 
-    // Operational DB: Promotion ke Complete (Dapat dipanggil dari Staging lokal maupun internet)
+    // Operational DB: Promotion ke Complete
+    // Validasi duplikasi ketat dilakukan DI SINI sebelum masuk ke perpustakaan utama.
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        // 1. Ambil data raw dari DB terlebih dahulu untuk mendapatkan YoutubeVideoId dan AudioUrl asli
+        // 1. Ambil data raw dari DB Staging
         var rawItem = await context.SongsRaw.FindAsync(rawId);
         if (rawItem == null) return false;
 
@@ -103,27 +109,26 @@ public class SyncService
         string audioUrl = rawItem.AudioUrl ?? "";
 
         // =========================================================================
-        // 2. MEKANISME DETEKSI DUPLIKASI (Pencegahan Masuk ke Library)
+        // 2. DETEKSI DUPLIKASI (Pencegahan Masuk ke SongsComplete)
         // =========================================================================
         var candidateForCheck = new SongsModel
         {
             Title = validatedData.CleanTitle,
             Artist = validatedData.CleanArtist,
             DurationSeconds = validatedData.DurationSeconds,
-            YoutubeVideoId = ytId, // Ambil dari entitas raw DB
+            YoutubeVideoId = ytId,
             MusicBrainzId = validatedData.MusicBrainzId
         };
 
         var duplicateMatch = await _deduplicationEngine.FindDuplicateAsync(candidateForCheck);
         if (duplicateMatch != null)
         {
-            // Jika duplikat terdeteksi, lempar exception khusus agar proses berhenti
-            // dan lagu tertahan di Staging tanpa mengubah DB Transaction
+            // Lagu tertahan di Staging dan memicu exception agar UI menangkap informasi duplikat
             throw new DuplicateSongException(duplicateMatch);
         }
 
         // =========================================================================
-        // 3. PROSES PROMOSI KE COMPLETE (Jika Tidak Ada Duplikat)
+        // 3. PROSES PROMOSI KE COMPLETE
         // =========================================================================
         await using var transaction = await context.Database.BeginTransactionAsync();
 
