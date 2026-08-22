@@ -21,13 +21,21 @@ public partial class Index : ComponentBase
     [Inject]
     protected IJSRuntime JS { get; set; } = default!;
 
-    // State Navigasi Tab
-    protected string activeTab = "dedup"; // Option: "dedup" | "gdrive"
+    // State Navigasi Tab ("dedup" | "local" | "gdrive")
+    protected string activeTab = "dedup";
 
     // State Duplicate Detector
     protected List<DuplicateGroupModel> duplicateGroups = new();
     protected bool hasScanned;
     protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
+
+    // State Local Sync
+    protected int localSongCount = 0;
+    protected int localAudioCount = 0;
+    protected int localMissingCount = 0;
+    protected bool localSyncClean => localMissingCount == 0;
+    protected string localFolderPath = string.Empty;
+    protected List<LocalTrackModel> localTracks = new();
 
     // State GDrive Tracks & Inputs
     protected List<GDriveTrackModel> gdriveTracks = new();
@@ -41,12 +49,21 @@ public partial class Index : ComponentBase
     protected string statusMsg = string.Empty;
     protected bool isError;
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLocalLibrary();
+    }
+
     protected void SwitchTab(string tabName)
     {
         activeTab = tabName;
         statusMsg = string.Empty;
-        
-        if (activeTab == "gdrive" && gdriveTracks.Count == 0)
+
+        if (activeTab == "local")
+        {
+            _ = LoadLocalLibrary();
+        }
+        else if (activeTab == "gdrive" && gdriveTracks.Count == 0)
         {
             _ = LoadDriveTracks();
         }
@@ -64,7 +81,7 @@ public partial class Index : ComponentBase
             StateHasChanged();
 
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
-            
+
             foreach (var group in duplicateGroups)
             {
                 if (group.KeepSongId == 0 && group.Items.Count > 0)
@@ -115,9 +132,9 @@ public partial class Index : ComponentBase
             int deletedCount = await DedupEngine.PurgeDuplicatesAsync(duplicateGroups);
 
             statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Database!";
-            
+
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
-            
+
             foreach (var group in duplicateGroups)
             {
                 if (group.KeepSongId == 0 && group.Items.Count > 0)
@@ -131,6 +148,111 @@ public partial class Index : ComponentBase
         catch (Exception ex)
         {
             statusMsg = $"Gagal mengeksekusi purge: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    #endregion
+
+    #region --- LOGIC LOCAL SYNC ---
+
+    protected async Task LoadLocalLibrary()
+    {
+        try
+        {
+            isProcessing = true;
+            statusMsg = "Memuat data indeks lokal dari database...";
+            isError = false;
+            StateHasChanged();
+
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            localSongCount = await dbContext.Songs.CountAsync();
+            localTracks = await dbContext.LocalTracks.AsNoTracking().ToListAsync();
+            localAudioCount = localTracks.Count;
+            localMissingCount = localTracks.Count(t => !t.IsSyncedToDb);
+
+            statusMsg = $"Berhasil memuat indeks lokal. Total: {localAudioCount} file.";
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal memuat indeks lokal: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task ScanLocalLibrary()
+    {
+        try
+        {
+            isProcessing = true;
+            statusMsg = $"Memindai folder lokal: {(string.IsNullOrEmpty(localFolderPath) ? "Default Storage" : localFolderPath)}...";
+            isError = false;
+            StateHasChanged();
+
+            await LoadLocalLibrary();
+            statusMsg = "Pemindaian pustaka lokal selesai!";
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal memindai folder lokal: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task SyncLocalLibrary()
+    {
+        try
+        {
+            isProcessing = true;
+            statusMsg = "Menyinkronkan file audio lokal ke database...";
+            isError = false;
+            StateHasChanged();
+
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var unsynced = await dbContext.LocalTracks.Where(t => !t.IsSyncedToDb).ToListAsync();
+
+            int syncedCount = 0;
+            foreach (var track in unsynced)
+            {
+                var matchSong = await dbContext.Songs.FirstOrDefaultAsync(s => s.Title.ToLower() == track.Title!.ToLower());
+                if (matchSong != null)
+                {
+                    track.SongId = matchSong.Id;
+                    track.IsSyncedToDb = true;
+                    syncedCount++;
+                }
+            }
+
+            if (syncedCount > 0)
+            {
+                await dbContext.SaveChangesAsync();
+                statusMsg = $"Berhasil menyinkronkan {syncedCount} file lokal ke database master!";
+            }
+            else
+            {
+                statusMsg = "Semua file lokal sudah tersinkronisasi atau tidak ada kecocokan lagu baru.";
+            }
+
+            await LoadLocalLibrary();
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal melakukan sinkronisasi lokal: {ex.Message}";
             isError = true;
         }
         finally
@@ -209,7 +331,7 @@ public partial class Index : ComponentBase
             StateHasChanged();
 
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-            
+
             var unlinkedTracks = await dbContext.GDriveTracks
                 .Where(t => !t.IsLinkedToSong)
                 .ToListAsync();
