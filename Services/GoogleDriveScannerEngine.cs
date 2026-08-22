@@ -129,11 +129,18 @@ public class GoogleDriveScannerEngine
             throw new InvalidOperationException("Tidak ditemukan rekaman token di tabel GoogleDriveOAuthTokens. Silakan lakukan login Google Drive terlebih dahulu.");
         }
 
-        // Ambil Client ID & Secret dari IConfiguration
-        string clientId = _configuration["Authentication:Google:ClientId"] ?? _configuration["GoogleDrive:ClientId"] ?? "";
-        string clientSecret = _configuration["Authentication:Google:ClientSecret"] ?? _configuration["GoogleDrive:ClientSecret"] ?? "";
+        // Ambil Client ID & Secret dari Environment Variable Render
+        string clientId = _configuration["GDRIVE_CLIENT_ID"] 
+            ?? Environment.GetEnvironmentVariable("GDRIVE_CLIENT_ID") 
+            ?? _configuration["Authentication:Google:ClientId"] 
+            ?? "";
 
-        // Jika RefreshToken ada, coba perbarui Access Token
+        string clientSecret = _configuration["GDRIVE_CLIENT_SECRET"] 
+            ?? Environment.GetEnvironmentVariable("GDRIVE_CLIENT_SECRET") 
+            ?? _configuration["Authentication:Google:ClientSecret"] 
+            ?? "";
+
+        // Jika RefreshToken ada, perbarui Access Token secara otomatis
         if (!string.IsNullOrWhiteSpace(tokenRecord.RefreshToken) && !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret))
         {
             var refreshedToken = await RefreshGoogleAccessTokenAsync(clientId, clientSecret, tokenRecord.RefreshToken, cancellationToken);
@@ -149,7 +156,7 @@ public class GoogleDriveScannerEngine
 
         if (string.IsNullOrWhiteSpace(tokenRecord.AccessToken))
         {
-            throw new InvalidOperationException("AccessToken Google Drive kosong atau tidak valid. Silakan hubungkan ulang akun Google Drive Anda.");
+            throw new InvalidOperationException("Sesi login Google Drive telah kedaluwarsa. Silakan lakukan re-login / re-connect akun Google Drive Anda.");
         }
 
         return tokenRecord.AccessToken;
@@ -236,6 +243,11 @@ public class GoogleDriveScannerEngine
 
         if (!response.IsSuccessStatusCode)
         {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                throw new InvalidOperationException("[Drive API Unauthorized] Token OAuth kedaluwarsa. Silakan lakukan re-login pada akun Google Drive Anda.");
+            }
+
             if (body.Contains("corpora") || body.Contains("invalidEnumValue"))
             {
                 string fallbackUrl = $"https://www.googleapis.com/drive/v3/files" +
