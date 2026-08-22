@@ -27,26 +27,40 @@ public class GoogleDriveScannerEngine
 
     /// <summary>
     /// Membaca file audio dari Google Drive milik user via Token dari tabel GoogleDriveOAuthTokens.
+    /// Mendukung Input: Folder ID, Folder URL, Direct File ID, Direct File URL, atau Kosong (Global Scan).
     /// </summary>
-    public async Task<int> FetchAndMapDriveFolderAsync(string? folderInput = null, CancellationToken cancellationToken = default)
+    public async Task<int> FetchAndMapDriveFolderAsync(string? input = null, CancellationToken cancellationToken = default)
     {
-        // 1. Ambil Access Token yang Valid & Fresh
+        // 1. Dapatkan Access Token yang aktif dan ter-refresh otomatis jika kedaluwarsa
         string accessToken = await GetFreshAccessTokenAsync(cancellationToken);
 
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        // Extract Clean Folder ID jika input berupa URL
-        string? cleanFolderId = ExtractFolderId(folderInput);
+        // 2. Tentukan Strategi Input (Direct File vs Folder/Global)
+        var driveFiles = new List<DriveFileItemDto>();
+        string? cleanId = ExtractGoogleDriveId(input, out bool isDirectFile);
 
-        // 2. Eksekusi Query Pemindaian File
-        var driveFiles = await FetchFilesFromApiAsync(client, cleanFolderId, cancellationToken);
+        if (isDirectFile && !string.IsNullOrWhiteSpace(cleanId))
+        {
+            // Strategi A: Input adalah Link/ID File Spesifik
+            var singleFile = await FetchSingleFileMetadataAsync(client, cleanId, cancellationToken);
+            if (singleFile != null)
+            {
+                driveFiles.Add(singleFile);
+            }
+        }
+        else
+        {
+            // Strategi B: Input adalah Folder ID/URL atau Kosong (Pemindaian Folder/Global)
+            driveFiles = await FetchFilesFromApiAsync(client, cleanId, cancellationToken);
+        }
 
         if (driveFiles.Count == 0)
         {
-            string targetText = string.IsNullOrWhiteSpace(cleanFolderId) ? "seluruh Drive" : $"Folder ID '{cleanFolderId}'";
+            string targetText = string.IsNullOrWhiteSpace(cleanId) ? "seluruh Drive" : $"Target ID/URL '{cleanId}'";
             throw new InvalidOperationException($"Google Drive API berhasil dihubungi, namun 0 file ditemukan di {targetText}. " +
-                $"Pastikan akun Google yang Anda hubungkan adalah pemilik/memiliki akses ke folder tersebut.");
+                $"Pastikan file/folder ada dan akun Google yang Anda hubungkan memiliki hak akses.");
         }
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -60,7 +74,7 @@ public class GoogleDriveScannerEngine
             string ext = Path.GetExtension(fileName).ToLower();
             string mime = file.MimeType ?? "";
 
-            // Filter jenis audio
+            // Filter jenis audio / octet-stream
             bool isAudio = mime.StartsWith("audio/") || 
                            ext is ".mp3" or ".m4a" or ".flac" or ".wav" or ".aac" or ".ogg" or ".webm" ||
                            mime == "application/octet-stream";
@@ -69,7 +83,7 @@ public class GoogleDriveScannerEngine
 
             string fileId = file.Id;
             long fileSize = long.TryParse(file.Size, out long sz) ? sz : 0;
-            string webViewLink = file.WebViewLink ?? "";
+            string webViewLink = file.WebViewLink ?? $"https://drive.google.com/file/d/{fileId}/view";
             string downloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
 
             // Upsert Logic pada tabel gdrive_tracks
@@ -129,7 +143,7 @@ public class GoogleDriveScannerEngine
             throw new InvalidOperationException("Tidak ditemukan rekaman token di tabel GoogleDriveOAuthTokens. Silakan lakukan login Google Drive terlebih dahulu.");
         }
 
-        // Ambil Client ID & Secret dari Environment Variable Render
+        // Ambil Client ID & Secret dari Environment Variable Render / IConfiguration
         string clientId = _configuration["GDRIVE_CLIENT_ID"] 
             ?? Environment.GetEnvironmentVariable("GDRIVE_CLIENT_ID") 
             ?? _configuration["Authentication:Google:ClientId"] 
@@ -196,33 +210,61 @@ public class GoogleDriveScannerEngine
         return null;
     }
 
+    private async Task<DriveFileItemDto?> FetchSingleFileMetadataAsync(HttpClient client, string fileId, CancellationToken cancellationToken)
+    {
+        string requestUrl = $"https://www.googleapis.com/drive/v3/files/{fileId}" +
+            $"?fields=id,name,mimeType,size,webViewLink,webContentLink" +
+            $"&supportsAllDrives=true";
+
+        using var response = await client.GetAsync(requestUrl, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<DriveFileItemDto>(body, JsonOpts);
+        }
+
+        return null;
+    }
+
     private async Task<List<DriveFileItemDto>> FetchFilesFromApiAsync(HttpClient client, string? folderId, CancellationToken cancellationToken)
     {
         var resultList = new List<DriveFileItemDto>();
 
         if (!string.IsNullOrWhiteSpace(folderId))
         {
+            // 1. Coba cari file langsung di parent folder
             string q1 = $"'{folderId}' in parents and trashed = false";
             resultList = await ExecuteDriveQueryAsync(client, q1, cancellationToken);
 
+            // 2. Jika 0 file, telusuri sub-folder
             if (resultList.Count == 0)
             {
                 var subFolderIds = await GetSubFolderIdsAsync(client, folderId, cancellationToken);
-                subFolderIds.Add(folderId);
-
-                var chunks = ChunkList(subFolderIds, 10);
-                foreach (var chunk in chunks)
+                if (subFolderIds.Count > 0)
                 {
-                    string parentClause = string.Join(" or ", chunk.Select(id => $"'{id}' in parents"));
-                    string q2 = $"({parentClause}) and trashed = false";
-                    var subFiles = await ExecuteDriveQueryAsync(client, q2, cancellationToken);
-                    resultList.AddRange(subFiles);
+                    subFolderIds.Add(folderId);
+                    var chunks = ChunkList(subFolderIds, 10);
+                    foreach (var chunk in chunks)
+                    {
+                        string parentClause = string.Join(" or ", chunk.Select(id => $"'{id}' in parents"));
+                        string q2 = $"({parentClause}) and trashed = false";
+                        var subFiles = await ExecuteDriveQueryAsync(client, q2, cancellationToken);
+                        resultList.AddRange(subFiles);
+                    }
                 }
+            }
+
+            // 3. Fallback: Jika pencarian folder ID tetap 0 file, lakukan Global Audio Scan
+            if (resultList.Count == 0)
+            {
+                string qGlobalAudio = "(mimeType contains 'audio' or name contains '.mp3') and trashed = false";
+                resultList = await ExecuteDriveQueryAsync(client, qGlobalAudio, cancellationToken);
             }
         }
         else
         {
-            string qGlobal = "trashed = false";
+            // Scan Global untuk seluruh audio di Drive
+            string qGlobal = "(mimeType contains 'audio' or name contains '.mp3') and trashed = false";
             resultList = await ExecuteDriveQueryAsync(client, qGlobal, cancellationToken);
         }
 
@@ -291,17 +333,39 @@ public class GoogleDriveScannerEngine
         return ids;
     }
 
-    private static string? ExtractFolderId(string? input)
+    /// <summary>
+    /// Ekstrak ID unik dari input user dan tentukan apakah input berupa Single File Link atau Folder/Global Link.
+    /// </summary>
+    private static string? ExtractGoogleDriveId(string? input, out bool isDirectFile)
     {
+        isDirectFile = false;
         if (string.IsNullOrWhiteSpace(input)) return null;
         input = input.Trim();
 
-        var match = Regex.Match(input, @"/folders/([a-zA-Z0-9_-]+)");
-        if (match.Success) return match.Groups[1].Value;
+        // 1. Cek pola URL File langsung: /file/d/{FILE_ID}/
+        var fileMatch = Regex.Match(input, @"/file/d/([a-zA-Z0-9_-]+)");
+        if (fileMatch.Success)
+        {
+            isDirectFile = true;
+            return fileMatch.Groups[1].Value;
+        }
 
-        var matchId = Regex.Match(input, @"id=([a-zA-Z0-9_-]+)");
-        if (matchId.Success) return matchId.Groups[1].Value;
+        // 2. Cek pola Direct Download URL File: id={FILE_ID}
+        var fileIdParamMatch = Regex.Match(input, @"[?&]id=([a-zA-Z0-9_-]+)");
+        if (fileIdParamMatch.Success && !input.Contains("/folders/"))
+        {
+            isDirectFile = true;
+            return fileIdParamMatch.Groups[1].Value;
+        }
 
+        // 3. Cek pola URL Folder: /folders/{FOLDER_ID}
+        var folderMatch = Regex.Match(input, @"/folders/([a-zA-Z0-9_-]+)");
+        if (folderMatch.Success)
+        {
+            return folderMatch.Groups[1].Value;
+        }
+
+        // 4. Jika hanya berupa string ID polos
         return input;
     }
 
