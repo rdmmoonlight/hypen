@@ -1,136 +1,128 @@
 @page "/tools"
 @using Hypen.Web.Models
 @using Hypen.Web.Services
-@rendermode @using:Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode
 
-<PageTitle>Database Tools Center - Hypen</PageTitle>
+<PageTitle>Database Tools Center - Hypen Music</PageTitle>
 
-<div class="matte-container">
+<div class="library-container">
+
+    <!-- ALERT STATUS -->
+    @if (!string.IsNullOrEmpty(statusMsg))
+    {
+        <div class="alert-box @(isError ? "error" : "success")">
+            <p class="alert-text">@statusMsg</p>
+        </div>
+    }
 
     <!-- HEADER -->
-    <div class="matte-header">
+    <div class="header-section">
         <div>
-            <div class="matte-subtitle">System Maintenance</div>
-            <h1 class="matte-title">Database Tools & Duplicate Detector</h1>
+            <div class="subtitle">System Maintenance</div>
+            <h1 class="main-title">Duplicate Detector</h1>
         </div>
+        <div class="track-counter">
+            @duplicateGroups.Count CLUSTERS
+        </div>
+    </div>
 
-        <div class="matte-actions">
-            <button class="btn-matte btn-primary" @onclick="ScanDuplicates" disabled="@isProcessing">
-                @(isProcessing ? "SCANNING DATABASE..." : "SCAN DATABASE FOR DUPLICATES")
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <div class="action-group">
+            <button class="btn-refresh" @onclick="ScanDuplicates" disabled="@isProcessing">
+                @(isProcessing ? "MEMINDAI DATABASE..." : "SCAN DATABASE")
             </button>
 
             @if (duplicateGroups.Count > 0)
             {
-                <button class="btn-matte btn-danger" @onclick="PurgeSelected" disabled="@isProcessing || TotalToDeleteCount == 0">
-                    PURGE (@TotalToDeleteCount:N0) DUPLICATES
+                <button class="btn-delete" @onclick="PurgeSelected" disabled="@(isProcessing || TotalToDeleteCount == 0)">
+                    ✕ PURGE TERPILIH (@TotalToDeleteCount)
                 </button>
             }
         </div>
+
+        <div class="search-group">
+            <span class="stream-ready">STATUS DB: OK</span>
+        </div>
     </div>
 
-    <!-- STATUS ALERT -->
-    @if (!string.IsNullOrEmpty(statusMsg))
-    {
-        <div class="status-alert @(isError ? "alert-error" : "alert-info")">
-            <p class="status-text">@statusMsg</p>
-        </div>
-    }
-
-    <!-- INITIAL STATE -->
+    <!-- CONTENT DISPLAY -->
     @if (!hasScanned && !isProcessing)
     {
-        <div class="matte-card text-center py-4">
-            <div class="matte-tag">Maintenance Engine</div>
-            <h3 class="card-title">Mulai Pemindaian Database</h3>
-            <p class="status-text text-muted">
-                Klik <strong>SCAN DATABASE FOR DUPLICATES</strong> di atas untuk mendeteksi klaster lagu yang mirip secara otomatis.
-            </p>
+        <div class="table-empty py-5">
+            Mulai pemindaian untuk menganalisis klaster duplikat di database.
         </div>
     }
-
-    <!-- LOADING STATE -->
-    @if (isProcessing)
+    else if (isProcessing)
     {
-        <div class="matte-card text-center py-4">
-            <div class="matte-tag">Analyzing Audio Metadata</div>
-            <h3 class="card-title">Memindai Seluruh Isi Database...</h3>
-            <p class="status-text text-muted">
-                Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
-            </p>
+        <div class="table-empty py-5">
+            MEMINDAI SELURUH ISI DATABASE...
         </div>
     }
-
-    <!-- CLEAN STATE -->
-    @if (hasScanned && !isProcessing && duplicateGroups.Count == 0)
+    else if (hasScanned && duplicateGroups.Count == 0)
     {
-        <div class="matte-card text-center py-4 border-clean">
-            <div class="matte-tag tag-clean">Database Status // Clean</div>
-            <h3 class="card-title text-clean">Database Clean & Pristine!</h3>
-            <p class="status-text text-muted">
-                Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.
-            </p>
+        <div class="table-empty py-5" style="color: #45a29e;">
+            DATABASE CLEAN & PRISTINE! Tidak ditemukan lagu duplikat.
         </div>
     }
-
-    <!-- DUPLICATE CLUSTERS -->
-    @if (hasScanned && !isProcessing && duplicateGroups.Count > 0)
+    else if (duplicateGroups.Count > 0)
     {
-        <div class="preview-container">
-            <div class="preview-header">
-                <span>TERDETEKSI (@duplicateGroups.Count:N0) KELOMPOK DUPLIKAT</span>
-                <span class="dup-summary-tag">@TotalToDeleteCount:N0 SONGS WILL BE REMOVED FROM DATABASE</span>
-            </div>
+        <div class="table-responsive">
+            <table class="vault-table">
+                <thead>
+                    <tr>
+                        <th class="col-checkbox">Master</th>
+                        <th>Keterangan / Match</th>
+                        <th>Judul</th>
+                        <th>Artis</th>
+                        <th>Album</th>
+                        <th>Durasi</th>
+                        <th>YT ID</th>
+                        <th class="col-status">Status Tindakan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in duplicateGroups)
+                    {
+                        <!-- Header Baris Klaster -->
+                        <tr class="data-row" style="background: rgba(255, 255, 255, 0.03);">
+                            <td colspan="8" style="font-family: monospace; font-size: 0.75rem; color: #45a29e; padding: 6px 12px;">
+                                <strong>KLASTER:</strong> @group.GroupKey | <strong>REASON:</strong> @group.MatchReason | <strong>SCORE:</strong> @group.SimilarityScore%
+                            </td>
+                        </tr>
 
-            <div class="cluster-list">
-                @foreach (var group in duplicateGroups)
-                {
-                    <div class="matte-card cluster-card">
-                        <!-- Cluster Sub-Header -->
-                        <div class="cluster-sub-header">
-                            <div class="cluster-title-info">
-                                <span class="badge-dup">@group.MatchReason</span>
-                                <span class="cluster-key">Grup: @group.GroupKey</span>
-                            </div>
-                            <span class="score-tag">Score: @group.SimilarityScore%</span>
-                        </div>
-
-                        <!-- Compact Grid (Small Box Layout) -->
-                        <div class="song-compact-grid">
-                            @foreach (var song in group.Items)
-                            {
-                                bool isKeep = group.KeepSongId == song.Id;
-
-                                <div class="song-compact-card @(isKeep ? "card-keep" : "card-purge")"
-                                     @onclick="() => SelectMaster(group, song.Id)">
-
-                                    <div class="compact-card-header">
-                                        <button type="button"
-                                                class="badge-action @(isKeep ? "badge-keep-btn" : "badge-purge-btn")"
-                                                @onclick:stopPropagation="true"
-                                                @onclick="() => SelectMaster(group, song.Id)">
-                                            @(isKeep ? "SIMPAN (MASTER)" : "HAPUS")
-                                        </button>
-                                        <span class="song-id-tag">#@song.Id</span>
-                                    </div>
-
-                                    <div class="compact-card-body">
-                                        <div class="compact-song-title">@song.Title</div>
-                                        <div class="compact-song-artist">
-                                            @(song.Artist ?? "Unknown Artist") • @(song.Album ?? "Single")
-                                        </div>
-                                    </div>
-
-                                    <div class="compact-card-footer">
-                                        <span>⏱️ @(song.DurationSeconds ?? 0)s</span>
-                                        <span>🖼️ @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "Ada" : "Absen")</span>
-                                        <span>🆔 @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
+                        <!-- Item Lagu Dalam Klaster -->
+                        @foreach (var song in group.Items)
+                        {
+                            bool isMaster = group.KeepSongId == song.Id;
+                            <tr @key="song.Id" class="data-row @(isMaster ? "" : "row-duplicate")">
+                                <td class="col-checkbox">
+                                    <input type="radio" 
+                                           name="@($"group_{group.GetHashCode()}")" 
+                                           checked="@isMaster" 
+                                           @onchange="() => OnMasterSelected(group, song.Id)" 
+                                           class="checkbox-input" />
+                                </td>
+                                <td class="cell-id">#@song.Id</td>
+                                <td class="cell-title">@song.Title</td>
+                                <td class="cell-artist">@(song.Artist ?? "Unknown Artist")</td>
+                                <td class="cell-album">@(song.Album ?? "Single")</td>
+                                <td class="cell-mono">@(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</td>
+                                <td class="cell-id">@(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</td>
+                                <td class="col-status">
+                                    @if (isMaster)
+                                    {
+                                        <span class="badge badge-complete">SIMPAN (MASTER)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-incomplete">AKAN DIHAPUS</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
         </div>
     }
 </div>
