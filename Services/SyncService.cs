@@ -45,24 +45,65 @@ public class SyncService
     public Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
         => _smartMatchService.SmartMatchFromInternetAsync(item);
 
+    /// <summary>
+    /// Memeriksa daftar preview di UI dan menandai item yang sudah ada di database Staging/Main.
+    /// Item yang duplikat ditandai 'IsDuplicateInDb = true' dan 'IsSelected = false'.
+    /// </summary>
+    public async Task CheckDuplicatesInPreviewAsync(List<LocalMp3ExtractModel> items)
+    {
+        if (items == null || items.Count == 0) return;
+
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+        // Fingerprint kombinasi Title + Artist dari DB (Normalisasi: Lower & Trim)
+        var existingFingerprints = await context.Songs
+            .Select(s => (s.Title ?? "").Trim().ToLower() + "|" + (s.Artist ?? "").Trim().ToLower())
+            .ToHashSetAsync();
+
+        // List YoutubeVideoId yang sudah ada
+        var existingVideoIds = await context.Songs
+            .Where(s => s.YoutubeVideoId != null)
+            .Select(s => s.YoutubeVideoId!)
+            .ToHashSetAsync();
+
+        foreach (var item in items)
+        {
+            string fingerprint = $"{(item.CleanTitle ?? "").Trim().ToLower()}|{(item.CleanArtist ?? "").Trim().ToLower()}";
+            
+            bool isVideoIdDup = !string.IsNullOrEmpty(item.FileName) && existingVideoIds.Contains(item.FileName);
+            bool isTitleArtistDup = existingFingerprints.Contains(fingerprint);
+
+            if (isVideoIdDup || isTitleArtistDup)
+            {
+                item.IsDuplicateInDb = true;
+                item.IsSelected = false; // Uncheck otomatis agar tidak ikut ter-commit ke staging
+                item.DuplicateReason = isVideoIdDup ? "Video ID sudah ada di DB" : "Judul & Artis sudah ada di DB";
+            }
+        }
+    }
+
     // Operational DB: Raw Ingestion (Staging)
-    // Menampung SEMUA data tanpa batasan jumlah list (Unlimited Mode).
+    // Menampung SEMUA data tanpa batasan jumlah list (Hanya menyaring item yang dipilih & bukan duplikat).
     public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
         => await SaveSelectedToRawAsync(items, delayMilliseconds);
 
     private async Task<int> SaveSelectedToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
     {
-        var selectedItems = items.Where(i => i.IsSelected).ToList();
+        // Hanya proses item yang di-check DAN tidak terdeteksi duplikat
+        var selectedItems = items.Where(i => i.IsSelected && !i.IsDuplicateInDb).ToList();
         if (selectedItems.Count == 0) return 0;
 
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
         foreach (var item in selectedItems)
         {
-            // Buat Identifier Staging Unik agar tidak bentrok
-            string fakeYtId = "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
+            // Jika FileName berupa MP3 lokal, buat Identifier Staging Unik FAKE-YT-ID.
+            // Jika berasal dari YouTube, gunakan Video ID asli yang tersimpan di FileName.
+            string fakeYtId = string.IsNullOrWhiteSpace(item.FileName) || item.FileName.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
+                ? "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper()
+                : item.FileName;
 
-            var rawEntity = new RawSongsModel
+            var rawEntity = new SongsModel
             {
                 YoutubeVideoId = fakeYtId,
                 Title = string.IsNullOrWhiteSpace(item.CleanTitle) ? "Untitled" : item.CleanTitle,
@@ -78,14 +119,12 @@ public class SyncService
 
             await context.SongsRaw.AddAsync(rawEntity);
 
-            // Jika butuh jeda waktu antar elemen (throttling)
             if (delayMilliseconds > 0)
             {
                 await Task.Delay(delayMilliseconds);
             }
         }
 
-        // Simpan seluruh item sekaligus tanpa pembatasan batch size
         return await context.SaveChangesAsync();
     }
 
