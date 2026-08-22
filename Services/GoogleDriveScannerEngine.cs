@@ -21,7 +21,7 @@ public class GoogleDriveScannerEngine
     }
 
     /// <summary>
-    /// Membaca seluruh file audio dari Google Drive milik user via Token dari tabel GoogleDriveOAuthTokens.
+    /// Membaca seluruh file audio dari Google Drive milik user (termasuk sub-folder) via Token dari tabel GoogleDriveOAuthTokens.
     /// </summary>
     public async Task<int> FetchAndMapDriveFolderAsync(string? folderId = null, CancellationToken cancellationToken = default)
     {
@@ -48,13 +48,18 @@ public class GoogleDriveScannerEngine
             if (match.Success) folderId = match.Groups[1].Value;
         }
 
-        // 2. Query Longgar: Cari semua file bukan folder yang tidak di-trash
-        // (Mendukung mp3, m4a, flac, wav, aac, webm, application/octet-stream)
+        // 2. Query Fleksibel: Baca file bukan folder yang tidak di-trash
+        // Jika folderId diisi, gunakan query 'folderId in parents' atau perluas ke seluruh isi folder
         string queryParam = "mimeType != 'application/vnd.google-apps.folder' and trashed = false";
         
         if (!string.IsNullOrWhiteSpace(folderId))
         {
-            queryParam = $"'{folderId.Trim()}' in parents and {queryParam}";
+            // Ambil daftar seluruh ID folder (termasuk sub-folder) di dalam folder utama
+            var allFolderIds = await GetAllSubFolderIdsAsync(client, folderId.Trim(), cancellationToken);
+            allFolderIds.Add(folderId.Trim());
+
+            string parentQuery = string.Join(" or ", allFolderIds.Select(id => $"'{id}' in parents"));
+            queryParam = $"({parentQuery}) and {queryParam}";
         }
 
         string requestUrl = $"https://www.googleapis.com/drive/v3/files" +
@@ -71,7 +76,7 @@ public class GoogleDriveScannerEngine
         {
             if (response.StatusCode == System.Net.HttpStatusCode.Forbidden || response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                throw new InvalidOperationException($"[Drive API {response.StatusCode}] Akses ditolak. Pastikan token OAuth masih aktif & memiliki scope Drive. Detail: {body}");
+                throw new InvalidOperationException($"[Drive API {response.StatusCode}] Akses ditolak. Detail: {body}");
             }
 
             throw new InvalidOperationException($"[Drive API {response.StatusCode}] Gagal membaca Google Drive: {body}");
@@ -80,9 +85,8 @@ public class GoogleDriveScannerEngine
         var parsed = JsonSerializer.Deserialize<DriveFilesResponse>(body, JsonOpts);
         if (parsed?.Files == null || parsed.Files.Count == 0)
         {
-            // Tampilkan pesan informatif jika folder dibaca tapi 0 file
-            string targetFolder = string.IsNullOrWhiteSpace(folderId) ? "seluruh Drive" : $"folder ID '{folderId}'";
-            throw new InvalidOperationException($"Drive API berhasil dihubungi, namun tidak menemukan file audio/media langsung di dalam {targetFolder}. Jika file ada di dalam sub-folder, keluarkan file ke folder utama.");
+            string targetFolder = string.IsNullOrWhiteSpace(folderId) ? "seluruh Drive" : $"folder ID '{folderId}' (termasuk sub-foldernya)";
+            throw new InvalidOperationException($"Drive API berhasil dihubungi, namun tidak menemukan file audio/media di dalam {targetFolder}. Pastikan file MP3 Anda diunggah ke folder tersebut.");
         }
 
         int addedCount = 0;
@@ -91,7 +95,6 @@ public class GoogleDriveScannerEngine
         {
             if (string.IsNullOrWhiteSpace(file.Id)) continue;
 
-            // Filter Ekstensi Audio/Media yang Valid
             string fileName = file.Name ?? "Unknown.mp3";
             string ext = Path.GetExtension(fileName).ToLower();
             string mime = file.MimeType ?? "";
@@ -146,6 +149,41 @@ public class GoogleDriveScannerEngine
         }
 
         return addedCount;
+    }
+
+    /// <summary>
+    /// Mencari seluruh sub-folder secara rekursif agar file di dalam folder turunan ikut terbaca
+    /// </summary>
+    private async Task<List<string>> GetAllSubFolderIdsAsync(HttpClient client, string parentFolderId, CancellationToken cancellationToken)
+    {
+        var result = new List<string>();
+        string query = $"'{parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+        string url = $"https://www.googleapis.com/drive/v3/files?q={Uri.EscapeDataString(query)}&fields=files(id)&pageSize=1000";
+
+        try
+        {
+            using var response = await client.GetAsync(url, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                string body = await response.Content.ReadAsStringAsync(cancellationToken);
+                var parsed = JsonSerializer.Deserialize<DriveFilesResponse>(body, JsonOpts);
+                if (parsed?.Files != null)
+                {
+                    foreach (var folder in parsed.Files)
+                    {
+                        if (!string.IsNullOrEmpty(folder.Id))
+                        {
+                            result.Add(folder.Id);
+                            var deepFolders = await GetAllSubFolderIdsAsync(client, folder.Id, cancellationToken);
+                            result.AddRange(deepFolders);
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return result;
     }
 
     private static (string? artist, string? title) ParseFileName(string fileName)
