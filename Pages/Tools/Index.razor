@@ -6,6 +6,16 @@
 
 <div class="matte-container">
 
+    <!-- TAB NAVIGATION BAR -->
+    <div class="matte-tabs">
+        <button class="tab-item @(activeTab == "dedup" ? "active" : "")" @onclick='() => SwitchTab("dedup")'>
+            🔍 DUPLICATE DETECTOR
+        </button>
+        <button class="tab-item @(activeTab == "gdrive" ? "active" : "")" @onclick='() => SwitchTab("gdrive")'>
+            ☁️ GDRIVE MANAGEMENT
+        </button>
+    </div>
+
     <!-- ALERT STATUS -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
@@ -14,125 +24,233 @@
         </div>
     }
 
-    <!-- HEADER -->
-    <div class="matte-header">
-        <div>
-            <div class="matte-subtitle">System Maintenance</div>
-            <h1 class="matte-title">Database Tools & Duplicate Detector</h1>
-        </div>
-        <div class="matte-counter">
-            @duplicateGroups.Count CLUSTERS
-        </div>
-    </div>
-
-    <!-- TOOLBAR -->
-    <div class="matte-toolbar">
-        <div class="matte-action-group">
-            <button class="btn-matte btn-primary" @onclick="ScanDuplicates" disabled="@isProcessing">
-                @(isProcessing ? "MEMINDAI DATABASE..." : "SCAN DATABASE FOR DUPLICATES")
-            </button>
-
-            @if (duplicateGroups.Count > 0)
-            {
-                <button class="btn-matte btn-danger" @onclick="PurgeSelected" disabled="@(isProcessing || TotalToDeleteCount == 0)">
-                    ✕ PURGE TERPILIH (@TotalToDeleteCount)
-                </button>
-            }
-        </div>
-
-        <div class="matte-search-group">
-            <span class="status-badge">STATUS DB: OK</span>
-        </div>
-    </div>
-
-    <!-- CONTENT DISPLAY -->
-    @if (!hasScanned && !isProcessing)
+    <!-- ========================================================================= -->
+    <!-- TAB 1: DUPLICATE DETECTOR -->
+    <!-- ========================================================================= -->
+    @if (activeTab == "dedup")
     {
-        <div class="matte-card text-center py-4">
-            <div class="matte-tag">Maintenance Engine</div>
-            <h3 class="card-title">Mulai Pemindaian Database</h3>
-            <p class="status-text text-muted">
-                Klik <strong>SCAN DATABASE FOR DUPLICATES</strong> di atas untuk mendeteksi klaster lagu yang mirip secara otomatis.
-            </p>
-        </div>
-    }
-    else if (isProcessing)
-    {
-        <div class="matte-card text-center py-4">
-            <div class="matte-tag">Analyzing Audio Metadata</div>
-            <h3 class="card-title">Memindai Seluruh Isi Database...</h3>
-            <p class="status-text text-muted">
-                Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
-            </p>
-        </div>
-    }
-    else if (hasScanned && duplicateGroups.Count == 0)
-    {
-        <div class="matte-card text-center py-4 border-clean">
-            <div class="matte-tag tag-clean">Database Status // Clean</div>
-            <h3 class="card-title text-clean">Database Clean & Pristine!</h3>
-            <p class="status-text text-muted">
-                Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.
-            </p>
-        </div>
-    }
-    else if (duplicateGroups.Count > 0)
-    {
-        <div class="preview-container">
-            <div class="preview-header">
-                <span>TERDETEKSI (@duplicateGroups.Count:N0) KELOMPOK DUPLIKAT</span>
-                <span class="dup-summary-tag">@TotalToDeleteCount:N0 SONGS WILL BE REMOVED FROM DATABASE</span>
+        <!-- HEADER -->
+        <div class="matte-header">
+            <div>
+                <div class="matte-subtitle">System Maintenance</div>
+                <h1 class="matte-title">Database Duplicate Detector</h1>
             </div>
+            <div class="matte-counter">
+                @duplicateGroups.Count CLUSTERS
+            </div>
+        </div>
 
-            <div class="cluster-list">
-                @foreach (var group in duplicateGroups)
+        <!-- TOOLBAR -->
+        <div class="matte-toolbar">
+            <div class="matte-action-group">
+                <button class="btn-matte btn-primary" @onclick="ScanDuplicates" disabled="@isProcessing">
+                    @(isProcessing ? "MEMINDAI DATABASE..." : "SCAN DATABASE FOR DUPLICATES")
+                </button>
+
+                @if (duplicateGroups.Count > 0)
                 {
-                    <div class="matte-card cluster-card">
-                        <!-- Cluster Sub-Header -->
-                        <div class="cluster-sub-header">
-                            <div class="cluster-title-info">
-                                <span class="badge-dup">@group.MatchReason</span>
-                                <span class="cluster-key">Grup: @group.GroupKey</span>
-                            </div>
-                            <span class="score-tag">Score: @group.SimilarityScore%</span>
-                        </div>
-
-                        <!-- Compact Box Layout -->
-                        <div class="song-compact-grid">
-                            @foreach (var song in group.Items)
-                            {
-                                bool isMaster = group.KeepSongId == song.Id;
-                                <div class="song-compact-card @(isMaster ? "card-keep" : "card-purge")"
-                                     @onclick="() => OnMasterSelected(group, song.Id)">
-
-                                    <div class="compact-card-header">
-                                        <button type="button"
-                                                class="badge-action @(isMaster ? "badge-keep-btn" : "badge-purge-btn")"
-                                                @onclick:stopPropagation="true"
-                                                @onclick="() => OnMasterSelected(group, song.Id)">
-                                            @(isMaster ? "SIMPAN (MASTER)" : "HAPUS")
-                                        </button>
-                                        <span class="song-id-tag">#@song.Id</span>
-                                    </div>
-
-                                    <div class="compact-card-body">
-                                        <div class="compact-song-title">@song.Title</div>
-                                        <div class="compact-song-artist">
-                                            @(song.Artist ?? "Unknown Artist") • @(song.Album ?? "Single")
-                                        </div>
-                                    </div>
-
-                                    <div class="compact-card-footer">
-                                        <span>⏱️ @(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</span>
-                                        <span>🖼️ @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "Ada" : "Absen")</span>
-                                        <span>🆔 @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
+                    <button class="btn-matte btn-danger" @onclick="PurgeSelected" disabled="@(isProcessing || TotalToDeleteCount == 0)">
+                        ✕ PURGE TERPILIH (@TotalToDeleteCount)
+                    </button>
                 }
             </div>
+
+            <div class="matte-search-group">
+                <span class="status-badge">STATUS DB: OK</span>
+            </div>
         </div>
+
+        <!-- CONTENT DISPLAY -->
+        @if (!hasScanned && !isProcessing)
+        {
+            <div class="matte-card text-center py-4">
+                <div class="matte-tag">Maintenance Engine</div>
+                <h3 class="card-title">Mulai Pemindaian Database</h3>
+                <p class="status-text text-muted">
+                    Klik <strong>SCAN DATABASE FOR DUPLICATES</strong> di atas untuk mendeteksi klaster lagu yang mirip secara otomatis.
+                </p>
+            </div>
+        }
+        else if (isProcessing)
+        {
+            <div class="matte-card text-center py-4">
+                <div class="matte-tag">Analyzing Audio Metadata</div>
+                <h3 class="card-title">Memindai Seluruh Isi Database...</h3>
+                <p class="status-text text-muted">
+                    Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
+                </p>
+            </div>
+        }
+        else if (hasScanned && duplicateGroups.Count == 0)
+        {
+            <div class="matte-card text-center py-4 border-clean">
+                <div class="matte-tag tag-clean">Database Status // Clean</div>
+                <h3 class="card-title text-clean">Database Clean & Pristine!</h3>
+                <p class="status-text text-muted">
+                    Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.
+                </p>
+            </div>
+        }
+        else if (duplicateGroups.Count > 0)
+        {
+            <div class="preview-container">
+                <div class="preview-header">
+                    <span>TERDETEKSI (@duplicateGroups.Count:N0) KELOMPOK DUPLIKAT</span>
+                    <span class="dup-summary-tag">@TotalToDeleteCount:N0 SONGS WILL BE REMOVED FROM DATABASE</span>
+                </div>
+
+                <div class="cluster-list">
+                    @foreach (var group in duplicateGroups)
+                    {
+                        <div class="matte-card cluster-card">
+                            <div class="cluster-sub-header">
+                                <div class="cluster-title-info">
+                                    <span class="badge-dup">@group.MatchReason</span>
+                                    <span class="cluster-key">Grup: @group.GroupKey</span>
+                                </div>
+                                <span class="score-tag">Score: @group.SimilarityScore%</span>
+                            </div>
+
+                            <div class="song-compact-grid">
+                                @foreach (var song in group.Items)
+                                {
+                                    bool isMaster = group.KeepSongId == song.Id;
+                                    <div class="song-compact-card @(isMaster ? "card-keep" : "card-purge")"
+                                         @onclick="() => OnMasterSelected(group, song.Id)">
+
+                                        <div class="compact-card-header">
+                                            <button type="button"
+                                                    class="badge-action @(isMaster ? "badge-keep-btn" : "badge-purge-btn")"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick="() => OnMasterSelected(group, song.Id)">
+                                                @(isMaster ? "SIMPAN (MASTER)" : "HAPUS")
+                                            </button>
+                                            <span class="song-id-tag">#@song.Id</span>
+                                        </div>
+
+                                        <div class="compact-card-body">
+                                            <div class="compact-song-title">@song.Title</div>
+                                            <div class="compact-song-artist">
+                                                @(song.Artist ?? "Unknown Artist") • @(song.Album ?? "Single")
+                                            </div>
+                                        </div>
+
+                                        <div class="compact-card-footer">
+                                            <span>⏱️ @(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</span>
+                                            <span>🖼️ @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "Ada" : "Absen")</span>
+                                            <span>🆔 @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: GDRIVE MANAGEMENT -->
+    <!-- ========================================================================= -->
+    @if (activeTab == "gdrive")
+    {
+        <!-- HEADER -->
+        <div class="matte-header">
+            <div>
+                <div class="matte-subtitle">Storage Integration</div>
+                <h1 class="matte-title">Google Drive Tracks Management</h1>
+            </div>
+            <div class="matte-counter">
+                @gdriveTracks.Count FILES TERDATA
+            </div>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div class="matte-toolbar">
+            <div class="matte-action-group">
+                <button class="btn-matte btn-primary" @onclick="LoadDriveTracks" disabled="@isProcessing">
+                    @(isProcessing ? "SYNCING..." : "REFRESH GDRIVE INDEX")
+                </button>
+
+                @if (UnlinkedCount > 0)
+                {
+                    <button class="btn-matte btn-success" @onclick="AutoLinkTracks" disabled="@isProcessing">
+                        🔗 AUTO-LINK TO SONGS (@UnlinkedCount)
+                    </button>
+                }
+            </div>
+
+            <div class="matte-search-group">
+                <span class="status-badge">LINKED: @LinkedCount</span>
+                <span class="dup-summary-tag">UNLINKED: @UnlinkedCount</span>
+            </div>
+        </div>
+
+        <!-- CONTENT DISPLAY -->
+        @if (isProcessing && gdriveTracks.Count == 0)
+        {
+            <div class="matte-card text-center py-4">
+                <div class="matte-tag">Storage Indexing</div>
+                <h3 class="card-title">Memuat Indeks Google Drive Tracks...</h3>
+                <p class="status-text text-muted">Membaca rekaman file audio dari tabel gdrive_tracks.</p>
+            </div>
+        }
+        else if (!isProcessing && gdriveTracks.Count == 0)
+        {
+            <div class="matte-card text-center py-4">
+                <div class="matte-tag">Indeks Kosong</div>
+                <h3 class="card-title">Belum Ada File MP3 Terindeks di Google Drive</h3>
+                <p class="status-text text-muted">
+                    Klik <strong>REFRESH GDRIVE INDEX</strong> untuk memperbarui data indeks dari tabel storage.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="preview-container">
+                <div class="preview-header">
+                    <span>DATABASE GDRIVE TRACKS (@gdriveTracks.Count:N0)</span>
+                    <span class="dup-summary-tag">@UnlinkedCount FILE BELUM TERHUBUNG</span>
+                </div>
+
+                <div class="cluster-list">
+                    <div class="song-compact-grid">
+                        @foreach (var track in gdriveTracks)
+                        {
+                            <div class="song-compact-card @(track.IsLinkedToSong ? "card-keep" : "card-purge")">
+                                <div class="compact-card-header">
+                                    <span class="@(track.IsLinkedToSong ? "badge-keep-btn" : "badge-purge-btn") badge-action">
+                                        @(track.IsLinkedToSong ? "LINKED TO SONG" : "UNLINKED")
+                                    </span>
+                                    <span class="song-id-tag">ID: #@track.Id</span>
+                                </div>
+
+                                <div class="compact-card-body">
+                                    <div class="compact-song-title">@(string.IsNullOrEmpty(track.Title) ? track.FileName : track.Title)</div>
+                                    <div class="compact-song-artist">
+                                        Artis: @(track.Artist ?? "Unknown Artist") • ID Drive: @track.FileId
+                                    </div>
+                                </div>
+
+                                <div class="compact-card-footer">
+                                    <span>⏱️ @(TimeSpan.FromSeconds(track.DurationSeconds).ToString(@"mm\:ss"))</span>
+                                    <span>💾 @((track.FileSizeBytes / (1024.0 * 1024.0)).ToString("0.0")) MB</span>
+                                    @if (track.SongId.HasValue)
+                                    {
+                                        <span>🎵 Song Ref: #@track.SongId</span>
+                                    }
+                                    else
+                                    {
+                                        <span>⚠️ Ref: None</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
 </div>
