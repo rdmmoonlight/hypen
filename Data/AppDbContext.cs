@@ -15,8 +15,9 @@ public class AppDbContext : DbContext
     public DbSet<SongsModel> SongsComplete => Songs;
 
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
-
-    // Tabel Baru: Google Drive Tracks Storage
+    
+    // Tabel Google Drive OAuth Token & Tracks
+    public DbSet<GoogleDriveOAuthTokenModel> GoogleDriveOAuthTokens { get; set; } = default!;
     public DbSet<GDriveTrackModel> GDriveTracks { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -72,6 +73,25 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ChannelTitle).HasColumnName("channel_title");
             entity.Property(e => e.AccessToken).HasColumnName("access_token");
             entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+        });
+
+        // =========================================================================
+        // MAPPING TABEL: google_drive_oauth_tokens
+        // =========================================================================
+        modelBuilder.Entity<GoogleDriveOAuthTokenModel>(entity =>
+        {
+            entity.ToTable("google_drive_oauth_tokens");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.AccessToken).HasColumnName("access_token");
+            entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").IsRequired();
+            entity.Property(e => e.TokenType).HasColumnName("token_type").HasDefaultValue("Bearer");
+            entity.Property(e => e.ExpiresInSeconds).HasColumnName("expires_in_seconds");
+            entity.Property(e => e.IssuedAtUtc).HasColumnName("issued_at_utc");
+            entity.Property(e => e.AccountEmail).HasColumnName("account_email");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
         });
 
