@@ -166,14 +166,13 @@
             </div>
         </div>
 
-        <!-- GDRIVE FETCH & MAPPING PANEL -->
+        <!-- GDRIVE DIRECT FETCH PANEL -->
         <div class="matte-card gdrive-fetch-card">
-            <div class="matte-tag">Fetch & Mapping Storage</div>
+            <div class="matte-tag">Direct Google Drive Sync (Authenticated Session)</div>
             <div class="gdrive-input-grid">
-                <input type="text" @bind="gdriveFolderId" placeholder="Folder ID Google Drive (Contoh: 1A2b3C4d...)" class="matte-input" />
-                <input type="password" @bind="gdriveApiKey" placeholder="API Key Google Drive" class="matte-input" />
+                <input type="text" @bind="gdriveFolderId" placeholder="Folder ID Spesifik (Opsional - Kosongkan untuk scan seluruh Drive)" class="matte-input" />
                 <button class="btn-matte btn-primary" @onclick="FetchDriveFiles" disabled="@isProcessing">
-                    📥 FETCH & MAP TO DB
+                    📥 FETCH DIRECTLY FROM MY GDRIVE
                 </button>
             </div>
         </div>
@@ -205,16 +204,16 @@
             <div class="matte-card text-center py-4">
                 <div class="matte-tag">Storage Indexing</div>
                 <h3 class="card-title">Memuat / Mengunduh Indeks Google Drive...</h3>
-                <p class="status-text text-muted">Sedang mengambil daftar file MP3 dari Google Drive API...</p>
+                <p class="status-text text-muted">Sedang terhubung langsung ke akun Google Drive Anda...</p>
             </div>
         }
         else if (!isProcessing && gdriveTracks.Count == 0)
         {
             <div class="matte-card text-center py-4">
                 <div class="matte-tag">Indeks Kosong</div>
-                <h3 class="card-title">Belum Ada File MP3 Terindeks di Google Drive</h3>
+                <h3 class="card-title">Belum Ada File MP3 Terindeks dari Google Drive</h3>
                 <p class="status-text text-muted">
-                    Isi <strong>Folder ID</strong> & <strong>API Key</strong> di atas, lalu klik <strong>FETCH & MAP TO DB</strong> untuk mengimpor data file ke tabel.
+                    Klik <strong>FETCH DIRECTLY FROM MY GDRIVE</strong> untuk memindai file MP3 langsung dari akun Google Drive Anda yang terhubung.
                 </p>
             </div>
         }
