@@ -20,12 +20,11 @@ namespace Hypen.Web.Services
         private readonly string _clientSecret;
         private readonly string _redirectUri;
 
-        // Scope yang dibutuhkan untuk akses Google Drive & Profil dasar
         private static readonly string[] Scopes = new[]
         {
-            DriveService.Scope.DriveFile, // Akses ke file yang dibuat/dibuka aplikasi
-            DriveService.Scope.DriveAppdata, // Akses ke App Data folder jika butuh sync tersembunyi
-            Oauth2Service.Scope.UserinfoEmail // Mengambil email user untuk identifikasi
+            DriveService.Scope.DriveFile,
+            DriveService.Scope.DriveAppdata,
+            Oauth2Service.Scope.UserinfoEmail
         };
 
         public GoogleDriveOAuthService(
@@ -37,8 +36,6 @@ namespace Hypen.Web.Services
             _dbFactory = dbFactory;
             _logger = logger;
 
-            // Prioritas 1: Environment Variables Render.com
-            // Prioritas 2: Configuration appsettings.json
             _clientId = Environment.GetEnvironmentVariable("GDRIVE_CLIENT_ID") 
                 ?? _configuration["GoogleDriveOAuth:ClientId"] 
                 ?? throw new InvalidOperationException("GDRIVE_CLIENT_ID / GoogleDriveOAuth:ClientId belum dikonfigurasi.");
@@ -52,9 +49,6 @@ namespace Hypen.Web.Services
                 ?? "https://localhost:7123/api/oauth/gdrive/callback";
         }
 
-        /// <summary>
-        /// Membuat Flow OAuth dasar Google
-        /// </summary>
         private GoogleAuthorizationCodeFlow CreateFlow()
         {
             return new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
@@ -68,36 +62,32 @@ namespace Hypen.Web.Services
             });
         }
 
-        /// <summary>
-        /// Generates OAuth Redirect URL untuk halaman Login Google
-        /// </summary>
         public string GetAuthorizationUrl(string? state = null)
         {
             var flow = CreateFlow();
             var request = flow.CreateAuthorizationCodeRequest(_redirectUri);
             
-            // Wajib offline access agar mendapatkan Refresh Token
-            request.AccessType = "offline";
-            request.Prompt = "consent"; // Force consent agar selalu mengembalikan refresh_token baru
+            // Tambahkan parameter query khusus untuk offline refresh token & consent screen
+            var urlBuilder = new UriBuilder(request.Build());
+            var query = System.Web.HttpUtility.ParseQueryString(urlBuilder.Query);
+            query["access_type"] = "offline";
+            query["prompt"] = "consent";
             
             if (!string.IsNullOrEmpty(state))
             {
-                request.State = state;
+                query["state"] = state;
             }
 
-            return request.Build().ToString();
+            urlBuilder.Query = query.ToString();
+            return urlBuilder.ToString();
         }
 
-        /// <summary>
-        /// Memproses Authorization Code dari Google Callback & Menyimpan Token ke DB
-        /// </summary>
         public async Task<bool> ProcessCallbackAsync(string code, CancellationToken cancellationToken = default)
         {
             try
             {
                 var flow = CreateFlow();
                 
-                // 1. Tukar Code dengan Token
                 TokenResponse tokenResponse = await flow.ExchangeCodeForTokenAsync(
                     userId: "user",
                     code: code,
@@ -110,10 +100,8 @@ namespace Hypen.Web.Services
                     return false;
                 }
 
-                // 2. Ambil informasi Email user dari OAuth2 API
                 string? userEmail = await FetchUserEmailAsync(tokenResponse.AccessToken, cancellationToken);
 
-                // 3. Simpan / Update Token ke Database
                 using var dbContext = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
                 var existingToken = await dbContext.GoogleDriveOAuthTokens.FirstOrDefaultAsync(cancellationToken);
@@ -128,7 +116,7 @@ namespace Hypen.Web.Services
                 }
 
                 existingToken.AccessToken = tokenResponse.AccessToken;
-                existingToken.RefreshToken = tokenResponse.RefreshToken ?? existingToken.RefreshToken; // Keep old refresh token if not returned
+                existingToken.RefreshToken = tokenResponse.RefreshToken ?? existingToken.RefreshToken;
                 existingToken.TokenType = tokenResponse.TokenType ?? "Bearer";
                 existingToken.ExpiresInSeconds = tokenResponse.ExpiresInSeconds ?? 3600;
                 existingToken.IssuedAtUtc = DateTime.UtcNow;
@@ -147,9 +135,6 @@ namespace Hypen.Web.Services
             }
         }
 
-        /// <summary>
-        /// Mengambil DriveService client yang valid (Auto-refresh token jika expired)
-        /// </summary>
         public async Task<DriveService?> GetDriveServiceAsync(CancellationToken cancellationToken = default)
         {
             using var dbContext = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -173,13 +158,12 @@ namespace Hypen.Web.Services
 
             var credential = new UserCredential(flow, "user", tokenResponse);
 
-            // Cek apakah access token sudah expired, lakukan refresh jika perlu
-            if (credential.Token.IsStale(SystemClock.Default))
+            // Cek apakah token sudah usang/expired
+            if (tokenResponse.IsStale)
             {
                 bool refreshed = await credential.RefreshTokenAsync(cancellationToken);
                 if (refreshed)
                 {
-                    // Update token baru ke database
                     tokenEntity.AccessToken = credential.Token.AccessToken;
                     tokenEntity.IssuedAtUtc = DateTime.UtcNow;
                     tokenEntity.UpdatedAt = DateTime.UtcNow;
@@ -201,9 +185,6 @@ namespace Hypen.Web.Services
             });
         }
 
-        /// <summary>
-        /// Helper untuk mengambil email pengguna yang sedang tersambung
-        /// </summary>
         private async Task<string?> FetchUserEmailAsync(string accessToken, CancellationToken cancellationToken)
         {
             try
