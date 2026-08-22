@@ -85,7 +85,8 @@
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        var files = e.GetMultipleFiles(maxAllowedFiles: 2000);
+        // Perbaikan CS1739: Gunakan positional argument (2000)
+        var files = e.GetMultipleFiles(2000);
         totalFiles = files.Count;
         processedCount = 0;
 
@@ -101,28 +102,25 @@
 
             foreach (var file in files)
             {
-                // Filter hanya format audio yang valid
                 var ext = Path.GetExtension(file.Name).ToLower();
                 if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".flac")
                 {
                     continue;
                 }
 
-                // Stream max 100MB per file
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                // Ekstraksi metadata via AudioMetadataService (TagLib#)
                 var (artist, title) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                // Cek apakah lagu sudah ada di master songs
                 var existingSong = await dbContext.Songs
                     .FirstOrDefaultAsync(s => s.Title.ToLower() == title.ToLower() && 
                                               s.Artist.ToLower() == artist.ToLower());
 
-                int songId;
+                // Perbaikan CS0266: simpan Id sebagai long
+                long songId;
 
                 if (existingSong == null)
                 {
@@ -135,7 +133,7 @@
                     };
 
                     dbContext.Songs.Add(newSong);
-                    await dbContext.SaveChangesAsync(); // Simpan untuk mendapatkan Auto-generated ID
+                    await dbContext.SaveChangesAsync();
                     songId = newSong.Id;
                 }
                 else
@@ -143,7 +141,6 @@
                     songId = existingSong.Id;
                 }
 
-                // Simpan/Update riwayat indeks file lokal ke tabel local_tracks
                 var existingLocalTrack = await dbContext.LocalTracks
                     .FirstOrDefaultAsync(lt => lt.FileName == file.Name && lt.FileSizeBytes == file.Size);
 
@@ -157,7 +154,7 @@
                         Title = title,
                         Artist = artist,
                         IsSyncedToDb = true,
-                        SongId = songId,
+                        SongId = (int)songId, // Cast explicit ke int
                         LastScannedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -167,7 +164,7 @@
                 }
                 else
                 {
-                    existingLocalTrack.SongId = songId;
+                    existingLocalTrack.SongId = (int)songId; // Cast explicit ke int
                     existingLocalTrack.IsSyncedToDb = true;
                     existingLocalTrack.LastScannedAt = DateTime.UtcNow;
                     existingLocalTrack.UpdatedAt = DateTime.UtcNow;
