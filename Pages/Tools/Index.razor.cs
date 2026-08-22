@@ -32,7 +32,6 @@ public partial class Index : ComponentBase
     // State GDrive Tracks & Inputs
     protected List<GDriveTrackModel> gdriveTracks = new();
     protected string gdriveFolderId = string.Empty;
-    protected string gdriveApiKey = string.Empty;
 
     protected int LinkedCount => gdriveTracks.Count(t => t.IsLinkedToSong);
     protected int UnlinkedCount => gdriveTracks.Count(t => !t.IsLinkedToSong);
@@ -176,28 +175,21 @@ public partial class Index : ComponentBase
 
     protected async Task FetchDriveFiles()
     {
-        if (string.IsNullOrWhiteSpace(gdriveFolderId) || string.IsNullOrWhiteSpace(gdriveApiKey))
-        {
-            statusMsg = "Folder ID dan API Key Google Drive wajib diisi!";
-            isError = true;
-            return;
-        }
-
         try
         {
             isProcessing = true;
-            statusMsg = "Sedang menghubungi Google Drive API dan menyimpan data ke tabel gdrive_tracks...";
+            statusMsg = "Sedang mengambil data dari akun Google Drive Anda dan menyimpan ke database...";
             isError = false;
             StateHasChanged();
 
-            int addedCount = await DriveScanner.FetchAndMapDriveFolderAsync(gdriveApiKey, gdriveFolderId);
+            int addedCount = await DriveScanner.FetchAndMapDriveFolderAsync(gdriveFolderId);
 
-            statusMsg = $"Selesai! Berhasil menambahkan/memperbarui {addedCount} file audio dari Google Drive ke database.";
+            statusMsg = $"Selesai! Berhasil mengimpor/memperbarui {addedCount} file audio dari akun Google Drive Anda.";
             await LoadDriveTracks();
         }
         catch (Exception ex)
         {
-            statusMsg = $"Gagal mengambil file Drive: {ex.Message}";
+            statusMsg = $"Gagal mengambil file dari Google Drive: {ex.Message}";
             isError = true;
         }
         finally
