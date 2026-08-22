@@ -1,0 +1,243 @@
+/* =========================================================================
+   SETTINGS PAGE - MATTE DARK SLATE STYLE
+   ========================================================================= */
+
+.matte-settings-container {
+    padding: 24px;
+    background: #121418;
+    color: #94a3b8;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Header Section */
+.matte-settings-header {
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.matte-settings-header h2 {
+    font-size: 1.25rem;
+    color: #f1f5f9;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+}
+
+.matte-settings-header p {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Status Alerts */
+.status-alert {
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    font-family: monospace;
+}
+
+.alert-loading {
+    background: #0c1a24;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+}
+
+.alert-error {
+    background: #1c1012;
+    border-left: 3px solid #f43f5e;
+    color: #f43f5e;
+}
+
+.alert-success {
+    background: #06231a;
+    border-left: 3px solid #10b981;
+    color: #10b981;
+}
+
+.btn-dismiss {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+/* Matte Integration Cards Grid */
+.integration-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.matte-card {
+    background: #181b20;
+    border: 1px solid #262c36;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.matte-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.icon-box {
+    padding: 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.icon-youtube {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.icon-gdrive {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.card-info h5 {
+    color: #f1f5f9;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 2px 0;
+}
+
+.card-info p {
+    color: #64748b;
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+/* Badges */
+.status-badge {
+    font-size: 0.68rem;
+    font-family: monospace;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.badge-connected {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-disconnected {
+    color: #64748b;
+    background: #121418;
+    border: 1px solid #262c36;
+}
+
+/* Detail Section */
+.matte-divider {
+    border: 0;
+    border-top: 1px solid #222730;
+    margin: 16px 0;
+}
+
+.details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    margin-bottom: 16px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1a1f28;
+}
+
+.detail-label {
+    color: #64748b;
+}
+
+.detail-value {
+    color: #e2e8f0;
+}
+
+.detail-value.highlight {
+    color: #38bdf8;
+}
+
+.detail-value.success {
+    color: #10b981;
+}
+
+/* Buttons */
+.card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.btn-matte {
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-matte:hover:not(:disabled) {
+    background: #334155;
+    border-color: #475569;
+}
+
+.btn-danger {
+    background: #181113;
+    border: 1px solid #f43f5e;
+    color: #f43f5e;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #2c1218;
+    color: #fda4af;
+}
+
+.btn-primary {
+    background: #0f172a;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #1e293b;
+    color: #7dd3fc;
+}
