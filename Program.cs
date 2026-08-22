@@ -54,12 +54,9 @@ string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_
 string youtubeOAuthClientSecret = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_SECRET") ?? "";
 string youtubeOAuthRedirectUri = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_REDIRECT_URI") ?? "";
 
-// Entity Framework Core Factory (PostgreSQL SSOT)
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(dbConnectionStringConfig));
 
-// Business & Vault Services
-builder.Services.AddScoped<ISongsService, SongsService>();
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
@@ -68,14 +65,14 @@ builder.Services.AddScoped(sp => new YouTubeOAuthService(
     sp.GetRequiredService<IHttpClientFactory>(),
     sp.GetRequiredService<IDbContextFactory<AppDbContext>>()));
 
+builder.Services.AddScoped<ISongsService, SongsService>();
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
-
-// Extractor, Smart Match, Deduplication & Sync Engine Services
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
-builder.Services.AddScoped<SongDeduplicationEngine>(); // <-- DITAMBAHKAN: Mencegah InvalidOperationException di SyncService
+builder.Services.AddScoped<SongDeduplicationEngine>(); 
 builder.Services.AddScoped<SyncService>();
+builder.Services.AddScoped<GoogleDriveScannerEngine>();
 
 // =========================================================================
 // 2. BUILD PIPELINE & MIDDLEWARE
