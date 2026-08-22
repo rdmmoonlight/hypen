@@ -63,7 +63,11 @@
             <div class="preview-header">
                 <span>PARSED QUEUE PREVIEW (@extractedList.Count:N0)</span>
                 <div class="header-right">
-                    <span class="count-tag">@extractedList.Count(i => i.IsSelected):N0 SELECTED</span>
+                    <span class="count-tag">@extractedList.Count(i => i.IsSelected && !i.IsDuplicateInDb):N0 READY TO COMMIT</span>
+                    @if (extractedList.Any(i => i.IsDuplicateInDb))
+                    {
+                        <span class="dup-summary-tag">@extractedList.Count(i => i.IsDuplicateInDb):N0 IN DB</span>
+                    }
                     <button class="btn-clear" @onclick="ClearPreview" disabled="@isProcessing">CLEAR QUEUE</button>
                 </div>
             </div>
@@ -74,6 +78,7 @@
                         <th class="th-check">
                             <input type="checkbox" @onchange="ToggleSelectAll" checked="@isAllSelected" class="checkbox-input" />
                         </th>
+                        <th>Status</th>
                         <th>Source / ID</th>
                         <th>Artist</th>
                         <th>Title</th>
@@ -82,16 +87,26 @@
                 <tbody>
                     @foreach (var item in extractedList)
                     {
-                        <tr>
+                        <tr class="@(item.IsDuplicateInDb ? "row-duplicate" : "")">
                             <td class="td-check">
-                                <input type="checkbox" @bind="item.IsSelected" class="checkbox-input" />
+                                <input type="checkbox" @bind="item.IsSelected" disabled="@item.IsDuplicateInDb" class="checkbox-input" />
+                            </td>
+                            <td class="td-status">
+                                @if (item.IsDuplicateInDb)
+                                {
+                                    <span class="badge-dup" title="@item.DuplicateReason">EXISTS IN DB</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-new">NEW</span>
+                                }
                             </td>
                             <td class="file-name">@item.FileName</td>
                             <td>
-                                <input type="text" @bind="item.CleanArtist" class="form-control table-input" />
+                                <input type="text" @bind="item.CleanArtist" disabled="@item.IsDuplicateInDb" class="form-control table-input" />
                             </td>
                             <td>
-                                <input type="text" @bind="item.CleanTitle" class="form-control table-input" />
+                                <input type="text" @bind="item.CleanTitle" disabled="@item.IsDuplicateInDb" class="form-control table-input" />
                             </td>
                         </tr>
                     }
@@ -99,8 +114,8 @@
             </table>
 
             <div class="preview-footer">
-                <button class="btn-action btn-commit" @onclick="SaveSelectedToRaw" disabled="@(isProcessing || !extractedList.Any(i => i.IsSelected))">
-                    @(isProcessing ? "SAVING..." : $"COMMIT {extractedList.Count(i => i.IsSelected):N0} SELECTED TO STAGING")
+                <button class="btn-action btn-commit" @onclick="SaveSelectedToRaw" disabled="@(isProcessing || !extractedList.Any(i => i.IsSelected && !i.IsDuplicateInDb))">
+                    @(isProcessing ? "SAVING..." : $"COMMIT {extractedList.Count(i => i.IsSelected && !i.IsDuplicateInDb):N0} NEW SONGS TO STAGING")
                 </button>
             </div>
         </div>
