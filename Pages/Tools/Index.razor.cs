@@ -232,7 +232,8 @@ public partial class Index : ComponentBase
                 var matchSong = await dbContext.Songs.FirstOrDefaultAsync(s => s.Title.ToLower() == track.Title!.ToLower());
                 if (matchSong != null)
                 {
-                    track.SongId = matchSong.Id;
+                    // Perbaikan CS0266: cast explicit dari long ke int
+                    track.SongId = (int)matchSong.Id;
                     track.IsSyncedToDb = true;
                     syncedCount++;
                 }
