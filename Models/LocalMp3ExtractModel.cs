@@ -24,6 +24,10 @@ public class LocalMp3ExtractModel
     public bool IsSelected { get; set; } = true;
     public bool IsProcessed { get; set; }
 
+    // Deduplication UI State Properties
+    public bool IsDuplicateInDb { get; set; } = false;
+    public string DuplicateReason { get; set; } = string.Empty;
+
     // Smart Match Review UI Properties
     public bool IsNeedsReview { get; set; } = false;
     public string MatchConfidenceReason { get; set; } = string.Empty;
