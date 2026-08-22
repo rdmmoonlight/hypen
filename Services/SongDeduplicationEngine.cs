@@ -14,11 +14,11 @@ public class DuplicateMatchResult
 
 public class SongDeduplicationEngine
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
-    public SongDeduplicationEngine(AppDbContext dbContext)
+    public SongDeduplicationEngine(IDbContextFactory<AppDbContext> dbContextFactory)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContextFactory;
     }
 
     /// <summary>
@@ -30,9 +30,11 @@ public class SongDeduplicationEngine
         int minSimilarityScore = 85,
         CancellationToken cancellationToken = default)
     {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
         if (!string.IsNullOrWhiteSpace(candidate.YoutubeVideoId))
         {
-            var matchByYt = await _dbContext.Songs
+            var matchByYt = await dbContext.Songs
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.YoutubeVideoId == candidate.YoutubeVideoId, cancellationToken);
 
@@ -42,7 +44,7 @@ public class SongDeduplicationEngine
 
         if (!string.IsNullOrWhiteSpace(candidate.MusicBrainzId))
         {
-            var matchByMb = await _dbContext.Songs
+            var matchByMb = await dbContext.Songs
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.MusicBrainzId == candidate.MusicBrainzId, cancellationToken);
 
@@ -50,7 +52,7 @@ public class SongDeduplicationEngine
                 return new DuplicateMatchResult { ExistingSong = matchByMb, MatchReason = "Exact MusicBrainz ID Match", SimilarityScore = 100 };
         }
 
-        var query = _dbContext.Songs.AsNoTracking().AsQueryable();
+        var query = dbContext.Songs.AsNoTracking().AsQueryable();
 
         if (candidate.DurationSeconds.HasValue && candidate.DurationSeconds > 0)
         {
@@ -93,14 +95,16 @@ public class SongDeduplicationEngine
     }
 
     /// <summary>
-    /// Memindai seluruh vault database untuk mengelompokkan lagu-lagu duplikat (Halaman /tools)
+    /// Memindai seluruh database untuk mengelompokkan lagu-lagu duplikat (Halaman /tools)
     /// </summary>
     public async Task<List<DuplicateGroupModel>> ScanAllDuplicatesAsync(
         int durationToleranceSeconds = 3,
         int minSimilarityScore = 80,
         CancellationToken cancellationToken = default)
     {
-        var allSongs = await _dbContext.Songs.AsNoTracking().ToListAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var allSongs = await dbContext.Songs.AsNoTracking().ToListAsync(cancellationToken);
         var resultGroups = new List<DuplicateGroupModel>();
         var processedIds = new HashSet<long>();
 
@@ -223,15 +227,17 @@ public class SongDeduplicationEngine
 
         if (deleteIds.Count == 0) return 0;
 
-        using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            var targets = await _dbContext.Songs
+            var targets = await dbContext.Songs
                 .Where(s => deleteIds.Contains(s.Id))
                 .ToListAsync(cancellationToken);
 
-            _dbContext.Songs.RemoveRange(targets);
-            int rowsAffected = await _dbContext.SaveChangesAsync(cancellationToken);
+            dbContext.Songs.RemoveRange(targets);
+            int rowsAffected = await dbContext.SaveChangesAsync(cancellationToken);
             
             await transaction.CommitAsync(cancellationToken);
             return rowsAffected;
