@@ -33,7 +33,7 @@ public partial class Index : ComponentBase
 
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             
-            // Inisialisasi Master Default (Pilih ID lagu pertama dalam grup)
+            // Inisialisasi Master Default (Pilih ID lagu pertama dalam grup jika belum ada yang diset)
             foreach (var group in duplicateGroups)
             {
                 if (group.KeepSongId == 0 && group.Items.Count > 0)
@@ -59,12 +59,17 @@ public partial class Index : ComponentBase
         }
     }
 
-    // Handler event klik persis seperti pola Library
-    protected void SelectMaster(DuplicateGroupModel group, long songId)
+    /// <summary>
+    /// Handler pemilihan lagu master (dipanggil dari radio button @onchange di View)
+    /// </summary>
+    protected void OnMasterSelected(DuplicateGroupModel group, long songId)
     {
         group.KeepSongId = songId;
         StateHasChanged();
     }
+
+    // Alias pendukung jika ada pemanggilan SelectMaster dari komponen lain
+    protected void SelectMaster(DuplicateGroupModel group, long songId) => OnMasterSelected(group, songId);
 
     // Eksekusi Hapus Batch ke Database (Pola Batch Delete Library)
     protected async Task PurgeSelected()
