@@ -1,117 +1,210 @@
 /* =========================================================================
-   MATTE BASE & CONTAINER (DARK SLATE / GRAPHITE PALETTE)
+   SETTINGS PAGE - MATTE DARK SLATE STYLE
    ========================================================================= */
-.matte-container {
-    padding: 20px 24px;
-    background: #121418; /* Solid Matte Dark Slate */
+
+.matte-settings-container {
+    padding: 24px;
+    background: #121418;
     color: #94a3b8;
     min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     box-sizing: border-box;
     width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
-/* =========================================================================
-   TAB NAVIGATION BUTTONS
-   ========================================================================= */
-.matte-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #1e293b;
-    padding-bottom: 10px;
-}
-
-.tab-item {
-    background: #181b20;
-    color: #64748b;
-    border: 1px solid #262c36;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: monospace;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.tab-item:hover {
-    background: #1e242d;
-    color: #94a3b8;
-}
-
-.tab-item.active {
-    background: #0f172a;
-    color: #38bdf8;
-    border-color: #38bdf8;
-}
-
-/* HEADER SECTION */
-.matte-header {
-    margin-bottom: 16px;
+/* Header Section */
+.matte-settings-header {
+    margin-bottom: 24px;
     padding-bottom: 12px;
     border-bottom: 1px solid #1e293b;
+}
+
+.matte-settings-header h2 {
+    font-size: 1.25rem;
+    color: #f1f5f9;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+}
+
+.matte-settings-header p {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Status Alerts */
+.status-alert {
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    border-radius: 4px;
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.matte-subtitle {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #64748b;
-    margin-bottom: 4px;
-    font-weight: 600;
-}
-
-.matte-title {
-    font-size: 1.15rem;
-    color: #f1f5f9;
-    margin: 0;
-    font-weight: 600;
-    letter-spacing: -0.2px;
-}
-
-.matte-counter {
+    align-items: center;
     font-size: 0.75rem;
     font-family: monospace;
+}
+
+.alert-loading {
+    background: #0c1a24;
+    border: 1px solid #38bdf8;
     color: #38bdf8;
-    background: #0f172a;
+}
+
+.alert-error {
+    background: #1c1012;
+    border-left: 3px solid #f43f5e;
+    color: #f43f5e;
+}
+
+.alert-success {
+    background: #06231a;
+    border-left: 3px solid #10b981;
+    color: #10b981;
+}
+
+.btn-dismiss {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+/* Matte Integration Cards Grid */
+.integration-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.matte-card {
+    background: #181b20;
+    border: 1px solid #262c36;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.matte-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* KOTAK IKON DISAMAKAN UKURANNYA */
+.icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.icon-youtube {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.icon-gdrive {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.card-info h5 {
+    color: #f1f5f9;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 2px 0;
+}
+
+.card-info p {
+    color: #64748b;
+    font-size: 0.72rem;
+    margin: 0;
+}
+
+/* Badges */
+.status-badge {
+    font-size: 0.68rem;
+    font-family: monospace;
     padding: 4px 10px;
     border-radius: 4px;
-    border: 1px solid #1e293b;
+    font-weight: 600;
 }
 
-/* TOOLBAR */
-.matte-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.matte-action-group, .matte-search-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.status-badge {
-    font-size: 0.7rem;
-    font-family: monospace;
+.badge-connected {
     color: #10b981;
     background: rgba(16, 185, 129, 0.1);
-    padding: 6px 12px;
-    border-radius: 4px;
     border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-/* BUTTONS (MATTE FLAT - NO GLOW) */
+.badge-disconnected {
+    color: #64748b;
+    background: #121418;
+    border: 1px solid #262c36;
+}
+
+/* Detail Section */
+.matte-divider {
+    border: 0;
+    border-top: 1px solid #222730;
+    margin: 16px 0;
+}
+
+.details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    margin-bottom: 16px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1a1f28;
+}
+
+.detail-label {
+    color: #64748b;
+}
+
+.detail-value {
+    color: #e2e8f0;
+}
+
+.detail-value.highlight {
+    color: #38bdf8;
+}
+
+.detail-value.success {
+    color: #10b981;
+}
+
+/* Buttons */
+.card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .btn-matte {
     background: #1e293b;
     color: #e2e8f0;
@@ -130,20 +223,9 @@
     border-color: #475569;
 }
 
-.btn-primary {
-    background: #0f172a;
-    border-color: #38bdf8;
-    color: #38bdf8;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background: #1e293b;
-    color: #7dd3fc;
-}
-
 .btn-danger {
     background: #181113;
-    border-color: #f43f5e;
+    border: 1px solid #f43f5e;
     color: #f43f5e;
 }
 
@@ -152,293 +234,13 @@
     color: #fda4af;
 }
 
-.btn-success {
-    background: #064e3b;
-    border-color: #10b981;
-    color: #10b981;
+.btn-primary {
+    background: #0f172a;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
 }
 
-.btn-success:hover:not(:disabled) {
-    background: #047857;
-    color: #a7f3d0;
-}
-
-/* =========================================================================
-   GDRIVE FETCH PANEL & INPUTS
-   ========================================================================= */
-.gdrive-fetch-card {
-    margin-bottom: 16px;
-}
-
-.gdrive-input-grid {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.matte-input {
-    background: #0f1115;
-    border: 1px solid #262c36;
-    color: #f1f5f9;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: monospace;
-    outline: none;
-    transition: border-color 0.15s ease;
-}
-
-.matte-input:focus {
-    border-color: #38bdf8;
-}
-
-/* STATUS ALERTS */
-.status-alert {
-    padding: 8px 12px;
-    margin-bottom: 16px;
-    border-radius: 4px;
-}
-
-.alert-error {
-    background: #1c1012;
-    border-left: 3px solid #f43f5e;
-}
-
-.alert-error .status-text { color: #f43f5e; }
-
-.alert-info {
-    background: #0c1a24;
-    border-left: 3px solid #38bdf8;
-}
-
-.alert-info .status-text { color: #38bdf8; }
-
-.status-text {
-    font-size: 0.75rem;
-    margin: 0;
-    font-family: monospace;
-}
-
-/* MATTE CARDS & STATES */
-.matte-card {
-    background: #181b20;
-    border: 1px solid #262c36;
-    border-radius: 6px;
-    padding: 16px;
-}
-
-.matte-card.border-clean {
-    border-color: #10b981;
-}
-
-.card-title {
-    color: #e2e8f0;
-    font-size: 0.9rem;
-    font-weight: 500;
-    margin: 4px 0;
-}
-
-.matte-tag {
-    font-size: 0.65rem;
-    font-family: monospace;
-    color: #64748b;
-    text-transform: uppercase;
-}
-
-.tag-clean, .text-clean {
-    color: #10b981 !important;
-}
-
-/* PREVIEW & CLUSTER CONTAINERS */
-.preview-container {
-    background: #181b20;
-    border-radius: 6px;
-    border: 1px solid #262c36;
-    overflow: hidden;
-    margin-bottom: 24px;
-}
-
-.preview-header {
-    padding: 10px 14px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    border-bottom: 1px solid #262c36;
-    color: #94a3b8;
-    background: #121418;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.dup-summary-tag {
-    color: #f43f5e;
-    font-size: 0.68rem;
-    font-family: monospace;
-    background: rgba(244, 63, 94, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid rgba(244, 63, 94, 0.2);
-}
-
-.cluster-list {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.cluster-card {
-    background: #14171c;
-    border: 1px solid #222730;
-    border-radius: 4px;
-    padding: 10px;
-}
-
-.cluster-sub-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #1e242d;
-}
-
-.cluster-title-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.cluster-key {
-    color: #cbd5e1;
-    font-size: 0.75rem;
-    font-family: monospace;
-}
-
-.score-tag {
-    font-size: 0.68rem;
-    font-family: monospace;
-    color: #64748b;
-}
-
-/* COMPACT SONG CARDS (KOTAK KECIL MATTE SLATE) */
-.song-compact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px;
-}
-
-.song-compact-card {
-    border-radius: 4px;
-    padding: 8px 10px;
-    cursor: pointer;
-    transition: background 0.12s ease, border-color 0.12s ease;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 85px; /* Ringkas dan Padat */
-}
-
-/* STATE CARD KEEP vs PURGE */
-.card-keep {
-    background: #0d1f2d;
-    border: 1px solid #0284c7;
-}
-
-.card-keep:hover {
-    background: #112738;
-}
-
-.card-purge {
-    background: #0f1115;
-    border: 1px solid #1e242d;
-    opacity: 0.6;
-}
-
-.card-purge:hover {
-    opacity: 0.85;
-    background: #161920;
-    border-color: #334155;
-}
-
-.compact-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.badge-action {
-    border: none;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-family: monospace;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.badge-keep-btn {
-    background: #0369a1;
-    color: #f0f9ff;
-}
-
-.badge-purge-btn {
-    background: #27141a;
-    color: #f43f5e;
-    border: 1px solid #4c1d24;
-}
-
-.song-id-tag {
-    font-size: 0.62rem;
-    font-family: monospace;
-    color: #64748b;
-}
-
-.compact-song-title {
-    color: #f1f5f9;
-    font-size: 0.78rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.compact-song-artist {
-    color: #64748b;
-    font-size: 0.7rem;
-    margin-top: 1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.compact-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 6px;
-    padding-top: 4px;
-    border-top: 1px solid #1a1f28;
-    font-size: 0.62rem;
-    font-family: monospace;
-    color: #475569;
-}
-
-.badge-dup {
-    background: #27141a;
-    border: 1px solid #4c1d24;
-    color: #f43f5e;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-family: monospace;
-    font-weight: 600;
-}
-
-@media (max-width: 768px) {
-    .gdrive-input-grid {
-        grid-template-columns: 1fr;
-    }
+.btn-primary:hover:not(:disabled) {
+    background: #1e293b;
+    color: #7dd3fc;
 }
