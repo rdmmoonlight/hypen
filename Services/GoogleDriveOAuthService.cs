@@ -37,12 +37,19 @@ namespace Hypen.Web.Services
             _dbFactory = dbFactory;
             _logger = logger;
 
-            _clientId = _configuration["GoogleDriveOAuth:ClientId"] 
-                ?? throw new InvalidOperationException("GoogleDriveOAuth:ClientId belum dikonfigurasi di appsettings.json");
-            _clientSecret = _configuration["GoogleDriveOAuth:ClientSecret"] 
-                ?? throw new InvalidOperationException("GoogleDriveOAuth:ClientSecret belum dikonfigurasi di appsettings.json");
-            _redirectUri = _configuration["GoogleDriveOAuth:RedirectUri"] 
-                ?? "https://localhost:7123/api/oauth/gdrive/callback"; // sesuaikan port lokal/prod
+            // Prioritas 1: Environment Variables Render.com
+            // Prioritas 2: Configuration appsettings.json
+            _clientId = Environment.GetEnvironmentVariable("GDRIVE_CLIENT_ID") 
+                ?? _configuration["GoogleDriveOAuth:ClientId"] 
+                ?? throw new InvalidOperationException("GDRIVE_CLIENT_ID / GoogleDriveOAuth:ClientId belum dikonfigurasi.");
+
+            _clientSecret = Environment.GetEnvironmentVariable("GDRIVE_CLIENT_SECRET") 
+                ?? _configuration["GoogleDriveOAuth:ClientSecret"] 
+                ?? throw new InvalidOperationException("GDRIVE_CLIENT_SECRET / GoogleDriveOAuth:ClientSecret belum dikonfigurasi.");
+
+            _redirectUri = Environment.GetEnvironmentVariable("GDRIVE_REDIRECT_URI") 
+                ?? _configuration["GoogleDriveOAuth:RedirectUri"] 
+                ?? "https://localhost:7123/api/oauth/gdrive/callback";
         }
 
         /// <summary>
