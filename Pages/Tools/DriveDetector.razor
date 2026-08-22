@@ -1,0 +1,113 @@
+@page "/tools/gdrive-sync"
+@using Hypen.Web.Models
+@using Hypen.Web.Services
+
+<PageTitle>GDrive Storage Sync - Hypen Tools</PageTitle>
+
+<div class="matte-container">
+
+    <!-- ALERT STATUS -->
+    @if (!string.IsNullOrEmpty(statusMsg))
+    {
+        <div class="status-alert @(isError ? "alert-error" : "alert-info")">
+            <p class="status-text">@statusMsg</p>
+        </div>
+    }
+
+    <!-- HEADER -->
+    <div class="matte-header">
+        <div>
+            <div class="matte-subtitle">System Maintenance</div>
+            <h1 class="matte-title">Google Drive Track Sync Engine</h1>
+        </div>
+        <div class="matte-counter">
+            @gdriveTracks.Count FILES TERDATA
+        </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="matte-toolbar">
+        <div class="matte-action-group">
+            <button class="btn-matte btn-primary" @onclick="LoadDriveTracks" disabled="@isProcessing">
+                @(isProcessing ? "SYNCING STORAGE..." : "REFRESH GDRIVE INDEX")
+            </button>
+
+            @if (UnlinkedCount > 0)
+            {
+                <button class="btn-matte btn-success" @onclick="AutoLinkTracks" disabled="@isProcessing">
+                    🔗 AUTO-LINK TO MASTER SONGS (@UnlinkedCount)
+                </button>
+            }
+        </div>
+
+        <div class="matte-search-group">
+            <span class="status-badge">LINKED: @LinkedCount</span>
+            <span class="dup-summary-tag">UNLINKED: @UnlinkedCount</span>
+        </div>
+    </div>
+
+    <!-- CONTENT DISPLAY -->
+    @if (isProcessing && gdriveTracks.Count == 0)
+    {
+        <div class="matte-card text-center py-4">
+            <div class="matte-tag">Storage Indexing</div>
+            <h3 class="card-title">Memuat Indeks Google Drive Tracks...</h3>
+            <p class="status-text text-muted">Membaca rekaman file audio dari tabel gdrive_tracks.</p>
+        </div>
+    }
+    else if (!isProcessing && gdriveTracks.Count == 0)
+    {
+        <div class="matte-card text-center py-4">
+            <div class="matte-tag">Indeks Kosong</div>
+            <h3 class="card-title">Belum Ada File MP3 Terindeks di Google Drive</h3>
+            <p class="status-text text-muted">
+                Klik <strong>REFRESH GDRIVE INDEX</strong> untuk memperbarui data indeks dari tabel storage.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="preview-container">
+            <div class="preview-header">
+                <span>DATABASE GDRIVE TRACKS (@gdriveTracks.Count:N0)</span>
+                <span class="dup-summary-tag">@UnlinkedCount FILE BELUM TERHUBUNG</span>
+            </div>
+
+            <div class="cluster-list">
+                <div class="song-compact-grid">
+                    @foreach (var track in gdriveTracks)
+                    {
+                        <div class="song-compact-card @(track.IsLinkedToSong ? "card-keep" : "card-purge")">
+                            <div class="compact-card-header">
+                                <span class="@(track.IsLinkedToSong ? "badge-keep-btn" : "badge-purge-btn") badge-action">
+                                    @(track.IsLinkedToSong ? "LINKED TO SONG" : "UNLINKED")
+                                </span>
+                                <span class="song-id-tag">ID: #@track.Id</span>
+                            </div>
+
+                            <div class="compact-card-body">
+                                <div class="compact-song-title">@(string.IsNullOrEmpty(track.Title) ? track.FileName : track.Title)</div>
+                                <div class="compact-song-artist">
+                                    Artis: @(track.Artist ?? "Unknown Artist") • ID Drive: @track.FileId
+                                </div>
+                            </div>
+
+                            <div class="compact-card-footer">
+                                <span>⏱️ @(TimeSpan.FromSeconds(track.DurationSeconds).ToString(@"mm\:ss"))</span>
+                                <span>💾 @((track.FileSizeBytes / (1024.0 * 1024.0)).ToString("0.0")) MB</span>
+                                @if (track.SongId.HasValue)
+                                {
+                                    <span>🎵 Song Ref: #@track.SongId</span>
+                                }
+                                else
+                                {
+                                    <span>⚠️ Ref: None</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
