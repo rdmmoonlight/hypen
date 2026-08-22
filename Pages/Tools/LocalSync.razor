@@ -1,0 +1,49 @@
+@page "/local-sync"
+@using Hypen.Web.Data
+@using Hypen.Web.Models
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+
+<h3>Sync MP3 Lokal</h3>
+
+<InputFile OnChange="HandleFilesSelected" multiple accept=".mp3,.wav,.m4a" />
+
+@if (isSyncing)
+{
+    <p>Sedang memproses... @processedCount file.</p>
+}
+
+@code {
+    private bool isSyncing;
+    private int processedCount;
+
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        isSyncing = true;
+        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            // Cek apakah file sudah ada di database berdasarkan nama
+            var exists = await dbContext.LocalTracks.AnyAsync(t => t.FileName == file.Name);
+            
+            if (!exists)
+            {
+                var newTrack = new LocalTrackModel
+                {
+                    FileName = file.Name,
+                    FilePath = "LOCAL_USER_STORAGE", // Penanda bahwa ini file dari user
+                    PlayUrl = file.Name, // Anda butuh logika untuk memproses stream-nya nanti
+                    Title = file.Name,
+                    Artist = "Unknown Artist",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await dbContext.LocalTracks.AddAsync(newTrack);
+                processedCount++;
+            }
+        }
+
+        await dbContext.SaveChangesAsync();
+        isSyncing = false;
+    }
+}
