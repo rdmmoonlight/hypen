@@ -59,12 +59,16 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services.AddHttpClient<IMusicBrainzService, MusicBrainzService>();
 
+// OAuth Services
 builder.Services.AddScoped(sp => new YouTubeOAuthService(
     youtubeOAuthClientId,
     youtubeOAuthClientSecret,
     sp.GetRequiredService<IHttpClientFactory>(),
     sp.GetRequiredService<IDbContextFactory<AppDbContext>>()));
 
+builder.Services.AddScoped<GoogleDriveOAuthService>();
+
+// Application Domain Services
 builder.Services.AddScoped<ISongsService, SongsService>();
 builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
