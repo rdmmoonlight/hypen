@@ -19,7 +19,7 @@ public partial class Index : ComponentBase
     protected string statusMsg = string.Empty;
     protected bool isError;
 
-    // Menghitung total lagu yang akan dihapus dari seluruh grup
+    // Menghitung total lagu yang AKAN DIHAPUS (Sama seperti Library)
     protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
 
     protected async Task ScanDuplicates()
@@ -33,7 +33,7 @@ public partial class Index : ComponentBase
 
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             
-            // Inisialisasi: Pilih lagu pertama sebagai Master default jika belum diset
+            // Inisialisasi Master Default (Pilih ID lagu pertama dalam grup)
             foreach (var group in duplicateGroups)
             {
                 if (group.KeepSongId == 0 && group.Items.Count > 0)
@@ -59,12 +59,14 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected void OnMasterSelected(DuplicateGroupModel group, long songId)
+    // Handler event klik persis seperti pola Library
+    protected void SelectMaster(DuplicateGroupModel group, long songId)
     {
         group.KeepSongId = songId;
         StateHasChanged();
     }
 
+    // Eksekusi Hapus Batch ke Database (Pola Batch Delete Library)
     protected async Task PurgeSelected()
     {
         if (TotalToDeleteCount == 0) return;
@@ -83,7 +85,7 @@ public partial class Index : ComponentBase
 
             statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Database!";
             
-            // Re-scan otomatis setelah pembersihan
+            // Auto re-scan setelah berhasil menghapus
             duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
             
             foreach (var group in duplicateGroups)
