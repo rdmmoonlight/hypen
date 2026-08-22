@@ -11,6 +11,41 @@
     width: 100%;
 }
 
+/* =========================================================================
+   TAB NAVIGATION BUTTONS
+   ========================================================================= */
+.matte-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 10px;
+}
+
+.tab-item {
+    background: #181b20;
+    color: #64748b;
+    border: 1px solid #262c36;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tab-item:hover {
+    background: #1e242d;
+    color: #94a3b8;
+}
+
+.tab-item.active {
+    background: #0f172a;
+    color: #38bdf8;
+    border-color: #38bdf8;
+}
+
 /* HEADER SECTION */
 .matte-header {
     margin-bottom: 16px;
@@ -60,9 +95,10 @@
     flex-wrap: wrap;
 }
 
-.matte-action-group {
+.matte-action-group, .matte-search-group {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
 .status-badge {
@@ -114,6 +150,47 @@
 .btn-danger:hover:not(:disabled) {
     background: #2c1218;
     color: #fda4af;
+}
+
+.btn-success {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #047857;
+    color: #a7f3d0;
+}
+
+/* =========================================================================
+   GDRIVE FETCH PANEL & INPUTS
+   ========================================================================= */
+.gdrive-fetch-card {
+    margin-bottom: 16px;
+}
+
+.gdrive-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.matte-input {
+    background: #0f1115;
+    border: 1px solid #262c36;
+    color: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.matte-input:focus {
+    border-color: #38bdf8;
 }
 
 /* STATUS ALERTS */
@@ -358,4 +435,10 @@
     font-size: 0.6rem;
     font-family: monospace;
     font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .gdrive-input-grid {
+        grid-template-columns: 1fr;
+    }
 }
