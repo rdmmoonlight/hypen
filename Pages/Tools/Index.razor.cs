@@ -13,6 +13,9 @@ public partial class Index : ComponentBase
     protected SongDeduplicationEngine DedupEngine { get; set; } = default!;
 
     [Inject]
+    protected GoogleDriveScannerEngine DriveScanner { get; set; } = default!;
+
+    [Inject]
     protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
     [Inject]
@@ -26,8 +29,11 @@ public partial class Index : ComponentBase
     protected bool hasScanned;
     protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
 
-    // State GDrive Tracks
+    // State GDrive Tracks & Inputs
     protected List<GDriveTrackModel> gdriveTracks = new();
+    protected string gdriveFolderId = string.Empty;
+    protected string gdriveApiKey = string.Empty;
+
     protected int LinkedCount => gdriveTracks.Count(t => t.IsLinkedToSong);
     protected int UnlinkedCount => gdriveTracks.Count(t => !t.IsLinkedToSong);
 
@@ -159,6 +165,39 @@ public partial class Index : ComponentBase
         catch (Exception ex)
         {
             statusMsg = $"Gagal memuat indeks Drive: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task FetchDriveFiles()
+    {
+        if (string.IsNullOrWhiteSpace(gdriveFolderId) || string.IsNullOrWhiteSpace(gdriveApiKey))
+        {
+            statusMsg = "Folder ID dan API Key Google Drive wajib diisi!";
+            isError = true;
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            statusMsg = "Sedang menghubungi Google Drive API dan menyimpan data ke tabel gdrive_tracks...";
+            isError = false;
+            StateHasChanged();
+
+            int addedCount = await DriveScanner.FetchAndMapDriveFolderAsync(gdriveApiKey, gdriveFolderId);
+
+            statusMsg = $"Selesai! Berhasil menambahkan/memperbarui {addedCount} file audio dari Google Drive ke database.";
+            await LoadDriveTracks();
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal mengambil file Drive: {ex.Message}";
             isError = true;
         }
         finally
