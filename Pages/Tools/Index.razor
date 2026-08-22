@@ -166,11 +166,23 @@
             </div>
         </div>
 
+        <!-- GDRIVE FETCH & MAPPING PANEL -->
+        <div class="matte-card gdrive-fetch-card">
+            <div class="matte-tag">Fetch & Mapping Storage</div>
+            <div class="gdrive-input-grid">
+                <input type="text" @bind="gdriveFolderId" placeholder="Folder ID Google Drive (Contoh: 1A2b3C4d...)" class="matte-input" />
+                <input type="password" @bind="gdriveApiKey" placeholder="API Key Google Drive" class="matte-input" />
+                <button class="btn-matte btn-primary" @onclick="FetchDriveFiles" disabled="@isProcessing">
+                    📥 FETCH & MAP TO DB
+                </button>
+            </div>
+        </div>
+
         <!-- TOOLBAR -->
         <div class="matte-toolbar">
             <div class="matte-action-group">
-                <button class="btn-matte btn-primary" @onclick="LoadDriveTracks" disabled="@isProcessing">
-                    @(isProcessing ? "SYNCING..." : "REFRESH GDRIVE INDEX")
+                <button class="btn-matte" @onclick="LoadDriveTracks" disabled="@isProcessing">
+                    🔄 REFRESH LOCAL INDEX
                 </button>
 
                 @if (UnlinkedCount > 0)
@@ -192,8 +204,8 @@
         {
             <div class="matte-card text-center py-4">
                 <div class="matte-tag">Storage Indexing</div>
-                <h3 class="card-title">Memuat Indeks Google Drive Tracks...</h3>
-                <p class="status-text text-muted">Membaca rekaman file audio dari tabel gdrive_tracks.</p>
+                <h3 class="card-title">Memuat / Mengunduh Indeks Google Drive...</h3>
+                <p class="status-text text-muted">Sedang mengambil daftar file MP3 dari Google Drive API...</p>
             </div>
         }
         else if (!isProcessing && gdriveTracks.Count == 0)
@@ -202,7 +214,7 @@
                 <div class="matte-tag">Indeks Kosong</div>
                 <h3 class="card-title">Belum Ada File MP3 Terindeks di Google Drive</h3>
                 <p class="status-text text-muted">
-                    Klik <strong>REFRESH GDRIVE INDEX</strong> untuk memperbarui data indeks dari tabel storage.
+                    Isi <strong>Folder ID</strong> & <strong>API Key</strong> di atas, lalu klik <strong>FETCH & MAP TO DB</strong> untuk mengimpor data file ke tabel.
                 </p>
             </div>
         }
