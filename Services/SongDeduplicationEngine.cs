@@ -249,7 +249,7 @@ public class SongDeduplicationEngine
         }
     }
 
-    private static string CleanText(string input)
+    private static string CleanText(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return string.Empty;
         string text = input.ToLowerInvariant();
