@@ -1,6 +1,8 @@
 /* =========================================================================
-   CONTAINER BASE & LAYOUT
+   OVERRIDE & ISOLASI LAYOUT KHUSUS EXTRACTION ENGINE
    ========================================================================= */
+
+/* Paksa container mengabaikan constraint max-width dari theme.css */
 .sync-container {
     padding: 24px;
     background: #0a0b0e;
@@ -8,6 +10,7 @@
     min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     box-sizing: border-box;
+    width: 100%;
 }
 
 /* =========================================================================
@@ -114,7 +117,7 @@
 }
 
 /* =========================================================================
-   GRID & CARDS
+   GRID & CARDS (PENANGANAN BENTROKAN DENGAN THEME.CSS)
    ========================================================================= */
 .ingest-grid {
     display: grid;
@@ -138,15 +141,16 @@
     margin-bottom: 8px;
 }
 
-.card-title {
+.card-ingest .card-title {
     color: #d0d3d8;
     font-size: 0.95rem;
     font-weight: 500;
     margin: 0 0 16px 0;
+    white-space: normal;
 }
 
 /* =========================================================================
-   FORM CONTROLS
+   FORM CONTROLS (OVERRIDE INPUT TYPE TEXT DARI THEME.CSS)
    ========================================================================= */
 .form-group {
     margin-bottom: 16px;
@@ -161,27 +165,29 @@
     text-transform: uppercase;
 }
 
-.form-control {
+/* Override input[type="text"] dari theme.css agar tidak terlalu besar */
+.sync-container input[type="text"].form-control {
     width: 100%;
-    padding: 8px 10px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #d0d3d8;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-family: monospace;
+    padding: 8px 10px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #d0d3d8 !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    font-family: monospace !important;
+    box-shadow: none !important;
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.2s ease;
 }
 
-.form-control:focus {
-    border-color: rgba(69, 162, 158, 0.5);
+.sync-container input[type="text"].form-control:focus {
+    border-color: rgba(69, 162, 158, 0.5) !important;
 }
 
-.form-control:disabled {
+.sync-container input[type="text"].form-control:disabled {
     opacity: 0.5;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.2) !important;
     cursor: not-allowed;
 }
 
@@ -319,6 +325,13 @@
     width: 110px;
 }
 
+/* OVERRIDE INPUT DI DALAM TABEL AGAR RAPI PER BARIS */
+.sync-container input[type="text"].table-input {
+    padding: 4px 8px !important;
+    font-size: 0.78rem !important;
+    width: 100% !important;
+}
+
 .checkbox-input {
     accent-color: #45a29e;
     cursor: pointer;
@@ -334,11 +347,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.table-input {
-    padding: 5px 8px;
-    width: 98%;
 }
 
 /* =========================================================================
