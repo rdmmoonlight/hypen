@@ -21,13 +21,13 @@ public class GoogleDriveScannerEngine
     }
 
     /// <summary>
-    /// Membaca seluruh file audio MP3 dari Google Drive milik user via Token dari tabel GoogleDriveOAuthTokens.
+    /// Membaca seluruh file audio dari Google Drive milik user via Token dari tabel GoogleDriveOAuthTokens.
     /// </summary>
     public async Task<int> FetchAndMapDriveFolderAsync(string? folderId = null, CancellationToken cancellationToken = default)
     {
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        // 1. Ambil data Token langsung dari tabel GoogleDriveOAuthTokens
+        // 1. Ambil Token dari tabel GoogleDriveOAuthTokens
         var tokenRecord = await dbContext.GoogleDriveOAuthTokens
             .Where(t => t.AccessToken != null && t.AccessToken != "")
             .OrderByDescending(t => t.UpdatedAt)
@@ -35,18 +35,26 @@ public class GoogleDriveScannerEngine
 
         if (tokenRecord == null)
         {
-            int totalRows = await dbContext.GoogleDriveOAuthTokens.CountAsync(cancellationToken);
-            throw new InvalidOperationException($"Tabel GoogleDriveOAuthTokens berisi {totalRows} baris, tetapi tidak ditemukan record dengan AccessToken aktif. Silakan hubungkan akun Google Drive Anda terlebih dahulu.");
+            throw new InvalidOperationException("Tidak ditemukan token aktif di tabel GoogleDriveOAuthTokens. Silakan hubungkan akun Google Drive Anda.");
         }
 
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenRecord.AccessToken);
 
-        // 2. Query Fleksibel untuk membaca file audio MP3
-        string queryParam = "(mimeType='audio/mpeg' or mimeType='audio/mp3' or mimeType='audio/x-mp3' or name contains '.mp3') and trashed=false";
+        // Clean Folder ID jika user memasukkan URL penuh
+        if (!string.IsNullOrWhiteSpace(folderId) && folderId.Contains("/folders/"))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(folderId, @"/folders/([a-zA-Z0-9_-]+)");
+            if (match.Success) folderId = match.Groups[1].Value;
+        }
+
+        // 2. Query Longgar: Cari semua file bukan folder yang tidak di-trash
+        // (Mendukung mp3, m4a, flac, wav, aac, webm, application/octet-stream)
+        string queryParam = "mimeType != 'application/vnd.google-apps.folder' and trashed = false";
+        
         if (!string.IsNullOrWhiteSpace(folderId))
         {
-            queryParam = $"'{folderId}' in parents and {queryParam}";
+            queryParam = $"'{folderId.Trim()}' in parents and {queryParam}";
         }
 
         string requestUrl = $"https://www.googleapis.com/drive/v3/files" +
@@ -63,7 +71,7 @@ public class GoogleDriveScannerEngine
         {
             if (response.StatusCode == System.Net.HttpStatusCode.Forbidden || response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                throw new InvalidOperationException($"[Drive API {response.StatusCode}] Akses ditolak atau sesi login kedaluwarsa. Silakan lakukan re-login/refresh pada koneksi Google Drive Anda. Detail: {body}");
+                throw new InvalidOperationException($"[Drive API {response.StatusCode}] Akses ditolak. Pastikan token OAuth masih aktif & memiliki scope Drive. Detail: {body}");
             }
 
             throw new InvalidOperationException($"[Drive API {response.StatusCode}] Gagal membaca Google Drive: {body}");
@@ -71,7 +79,11 @@ public class GoogleDriveScannerEngine
 
         var parsed = JsonSerializer.Deserialize<DriveFilesResponse>(body, JsonOpts);
         if (parsed?.Files == null || parsed.Files.Count == 0)
-            return 0;
+        {
+            // Tampilkan pesan informatif jika folder dibaca tapi 0 file
+            string targetFolder = string.IsNullOrWhiteSpace(folderId) ? "seluruh Drive" : $"folder ID '{folderId}'";
+            throw new InvalidOperationException($"Drive API berhasil dihubungi, namun tidak menemukan file audio/media langsung di dalam {targetFolder}. Jika file ada di dalam sub-folder, keluarkan file ke folder utama.");
+        }
 
         int addedCount = 0;
 
@@ -79,8 +91,18 @@ public class GoogleDriveScannerEngine
         {
             if (string.IsNullOrWhiteSpace(file.Id)) continue;
 
-            string fileId = file.Id;
+            // Filter Ekstensi Audio/Media yang Valid
             string fileName = file.Name ?? "Unknown.mp3";
+            string ext = Path.GetExtension(fileName).ToLower();
+            string mime = file.MimeType ?? "";
+
+            bool isAudio = mime.StartsWith("audio/") || 
+                           ext is ".mp3" or ".m4a" or ".flac" or ".wav" or ".aac" or ".ogg" or ".webm" ||
+                           mime == "application/octet-stream";
+
+            if (!isAudio) continue;
+
+            string fileId = file.Id;
             long fileSize = long.TryParse(file.Size, out long sz) ? sz : 0;
             string webViewLink = file.WebViewLink ?? "";
             string downloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
@@ -96,7 +118,7 @@ public class GoogleDriveScannerEngine
                 {
                     FileId = fileId,
                     FileName = fileName,
-                    MimeType = file.MimeType ?? "audio/mpeg",
+                    MimeType = mime,
                     FileSizeBytes = fileSize,
                     DownloadUrl = downloadUrl,
                     WebViewLink = webViewLink,
