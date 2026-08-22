@@ -31,19 +31,24 @@
 
     <!-- FILE UPLOAD CARD -->
     <div class="matte-card local-folder-card">
-        <div class="matte-tag">Audio File Scanner</div>
-        <div class="card-title mt-2">Pilih File Audio dari Komputer</div>
+        <div class="matte-tag">Audio Directory &amp; File Scanner</div>
+        <div class="card-title mt-2">Pilih Folder atau File Audio dari Komputer</div>
         <p class="status-text text-muted mb-3">
-            Pilih satu atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menyinkronkan ke database.
+            Pilih folder atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menyinkronkan ke database.
         </p>
 
         <div class="local-folder-grid">
-            <InputFile OnChange="HandleFileSelected" Multiple accept=".mp3,.wav,.m4a,.flac" class="matte-input" disabled="@isSyncing" />
+            <InputFile OnChange="HandleFileSelected" 
+                       Multiple 
+                       accept=".mp3,.wav,.m4a,.flac" 
+                       class="matte-input" 
+                       disabled="@isSyncing"
+                       @attributes='new Dictionary<string, object> { { "webkitdirectory", "true" } }' />
         </div>
 
         <div class="local-folder-note">
             <span class="status-text">
-                <i class="ti ti-shield-check"></i> Metadata akan diekstrak menggunakan TagLib# dan dicocokkan otomatis dengan database.
+                <i class="ti ti-shield-check"></i> Metadata diekstrak presisi menggunakan TagLib# dan disimpan ke tabel master SSOT.
             </span>
         </div>
     </div>
@@ -80,7 +85,7 @@
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        var files = e.GetMultipleFiles(maxAllowedFiles: 500);
+        var files = e.GetMultipleFiles(maxAllowedFiles: 2000);
         totalFiles = files.Count;
         processedCount = 0;
 
@@ -96,7 +101,14 @@
 
             foreach (var file in files)
             {
-                // Batas ukuran per file 100MB
+                // Filter hanya format audio yang valid
+                var ext = Path.GetExtension(file.Name).ToLower();
+                if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".flac")
+                {
+                    continue;
+                }
+
+                // Stream max 100MB per file
                 using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
@@ -105,23 +117,60 @@
                 // Ekstraksi metadata via AudioMetadataService (TagLib#)
                 var (artist, title) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                // Cek apakah lagu sudah ada di database berdasarkan Judul dan Artis
+                // Cek apakah lagu sudah ada di master songs
                 var existingSong = await dbContext.Songs
                     .FirstOrDefaultAsync(s => s.Title.ToLower() == title.ToLower() && 
-                                              s.Artist != null && 
                                               s.Artist.ToLower() == artist.ToLower());
+
+                int songId;
 
                 if (existingSong == null)
                 {
-                    var newSong = new SongModel
+                    var newSong = new SongsModel
                     {
                         Title = title,
                         Artist = artist,
-                        DurationSeconds = null,
-                        CreatedAt = DateTime.UtcNow
+                        Status = "LOCAL_SYNC",
+                        IsDownloaded = true
                     };
 
                     dbContext.Songs.Add(newSong);
+                    await dbContext.SaveChangesAsync(); // Simpan untuk mendapatkan Auto-generated ID
+                    songId = newSong.Id;
+                }
+                else
+                {
+                    songId = existingSong.Id;
+                }
+
+                // Simpan/Update riwayat indeks file lokal ke tabel local_tracks
+                var existingLocalTrack = await dbContext.LocalTracks
+                    .FirstOrDefaultAsync(lt => lt.FileName == file.Name && lt.FileSizeBytes == file.Size);
+
+                if (existingLocalTrack == null)
+                {
+                    var localTrack = new LocalTrackModel
+                    {
+                        FilePath = file.Name,
+                        FileName = file.Name,
+                        FileSizeBytes = file.Size,
+                        Title = title,
+                        Artist = artist,
+                        IsSyncedToDb = true,
+                        SongId = songId,
+                        LastScannedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    dbContext.LocalTracks.Add(localTrack);
+                }
+                else
+                {
+                    existingLocalTrack.SongId = songId;
+                    existingLocalTrack.IsSyncedToDb = true;
+                    existingLocalTrack.LastScannedAt = DateTime.UtcNow;
+                    existingLocalTrack.UpdatedAt = DateTime.UtcNow;
                 }
 
                 processedCount++;
