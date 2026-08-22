@@ -17,6 +17,9 @@
     <!-- Backend & Application Dependencies -->
     <PackageReference Include="Npgsql" Version="9.0.0" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.68.0.3522" />
+    <PackageReference Include="Google.Apis.Oauth2.v2" Version="1.68.0.1604" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
     <PackageReference Include="AngleSharp" Version="1.3.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0" />
