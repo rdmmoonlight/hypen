@@ -10,11 +10,14 @@ public class AppDbContext : DbContext
     // Master DbSet SSOT
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // Alias Property: Menghubungkan pemanggilan SongsRaw dan SongsComplete lama ke DbSet Songs
+    // Alias Property
     public DbSet<SongsModel> SongsRaw => Songs;
     public DbSet<SongsModel> SongsComplete => Songs;
 
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
+
+    // Tabel Baru: Google Drive Tracks Storage
+    public DbSet<GDriveTrackModel> GDriveTracks { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,12 +46,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
             entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
 
-            // Generated Column di PostgreSQL
             entity.Property(e => e.IsComplete)
                 .HasColumnName("is_complete")
                 .ValueGeneratedOnAddOrUpdate();
 
-            // Abaikan properti UI / Non-Database
             entity.Ignore(e => e.CreatedAt);
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
@@ -72,6 +73,36 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AccessToken).HasColumnName("access_token");
             entity.Property(e => e.RefreshToken).HasColumnName("refresh_token").IsRequired();
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+        });
+
+        // =========================================================================
+        // MAPPING TABEL BARU: gdrive_tracks
+        // =========================================================================
+        modelBuilder.Entity<GDriveTrackModel>(entity =>
+        {
+            entity.ToTable("gdrive_tracks");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.FileId).HasColumnName("file_id").IsRequired();
+            entity.Property(e => e.FileName).HasColumnName("file_name").IsRequired();
+            entity.Property(e => e.MimeType).HasColumnName("mime_type").HasDefaultValue("audio/mpeg");
+            entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes").HasDefaultValue(0);
+            entity.Property(e => e.DownloadUrl).HasColumnName("download_url").IsRequired();
+            entity.Property(e => e.WebViewLink).HasColumnName("web_view_link");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Artist).HasColumnName("artist");
+            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds").HasDefaultValue(0);
+            entity.Property(e => e.IsLinkedToSong).HasColumnName("is_linked_to_song").HasDefaultValue(false);
+            entity.Property(e => e.SongId).HasColumnName("song_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+
+            // Relasi opsional ke tabel songs master
+            entity.HasOne(e => e.Song)
+                .WithMany()
+                .HasForeignKey(e => e.SongId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
