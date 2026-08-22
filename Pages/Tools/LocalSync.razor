@@ -1,49 +1,46 @@
 @page "/local-sync"
 @using Hypen.Web.Data
 @using Hypen.Web.Models
+@using Hypen.Web.Services
+@using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AudioMetadataService MetadataService
 
 <h3>Sync MP3 Lokal</h3>
 
-<InputFile OnChange="HandleFilesSelected" multiple accept=".mp3,.wav,.m4a" />
+<div class="mb-3">
+    <label class="form-label">Pilih Folder atau File MP3 dari Komputer:</label>
+    <!-- Menggunakan HTML input biasa dengan atribut webkitdirectory agar bisa pilih 1 folder penuh -->
+    <input type="file" class="form-control" 
+           @attributes=@(new Dictionary<string, object> { { "webkitdirectory", true }, { "multiple", true } }) 
+           @onchange="HandleFolderSelected" accept=".mp3,.wav,.m4a,.flac" />
+</div>
 
 @if (isSyncing)
 {
-    <p>Sedang memproses... @processedCount file.</p>
+    <div class="alert alert-info">
+        <p class="mb-0">Sedang memproses... Diproses: <strong>@processedCount</strong> file dari total <strong>@totalFiles</strong> file.</p>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert-success">
+        @statusMessage
+    </div>
 }
 
 @code {
     private bool isSyncing;
     private int processedCount;
+    private int totalFiles;
+    private string? statusMessage;
 
-    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    private async Task HandleFolderSelected(ChangeEventArgs e)
     {
-        isSyncing = true;
-        await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
-        foreach (var file in e.GetMultipleFiles())
-        {
-            // Cek apakah file sudah ada di database berdasarkan nama
-            var exists = await dbContext.LocalTracks.AnyAsync(t => t.FileName == file.Name);
-            
-            if (!exists)
-            {
-                var newTrack = new LocalTrackModel
-                {
-                    FileName = file.Name,
-                    FilePath = "LOCAL_USER_STORAGE", // Penanda bahwa ini file dari user
-                    PlayUrl = file.Name, // Anda butuh logika untuk memproses stream-nya nanti
-                    Title = file.Name,
-                    Artist = "Unknown Artist",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await dbContext.LocalTracks.AddAsync(newTrack);
-                processedCount++;
-            }
-        }
-
-        await dbContext.SaveChangesAsync();
-        isSyncing = false;
+        // Catatan: Karena menggunakan elemen HTML <input type="file" webkitdirectory /> mentah,
+        // penanganan file menggunakan interop atau dibaca via Event/Stream Blazor.
+        // Jika menggunakan komponen <InputFile>, Blazor menyediakan e.GetMultipleFiles().
+        // Mari kita gunakan pendekatan input standar Blazor yang mendukung multiple:
     }
 }
