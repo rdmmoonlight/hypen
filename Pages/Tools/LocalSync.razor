@@ -6,29 +6,71 @@
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject AudioMetadataService MetadataService
 
-<h3>Sync MP3 Lokal</h3>
+<PageTitle>Local Music Sync - Hypen Music</PageTitle>
 
-<div class="mb-3">
-    <label class="form-label">Pilih Folder atau File MP3 dari Komputer:</label>
-    <!-- Menggunakan HTML input biasa dengan atribut webkitdirectory agar bisa pilih 1 folder penuh -->
-    <input type="file" class="form-control" 
-           @attributes=@(new Dictionary<string, object> { { "webkitdirectory", true }, { "multiple", true } }) 
-           @onchange="HandleFolderSelected" accept=".mp3,.wav,.m4a,.flac" />
+<div class="matte-container">
+
+    <!-- HEADER -->
+    <div class="matte-header">
+        <div>
+            <div class="matte-subtitle">Local Storage Sync Engine</div>
+            <h1 class="matte-title">Sync MP3 Lokal Ke Database</h1>
+        </div>
+        <div class="matte-counter">
+            <i class="ti ti-folder-sync"></i> LOCAL SYNC
+        </div>
+    </div>
+
+    <!-- ALERT STATUS -->
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="status-alert alert-info">
+            <p class="status-text"><i class="ti ti-info-circle"></i> @statusMessage</p>
+        </div>
+    }
+
+    <!-- FILE UPLOAD CARD -->
+    <div class="matte-card local-folder-card">
+        <div class="matte-tag">Audio File Scanner</div>
+        <div class="card-title mt-2">Pilih File Audio dari Komputer</div>
+        <p class="status-text text-muted mb-3">
+            Pilih satu atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menyinkronkan ke database.
+        </p>
+
+        <div class="local-folder-grid">
+            <InputFile OnChange="HandleFileSelected" Multiple accept=".mp3,.wav,.m4a,.flac" class="matte-input" disabled="@isSyncing" />
+        </div>
+
+        <div class="local-folder-note">
+            <span class="status-text">
+                <i class="ti ti-shield-check"></i> Metadata akan diekstrak menggunakan TagLib# dan dicocokkan otomatis dengan database.
+            </span>
+        </div>
+    </div>
+
+    <!-- PROGRESS / STATUS CARD -->
+    @if (isSyncing)
+    {
+        <div class="matte-card text-center py-4">
+            <div class="matte-tag">Processing Engine</div>
+            <h3 class="card-title">Sedang Memproses &amp; Menyinkronkan File...</h3>
+            <p class="status-text text-muted">
+                Diproses: <strong>@processedCount</strong> dari total <strong>@totalFiles</strong> file.
+            </p>
+        </div>
+    }
+    else if (processedCount > 0 && !isSyncing)
+    {
+        <div class="matte-card text-center py-4 border-clean">
+            <div class="matte-tag tag-clean">Sync Completed</div>
+            <h3 class="card-title text-clean">Sinkronisasi Selesai!</h3>
+            <p class="status-text text-muted">
+                Berhasil memproses <strong>@processedCount</strong> file audio lokal ke dalam database.
+            </p>
+        </div>
+    }
+
 </div>
-
-@if (isSyncing)
-{
-    <div class="alert alert-info">
-        <p class="mb-0">Sedang memproses... Diproses: <strong>@processedCount</strong> file dari total <strong>@totalFiles</strong> file.</p>
-    </div>
-}
-
-@if (!string.IsNullOrEmpty(statusMessage))
-{
-    <div class="alert alert-success">
-        @statusMessage
-    </div>
-}
 
 @code {
     private bool isSyncing;
@@ -36,11 +78,67 @@
     private int totalFiles;
     private string? statusMessage;
 
-    private async Task HandleFolderSelected(ChangeEventArgs e)
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        // Catatan: Karena menggunakan elemen HTML <input type="file" webkitdirectory /> mentah,
-        // penanganan file menggunakan interop atau dibaca via Event/Stream Blazor.
-        // Jika menggunakan komponen <InputFile>, Blazor menyediakan e.GetMultipleFiles().
-        // Mari kita gunakan pendekatan input standar Blazor yang mendukung multiple:
+        var files = e.GetMultipleFiles(maxAllowedFiles: 500);
+        totalFiles = files.Count;
+        processedCount = 0;
+
+        if (totalFiles == 0) return;
+
+        isSyncing = true;
+        statusMessage = $"Mulai memproses {totalFiles} file audio...";
+        StateHasChanged();
+
+        try
+        {
+            using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            foreach (var file in files)
+            {
+                // Batas ukuran per file 100MB
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                // Ekstraksi metadata via AudioMetadataService (TagLib#)
+                var (artist, title) = MetadataService.ExtractMetadata(file.Name, memoryStream);
+
+                // Cek apakah lagu sudah ada di database berdasarkan Judul dan Artis
+                var existingSong = await dbContext.Songs
+                    .FirstOrDefaultAsync(s => s.Title.ToLower() == title.ToLower() && 
+                                              s.Artist != null && 
+                                              s.Artist.ToLower() == artist.ToLower());
+
+                if (existingSong == null)
+                {
+                    var newSong = new SongModel
+                    {
+                        Title = title,
+                        Artist = artist,
+                        DurationSeconds = null,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    dbContext.Songs.Add(newSong);
+                }
+
+                processedCount++;
+                StateHasChanged();
+            }
+
+            await dbContext.SaveChangesAsync();
+            statusMessage = $"Sukses menyinkronkan {processedCount} file ke database!";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal menyinkronkan file: {ex.Message}";
+        }
+        finally
+        {
+            isSyncing = false;
+            StateHasChanged();
+        }
     }
 }
