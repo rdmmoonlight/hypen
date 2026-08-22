@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
@@ -19,23 +20,46 @@ public class GoogleDriveScannerEngine
     }
 
     /// <summary>
-    /// Membaca daftar file MP3 dari Google Drive Public Folder API / Shared Link
+    /// Membaca seluruh file audio MP3 dari Google Drive milik user yang sudah login OAuth
     /// </summary>
-    public async Task<int> FetchAndMapDriveFolderAsync(string apiKey, string folderId, CancellationToken cancellationToken = default)
+    public async Task<int> FetchAndMapDriveFolderAsync(string? folderId = null, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(folderId))
-            throw new ArgumentException("API Key dan Folder ID Google Drive tidak boleh kosong!");
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // 1. Ambil Token Google OAuth terbaru dari Database
+        var tokenRecord = await dbContext.YouTubeOAuthTokens
+            .OrderByDescending(t => t.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tokenRecord == null || string.IsNullOrWhiteSpace(tokenRecord.AccessToken))
+        {
+            throw new InvalidOperationException("User belum terautentikasi dengan Akun Google / Drive OAuth!");
+        }
 
         var client = _httpClientFactory.CreateClient();
-        
-        // Query Google Drive v3 API
-        string requestUrl = $"https://www.googleapis.com/drive/v3/files?q='{folderId}'+in+parents+and+mimeType='audio/mpeg'&fields=files(id,name,mimeType,size,webViewLink,webContentLink)&key={apiKey}";
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenRecord.AccessToken);
+
+        // 2. Buat Query Drive API v3 (Jika folderId diisi, scan spesifik folder. Jika kosong, scan seluruh MP3 di Drive user)
+        string queryParam = "mimeType='audio/mpeg' and trashed=false";
+        if (!string.IsNullOrWhiteSpace(folderId))
+        {
+            queryParam = $"'{folderId}' in parents and {queryParam}";
+        }
+
+        string requestUrl = $"https://www.googleapis.com/drive/v3/files?q={Uri.EscapeDataString(queryParam)}&fields=files(id,name,mimeType,size,webViewLink,webContentLink)&pageSize=1000";
 
         var response = await client.GetAsync(requestUrl, cancellationToken);
+        
+        // Jika token kedaluwarsa (401), berikan pesan penanganan khusus
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException("Sesi Login Google telah habis. Silakan refresh token login Google Anda.");
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             string errContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new Exception($"Gagal mengakses Google Drive API ({response.StatusCode}): {errContent}");
+            throw new Exception($"Gagal membaca Google Drive API ({response.StatusCode}): {errContent}");
         }
 
         var jsonStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -44,7 +68,6 @@ public class GoogleDriveScannerEngine
         if (!jsonDoc.RootElement.TryGetProperty("files", out var filesElement))
             return 0;
 
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
         int addedCount = 0;
 
         foreach (var file in filesElement.EnumerateArray())
@@ -54,7 +77,7 @@ public class GoogleDriveScannerEngine
             long fileSize = file.TryGetProperty("size", out var sProp) && long.TryParse(sProp.GetString(), out long sz) ? sz : 0;
             string webViewLink = file.TryGetProperty("webViewLink", out var wProp) ? wProp.GetString() ?? "" : "";
             
-            // Format Direct Download Stream URL
+            // Format Direct Stream / Download Link
             string downloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
 
             // Cek apakah file sudah ada di database
@@ -62,7 +85,6 @@ public class GoogleDriveScannerEngine
 
             if (existing == null)
             {
-                // Parsing Judul & Artis sederhana dari Nama File (Format: Artis - Judul.mp3)
                 var (artist, title) = ParseFileName(fileName);
 
                 var newTrack = new GDriveTrackModel
@@ -85,7 +107,6 @@ public class GoogleDriveScannerEngine
             }
             else
             {
-                // Update link jika ada perubahan
                 existing.DownloadUrl = downloadUrl;
                 existing.WebViewLink = webViewLink;
                 existing.UpdatedAt = DateTime.UtcNow;
