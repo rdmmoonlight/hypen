@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using TagLib;
 
 namespace Hypen.Web.Services;
@@ -8,31 +10,35 @@ public class AudioMetadataService
     {
         try
         {
-            // TagLib butuh file fisik atau file stream yang seekable
-            // Kita gunakan stream temporary
-            var file = TagLib.File.Create(new StreamFileAbstraction(fileName, stream, stream));
+            var file = TagLib.File.Create(new StreamFileAbstraction(fileName, stream));
             
-            string artist = string.Join(", ", file.Tag.Performers);
-            string title = file.Tag.Title;
+            string artist = file.Tag.FirstPerformer ?? "Unknown Artist";
+            string title = string.IsNullOrWhiteSpace(file.Tag.Title) ? fileName : file.Tag.Title;
 
-            return (
-                string.IsNullOrWhiteSpace(artist) ? "Unknown Artist" : artist,
-                string.IsNullOrWhiteSpace(title) ? fileName : title
-            );
+            return (artist, title);
         }
         catch
         {
-            return ("Unknown Artist", fileName); // Fallback jika tag corrupt
+            return ("Unknown Artist", fileName);
         }
     }
 }
 
-// Helper class agar TagLib bisa membaca stream
-public class StreamFileAbstraction : IFileAbstraction
+// Helper class menggunakan qualified namespace TagLib.File.IFileAbstraction
+public class StreamFileAbstraction : TagLib.File.IFileAbstraction
 {
     public string Name { get; }
     public Stream ReadStream { get; }
-    public Stream WriteStream => throw new NotImplementedException();
-    public StreamFileAbstraction(string name, Stream read, Stream write) { Name = name; ReadStream = read; }
-    public void CloseStream(Stream stream) { }
+    public Stream WriteStream => null!;
+
+    public StreamFileAbstraction(string name, Stream stream)
+    {
+        Name = name;
+        ReadStream = stream;
+    }
+
+    public void CloseStream(Stream stream)
+    {
+        // Biarkan kosong agar stream tidak tertutup sebelum selesai dibaca oleh service
+    }
 }
