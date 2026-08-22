@@ -5,8 +5,7 @@ using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
-// Menyimpan & menukar refresh token OAuth Google (dibutuhkan untuk akses playlist privat
-// seperti "Liked Videos" / LL, yang tidak bisa diakses hanya dengan API Key).
+
 public class YouTubeOAuthService
 {
     private readonly string _clientId;

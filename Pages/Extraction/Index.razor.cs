@@ -19,7 +19,7 @@ public partial class Index : ComponentBase
     protected bool isProcessing;
 
     // INGESTION STATE (Menampung semua hasil ekstrak di memori sebelum ke Staging)
-    protected string targetPlaylistId = "LL";
+    protected string targetPlaylistId = "URL";
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllSelected = true;
 
