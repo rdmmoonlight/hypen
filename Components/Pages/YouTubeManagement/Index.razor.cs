@@ -14,55 +14,41 @@ public partial class Index : ComponentBase
     protected bool IsSyncing { get; set; }
 
     // TARGET SYNC OPTIONS
-    protected bool SyncLikedVideos { get; set; } = true;
-    protected bool SyncPlaylists { get; set; } = true;
     protected string TargetPlaylistId { get; set; } = string.Empty;
+    protected int MaxResults { get; set; } = 50;
 
     // METRICS
-    protected int TotalFetched { get; set; }
     protected int TotalAddedToStaging { get; set; }
+    protected int PendingRawCount { get; set; }
+    protected int CompletedSongsCount { get; set; }
     protected DateTime? LastSyncTime { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshMetrics();
+    }
 
     protected async Task ExecuteAutoSyncAsync()
     {
         if (IsSyncing) return;
 
+        if (string.IsNullOrWhiteSpace(TargetPlaylistId))
+        {
+            UpdateStatus("Harap masukkan Playlist ID YouTube terlebih dahulu.", error: true);
+            return;
+        }
+
         try
         {
             IsSyncing = true;
-            UpdateStatus("Memulai auto-detect & sinkronisasi YouTube...");
-            
-            TotalFetched = 0;
-            TotalAddedToStaging = 0;
+            UpdateStatus($"Memulai auto-detect & sinkronisasi playlist ID: {TargetPlaylistId}...");
 
-            if (SyncLikedVideos)
-            {
-                UpdateStatus("Memeriksa video yang disukai (Liked Videos)...");
-                var likedResult = await SyncService.SyncLikedVideosAsync();
-                TotalFetched += likedResult.FetchedCount;
-                TotalAddedToStaging += likedResult.AddedToStagingCount;
-            }
-
-            if (SyncPlaylists)
-            {
-                if (!string.IsNullOrWhiteSpace(TargetPlaylistId))
-                {
-                    UpdateStatus($"Memeriksa playlist ID: {TargetPlaylistId}...");
-                    var playlistResult = await SyncService.SyncPlaylistItemsAsync(TargetPlaylistId);
-                    TotalFetched += playlistResult.FetchedCount;
-                    TotalAddedToStaging += playlistResult.AddedToStagingCount;
-                }
-                else
-                {
-                    UpdateStatus("Memeriksa seluruh playlist pengguna...");
-                    var allPlaylistsResult = await SyncService.SyncAllUserPlaylistsAsync();
-                    TotalFetched += allPlaylistsResult.FetchedCount;
-                    TotalAddedToStaging += allPlaylistsResult.AddedToStagingCount;
-                }
-            }
+            TotalAddedToStaging = await SyncService.SyncPlaylistToRawAsync(TargetPlaylistId, MaxResults);
 
             LastSyncTime = DateTime.Now;
-            UpdateStatus($"Sinkronisasi selesai! Berhasil menambahkan {TotalAddedToStaging} lagu baru ke Staging dari {TotalFetched} item yang terdeteksi.");
+            UpdateStatus($"Sinkronisasi selesai! Berhasil menambahkan {TotalAddedToStaging} lagu ke Staging.");
+
+            await RefreshMetrics();
         }
         catch (Exception ex)
         {
@@ -71,6 +57,23 @@ public partial class Index : ComponentBase
         finally
         {
             IsSyncing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task RefreshMetrics()
+    {
+        try
+        {
+            PendingRawCount = await SyncService.GetPendingRawCountAsync();
+            CompletedSongsCount = await SyncService.GetCompletedCountAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error RefreshMetrics: {ex.Message}");
+        }
+        finally
+        {
             StateHasChanged();
         }
     }
