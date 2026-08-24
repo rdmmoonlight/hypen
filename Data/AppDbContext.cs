@@ -7,10 +7,13 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // Master DbSet SSOT
+    // Master DbSet Songs (Production Library)
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // Alias Property
+    // TABEL STAGING / RAW (Pintu Masuk & Arena Pertandingan Duplikat)
+    public DbSet<RawSongsModel> RawSongs { get; set; } = default!;
+
+    // Alias Property (Jika masih dibutuhkan service lain)
     public DbSet<SongsModel> SongsRaw => Songs;
     public DbSet<SongsModel> SongsComplete => Songs;
 
@@ -28,7 +31,7 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // MAPPING TABEL TUNGGAL SSOT: songs
+        // MAPPING TABEL: songs (Production Library)
         // =========================================================================
         modelBuilder.Entity<SongsModel>(entity =>
         {
@@ -61,6 +64,28 @@ public class AppDbContext : DbContext
             entity.Ignore(e => e.StreamUrl);
             entity.Ignore(e => e.Provider);
             entity.Ignore(e => e.IsSelected);
+        });
+
+        // =========================================================================
+        // MAPPING TABEL: raw_songs (Staging / Buffer Area)
+        // =========================================================================
+        modelBuilder.Entity<RawSongsModel>(entity =>
+        {
+            entity.ToTable("raw_songs");
+
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.Artist).HasColumnName("artist");
+            entity.Property(e => e.Album).HasColumnName("album");
+            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
+            entity.Property(e => e.Country).HasColumnName("country");
+            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
+            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
+            entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
+            
+            // Sesuaikan properti tanggal jika ada di model Anda (misal: CreatedAt)
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
         });
 
         // =========================================================================
