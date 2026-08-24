@@ -94,6 +94,16 @@
     gap: 8px;
     overflow-y: auto;
     overflow-x: hidden;
+    padding-right: 2px;
+}
+
+/* Custom Scrollbar tipis untuk Sidebar Nav */
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(76, 201, 240, 0.3);
+    border-radius: 4px;
 }
 
 /* ----------------------------------------------------------------- */
@@ -111,6 +121,7 @@
     font-size: 0.9rem;
     transition: all 0.2s ease-in-out;
     white-space: nowrap;
+    cursor: pointer;
 }
 
 /* Pengaturan khusus wadah Ikon agar selalu Simetris Presisi di Tengah */
@@ -121,7 +132,7 @@
     width: 24px;              /* Ukuran area simetris */
     height: 24px;
     font-size: 1.25rem !important; /* Ukuran proporsional jelas */
-    color: #4cc9f0 !important;  /* Paksa warna cyan mengkilap (Bukan Ungu) */
+    color: #4cc9f0 !important;  /* Paksa warna cyan mengkilap */
     flex-shrink: 0;
     transition: color 0.2s ease, transform 0.2s ease;
 }
@@ -144,6 +155,58 @@
 .nav-item-nebula.active i {
     color: #66fcf1 !important;  /* Mengkilap terang saat aktif/hover */
     transform: scale(1.1);       /* Efek animasi membesar halus */
+}
+
+/* ----------------------------------------------------------------- */
+/* SUBMENU / DROPDOWN TOOLS STYLES                                   */
+/* ----------------------------------------------------------------- */
+
+.nav-dropdown-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.btn-dropdown-toggle {
+    outline: none;
+}
+
+/* Indikator Panah Dropdown */
+.dropdown-arrow {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 0.85rem !important;
+    color: #c5c6c7 !important;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.nav-item-nebula:hover .dropdown-arrow {
+    color: #66fcf1 !important;
+}
+
+/* Kontainer Submenu Anak */
+.submenu-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    padding-left: 12px;
+    border-left: 2px solid rgba(76, 201, 240, 0.3);
+    margin-left: 24px;
+}
+
+/* Item Submenu Anak */
+.submenu-item {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    border-radius: 6px;
+    gap: 10px;
+}
+
+.submenu-item i {
+    width: 18px;
+    height: 18px;
+    font-size: 1rem !important;
 }
 
 /* ----------------------------------------------------------------- */
