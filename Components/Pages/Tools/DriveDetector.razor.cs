@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
 
-namespace Hypen.Web.Pages.Tools;
+namespace Hypen.Web.Components.Pages.Tools;
 
 public partial class DriveDetector : ComponentBase
 {
