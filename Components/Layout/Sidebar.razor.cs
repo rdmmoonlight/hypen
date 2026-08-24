@@ -19,7 +19,7 @@ public partial class Sidebar
 
         if (!isExpanded)
         {
-            isToolsSubmenuOpen = false; // Otomatis tutup submenu jika sidebar di-collapse
+            isToolsSubmenuOpen = false;
         }
 
         if (OnToggle.HasDelegate)
@@ -39,7 +39,6 @@ public partial class Sidebar
             }
         }
 
-        // Otomatis buka submenu ketika menu Vault Tools diklik
         isToolsSubmenuOpen = true;
     }
 
@@ -81,6 +80,11 @@ public partial class Sidebar
     protected void NavigateToGDriveManagement()
     {
         Navigation.NavigateTo("/tools/drivedetector");
+    }
+
+    protected void NavigateToYouTubeAutoSync()
+    {
+        Navigation.NavigateTo("/youtubemanagement");
     }
 
     protected void NavigateToSetting()
