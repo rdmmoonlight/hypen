@@ -15,6 +15,9 @@ public partial class Index : ComponentBase
     [Inject]
     protected AudioMetadataService MetadataService { get; set; } = default!;
 
+    // Upload Mode state: "folder" atau "file"
+    protected string uploadMode = "folder";
+
     // Status State
     protected bool isExtracting;
     protected bool isSyncing;
@@ -28,14 +31,19 @@ public partial class Index : ComponentBase
     protected int pageSize = 50;
     protected int totalPages => (int)Math.Ceiling((double)stagedTracks.Count / pageSize);
 
+    protected void SetUploadMode(string mode)
+    {
+        uploadMode = mode;
+        statusMessage = null;
+    }
+
     // 1. TAMPUNG DULU DI PAGE (HANYA EKSTRAKSI METADATA)
     protected async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        // Mengambil hingga 5000 file dari folder/subfolder
         var files = e.GetMultipleFiles(5000);
         if (files.Count == 0) return;
 
-        // Filter ekstensi audio secara ketat di C# (mencegah bug webkitdirectory browser)
+        // Filter ekstensi audio
         var validExtensions = new[] { ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac" };
         var audioFiles = files
             .Where(f => validExtensions.Contains(Path.GetExtension(f.Name).ToLowerInvariant()))
@@ -46,7 +54,9 @@ public partial class Index : ComponentBase
 
         if (totalFiles == 0)
         {
-            statusMessage = "Tidak ditemukan file audio (.mp3, .wav, .m4a, .flac) di dalam folder tersebut.";
+            statusMessage = uploadMode == "folder" 
+                ? "Tidak ditemukan file audio (.mp3, .wav, .m4a, .flac) di dalam folder tersebut."
+                : "File yang dipilih bukan file audio yang valid.";
             StateHasChanged();
             return;
         }
@@ -76,7 +86,6 @@ public partial class Index : ComponentBase
                         ? "Unknown Artist" 
                         : extractedArtist;
 
-                    // Ditampung sementara di list UI
                     stagedTracks.Add(new StagedTrackDto
                     {
                         FileName = file.Name,
@@ -87,7 +96,6 @@ public partial class Index : ComponentBase
                 }
                 catch (Exception ex)
                 {
-                    // Melompati file jika terjadi error pembacaan individual
                     Console.WriteLine($"Gagal mengekstrak metadata untuk {file.Name}: {ex.Message}");
                 }
 
