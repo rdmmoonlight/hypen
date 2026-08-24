@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 
-namespace Hypen.Web.Components.Pages.Tools;
+namespace Hypen.Web.Components.Pages.Tools.Dedup;
 
 public partial class Index : ComponentBase
 {
