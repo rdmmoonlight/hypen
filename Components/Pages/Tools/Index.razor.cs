@@ -13,28 +13,18 @@ public partial class Index : ComponentBase
     protected SongDeduplicationEngine DedupEngine { get; set; } = default!;
 
     [Inject]
-    protected GoogleDriveScannerEngine DriveScanner { get; set; } = default!;
-
-    [Inject]
     protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
     [Inject]
     protected IJSRuntime JS { get; set; } = default!;
 
-    // State Navigasi Tab ("dedup" | "gdrive")
+    // State Navigasi Tab
     protected string activeTab = "dedup";
 
     // State Duplicate Detector
     protected List<DuplicateGroupModel> duplicateGroups = new();
     protected bool hasScanned;
     protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
-
-    // State GDrive Tracks & Inputs
-    protected List<GDriveTrackModel> gdriveTracks = new();
-    protected string gdriveFolderId = string.Empty;
-
-    protected int LinkedCount => gdriveTracks.Count(t => t.IsLinkedToSong);
-    protected int UnlinkedCount => gdriveTracks.Count(t => !t.IsLinkedToSong);
 
     // General Status State
     protected bool isProcessing;
@@ -51,11 +41,6 @@ public partial class Index : ComponentBase
     {
         activeTab = tabName;
         statusMsg = string.Empty;
-
-        if (activeTab == "gdrive" && gdriveTracks.Count == 0)
-        {
-            _ = LoadDriveTracks();
-        }
     }
 
     #region --- LOGIC DUPLICATE DETECTOR ---
@@ -137,119 +122,6 @@ public partial class Index : ComponentBase
         catch (Exception ex)
         {
             statusMsg = $"Gagal mengeksekusi purge: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    #endregion
-
-    #region --- LOGIC GDRIVE MANAGEMENT ---
-
-    protected async Task LoadDriveTracks()
-    {
-        try
-        {
-            isProcessing = true;
-            statusMsg = "Memuat indeks file audio dari Google Drive...";
-            isError = false;
-            StateHasChanged();
-
-            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-            gdriveTracks = await dbContext.GDriveTracks
-                .AsNoTracking()
-                .OrderByDescending(t => t.Id)
-                .ToListAsync();
-
-            statusMsg = $"Berhasil memuat {gdriveTracks.Count} data file audio Google Drive.";
-        }
-        catch (Exception ex)
-        {
-            statusMsg = $"Gagal memuat indeks Drive: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    protected async Task FetchDriveFiles()
-    {
-        try
-        {
-            isProcessing = true;
-            statusMsg = "Sedang mengambil data dari akun Google Drive Anda dan menyimpan ke database...";
-            isError = false;
-            StateHasChanged();
-
-            int addedCount = await DriveScanner.FetchAndMapDriveFolderAsync(gdriveFolderId);
-
-            statusMsg = $"Selesai! Berhasil mengimpor/memperbarui {addedCount} file audio dari akun Google Drive Anda.";
-            await LoadDriveTracks();
-        }
-        catch (Exception ex)
-        {
-            statusMsg = $"Gagal mengambil file dari Google Drive: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    protected async Task AutoLinkTracks()
-    {
-        try
-        {
-            isProcessing = true;
-            statusMsg = "Menghubungkan file Google Drive ke lagu master di database...";
-            isError = false;
-            StateHasChanged();
-
-            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
-            var unlinkedTracks = await dbContext.GDriveTracks
-                .Where(t => !t.IsLinkedToSong)
-                .ToListAsync();
-
-            int linkedSuccess = 0;
-
-            foreach (var track in unlinkedTracks)
-            {
-                var matchSong = await dbContext.Songs
-                    .FirstOrDefaultAsync(s => s.AudioUrl != null && s.AudioUrl.Contains(track.FileId));
-
-                if (matchSong != null)
-                {
-                    track.IsLinkedToSong = true;
-                    track.SongId = matchSong.Id;
-                    linkedSuccess++;
-                }
-            }
-
-            if (linkedSuccess > 0)
-            {
-                await dbContext.SaveChangesAsync();
-                statusMsg = $"Berhasil menghubungkan {linkedSuccess} file Drive ke lagu di database!";
-            }
-            else
-            {
-                statusMsg = "Tidak ada tautan lagu master baru yang cocok berdasarkan File ID.";
-            }
-
-            await LoadDriveTracks();
-        }
-        catch (Exception ex)
-        {
-            statusMsg = $"Gagal memproses auto-link: {ex.Message}";
             isError = true;
         }
         finally
