@@ -37,7 +37,6 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="matte-tag">Audio Directory &amp; File Scanner</div>
             
-            <!-- MODE SWITCHER BUTTONS -->
             <div class="btn-group">
                 <button type="button" 
                         class="btn btn-sm @(uploadMode == "folder" ? "btn-primary" : "btn-outline-secondary")" 
@@ -109,20 +108,30 @@
             <div class="matte-tag">Database Sync Engine</div>
             <h3 class="card-title">Menyimpan Metadata Ke Database...</h3>
             <p class="status-text text-muted">
-                Menyimpan data file ditampung ke tabel master SSOT.
+                Menyimpan data file ditampung ke tabel local_tracks.
             </p>
         </div>
     }
 
-    <!-- TABEL PENAMPUNGAN (STAGING TABLE) -->
-    @if (stagedTracks.Any())
-    {
-        <div class="matte-card mt-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <div class="matte-tag">Preview Data Ditampung</div>
-                    <h3 class="card-title mt-1 mb-0">Daftar Hasil Ekstraksi (@stagedTracks.Count File)</h3>
-                </div>
+    <!-- TABEL UTAMA DENGAN DUA TAB TERPISAH -->
+    <div class="matte-card mt-4">
+        <!-- HEADER TAB NAVIGATION -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="btn-group" role="group">
+                <button type="button" 
+                        class="btn btn-sm @(activeTab == "extract" ? "btn-primary" : "btn-outline-secondary")" 
+                        @onclick='() => SetActiveTab("extract")'>
+                    <i class="ti ti-list-check"></i> Hasil Ekstraksi (@stagedTracks.Count)
+                </button>
+                <button type="button" 
+                        class="btn btn-sm @(activeTab == "database" ? "btn-primary" : "btn-outline-secondary")" 
+                        @onclick='() => SetActiveTab("database")'>
+                    <i class="ti ti-database"></i> Tersimpan di DB (@savedDbTracks.Count)
+                </button>
+            </div>
+
+            @if (activeTab == "extract" && stagedTracks.Any())
+            {
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn btn-danger btn-sm" @onclick="ClearStagedTracks" disabled="@(isSyncing || isExtracting)">
                         <i class="ti ti-trash"></i> Bersihkan Penampungan
@@ -131,8 +140,24 @@
                         <i class="ti ti-database-upload"></i> Simpan Ke Database (@stagedTracks.Count)
                     </button>
                 </div>
-            </div>
+            }
+        </div>
 
+        @if (!GetCurrentTabList().Any())
+        {
+            <div class="text-center py-4 text-muted">
+                @if (activeTab == "extract")
+                {
+                    <span>Belum ada file yang diekstraksi. Silakan pilih folder atau file di atas.</span>
+                }
+                else
+                {
+                    <span>Belum ada data track lokal yang tersimpan di database.</span>
+                }
+            </div>
+        }
+        else
+        {
             <div class="table-responsive">
                 <table class="table table-dark table-hover align-middle mb-0">
                     <thead>
@@ -142,8 +167,11 @@
                             <th>Artis (Artist)</th>
                             <th>Nama File</th>
                             <th>Ukuran</th>
-                            <th>Status Penampungan</th>
-                            <th style="width: 80px;">Aksi</th>
+                            <th>Status</th>
+                            @if (activeTab == "extract")
+                            {
+                                <th style="width: 80px;">Aksi</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -156,17 +184,29 @@
                                 <td><small class="text-muted">@track.FileName</small></td>
                                 <td>@FormatBytes(track.FileSizeBytes)</td>
                                 <td>
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="ti ti-clock"></i> Belum Disimpan
-                                    </span>
+                                    @if (activeTab == "extract")
+                                    {
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="ti ti-clock"></i> Belum Disimpan
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="ti ti-check"></i> Synced
+                                        </span>
+                                    }
                                 </td>
-                                <td>
-                                    <button class="btn btn-outline-danger btn-sm py-0 px-2" 
-                                            @onclick="() => RemoveTrack(track)"
-                                            disabled="@(isSyncing || isExtracting)">
-                                        <i class="ti ti-x"></i>
-                                    </button>
-                                </td>
+                                @if (activeTab == "extract")
+                                {
+                                    <td>
+                                        <button class="btn btn-outline-danger btn-sm py-0 px-2" 
+                                                @onclick="() => RemoveTrack(track)"
+                                                disabled="@(isSyncing || isExtracting)">
+                                            <i class="ti ti-x"></i>
+                                        </button>
+                                    </td>
+                                }
                             </tr>
                         }
                     </tbody>
@@ -202,7 +242,7 @@
                     </button>
                 </div>
             }
-        </div>
-    }
+        }
+    </div>
 
 </div>
