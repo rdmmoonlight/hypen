@@ -72,10 +72,6 @@ public partial class Sidebar
         Navigation.NavigateTo("/tools/dedup");
     }
 
-    protected void NavigateToLocalSync()
-    {
-        Navigation.NavigateTo("/tools/localsync");
-    }
 
     protected void NavigateToGDriveManagement()
     {
