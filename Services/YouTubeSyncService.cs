@@ -24,6 +24,47 @@ public class YouTubeSyncService : IYouTubeSyncService
     }
 
     /// <summary>
+    /// Menarik daftar seluruh playlist buatan/pemilikan pengguna dari YouTube API.
+    /// </summary>
+    public async Task<List<(string PlaylistId, string Title)>> GetUserPlaylistsAsync()
+    {
+        string accessToken = await _oauthService.GetFreshAccessTokenAsync();
+
+        var http = _httpClientFactory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+        var playlists = new List<(string PlaylistId, string Title)>();
+        string? pageToken = null;
+
+        do
+        {
+            string url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults=50";
+            if (!string.IsNullOrWhiteSpace(pageToken))
+                url += $"&pageToken={pageToken}";
+
+            using var response = await http.GetAsync(url);
+            string body = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"YouTube API error ({(int)response.StatusCode}): {body}");
+
+            var parsed = JsonSerializer.Deserialize<PlaylistsListResponse>(body, JsonOpts);
+            if (parsed?.Items == null || parsed.Items.Count == 0) break;
+
+            foreach (var item in parsed.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.Id)) continue;
+                playlists.Add((item.Id, item.Snippet?.Title ?? "Untitled Playlist"));
+            }
+
+            pageToken = parsed.NextPageToken;
+        }
+        while (!string.IsNullOrEmpty(pageToken));
+
+        return playlists;
+    }
+
+    /// <summary>
     /// Menarik metadata playlist dari YouTube API ke memori tanpa langsung menyimpan ke database.
     /// Digunakan untuk penampungan preview di UI Extraction Engine.
     /// </summary>
@@ -274,6 +315,24 @@ public class YouTubeSyncService : IYouTubeSyncService
     {
         PropertyNameCaseInsensitive = true
     };
+
+    private class PlaylistsListResponse
+    {
+        [JsonPropertyName("nextPageToken")]
+        public string? NextPageToken { get; set; }
+
+        [JsonPropertyName("items")]
+        public List<PlaylistItemDetailsDto>? Items { get; set; }
+    }
+
+    private class PlaylistItemDetailsDto
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("snippet")]
+        public SnippetDto? Snippet { get; set; }
+    }
 
     private class PlaylistItemsResponse
     {
