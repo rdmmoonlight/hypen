@@ -32,22 +32,56 @@
         </div>
     }
 
-    <!-- FILE UPLOAD CARD -->
+    <!-- FILE / FOLDER UPLOAD CARD -->
     <div class="matte-card local-folder-card">
-        <div class="matte-tag">Audio Directory &amp; File Scanner</div>
-        <div class="card-title mt-2">Pilih Folder atau File Audio dari Komputer</div>
-        <p class="status-text text-muted mb-3">
-            Pilih folder atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menampungnya di halaman ini terlebih dahulu.
-        </p>
-
-        <div class="local-folder-grid">
-            <!-- Disini atribut accept dilepas agar browser tidak memblokir pembacaan file .mp3 saat webkitdirectory aktif -->
-            <InputFile OnChange="HandleFileSelected" 
-                       Multiple 
-                       class="matte-input" 
-                       disabled="@(isExtracting || isSyncing)"
-                       @attributes='new Dictionary<string, object> { { "webkitdirectory", "true" } }' />
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="matte-tag">Audio Directory &amp; File Scanner</div>
+            
+            <!-- MODE SWITCHER BUTTONS -->
+            <div class="btn-group">
+                <button class="btn btn-sm @(uploadMode == "folder" ? "btn-primary" : "btn-outline-secondary")" 
+                        @onclick='() => SetUploadMode("folder")' 
+                        disabled="@(isExtracting || isSyncing)">
+                    <i class="ti ti-folder"></i> Pilih Folder
+                </button>
+                <button class="btn btn-sm @(uploadMode == "file" ? "btn-primary" : "btn-outline-secondary")" 
+                        @onclick='() => SetUploadMode("file")' 
+                        disabled="@(isExtracting || isSyncing)">
+                    <i class="ti ti-file-music"></i> Pilih File MP3
+                </button>
+            </div>
         </div>
+
+        @if (uploadMode == "folder")
+        {
+            <div class="card-title mt-2">Pilih Folder Musik dari Komputer</div>
+            <p class="status-text text-muted mb-3">
+                Klik tombol di bawah dan <strong>pilih folder</strong> (seluruh file .mp3 / audio di dalam folder &amp; subfolder akan di-scan).
+            </p>
+
+            <div class="local-folder-grid">
+                <InputFile OnChange="HandleFileSelected" 
+                           Multiple 
+                           class="matte-input" 
+                           disabled="@(isExtracting || isSyncing)"
+                           @attributes='new Dictionary<string, object> { { "webkitdirectory", "true" } }' />
+            </div>
+        }
+        else
+        {
+            <div class="card-title mt-2">Pilih Satu / Beberapa File Audio</div>
+            <p class="status-text text-muted mb-3">
+                Klik tombol di bawah untuk memilih file audio spesifik (.mp3, .wav, .m4a, .flac).
+            </p>
+
+            <div class="local-folder-grid">
+                <InputFile OnChange="HandleFileSelected" 
+                           Multiple 
+                           accept=".mp3,.wav,.m4a,.flac"
+                           class="matte-input" 
+                           disabled="@(isExtracting || isSyncing)" />
+            </div>
+        }
 
         <div class="local-folder-note">
             <span class="status-text">
@@ -63,7 +97,7 @@
             <div class="matte-tag">Extraction Engine</div>
             <h3 class="card-title">Mengekstrak Metadata File Audio...</h3>
             <p class="status-text text-muted">
-                Diproses: <strong>@processedCount</strong> dari total <strong>@totalFiles</strong> file.
+                Diproses: <strong>@processedCount</strong> dari total <strong>@totalFiles</strong> file audio.
             </p>
         </div>
     }
