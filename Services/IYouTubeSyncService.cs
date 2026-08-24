@@ -3,6 +3,11 @@ namespace Hypen.Web.Services;
 public interface IYouTubeSyncService
 {
     /// <summary>
+    /// Menarik daftar seluruh playlist milik akun pengguna dari YouTube API.
+    /// </summary>
+    Task<List<(string PlaylistId, string Title)>> GetUserPlaylistsAsync();
+
+    /// <summary>
     /// Menarik metadata playlist dari YouTube API ke memori tanpa menyimpan ke database.
     /// Digunakan untuk preview dan seleksi di halaman Extraction Engine.
     /// </summary>
