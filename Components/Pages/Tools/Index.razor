@@ -11,9 +11,9 @@
         <button class="tab-item @(activeTab == "dedup" ? "active" : "")" @onclick='() => SwitchTab("dedup")'>
             <i class="ti ti-search"></i> DUPLICATE DETECTOR
         </button>
-        <button class="tab-item @(activeTab == "local" ? "active" : "")" @onclick='() => SwitchTab("local")'>
+        <a href="/tools/synclocal" class="tab-item">
             <i class="ti ti-folder-sync"></i> LOCAL SYNC
-        </button>
+        </a>
         <button class="tab-item @(activeTab == "gdrive" ? "active" : "")" @onclick='() => SwitchTab("gdrive")'>
             <i class="ti ti-brand-google-drive"></i> GDRIVE MANAGEMENT
         </button>
@@ -155,143 +155,7 @@
     }
 
     <!-- ========================================================================= -->
-    <!-- TAB 2: LOCAL SYNC -->
-    <!-- ========================================================================= -->
-    @if (activeTab == "local")
-    {
-        <!-- HEADER -->
-        <div class="matte-header">
-            <div>
-                <div class="matte-subtitle">Local Library Integration</div>
-                <h1 class="matte-title">Local Music Sync</h1>
-            </div>
-            <div class="matte-counter">
-                @localSongCount SONGS
-            </div>
-        </div>
-
-        <!-- LOCAL SYNC INFO -->
-        <div class="matte-card local-sync-card">
-            <div class="matte-tag">Local Library Synchronization</div>
-            <div class="local-sync-description">
-                <h3 class="card-title">Sinkronisasi Koleksi Musik Lokal</h3>
-                <p class="status-text text-muted">
-                    Gunakan modul ini untuk memeriksa koleksi musik lokal terhadap database Hypen.
-                </p>
-            </div>
-
-            <div class="local-sync-grid">
-                <div class="local-stat">
-                    <span class="local-stat-label">DATABASE SONGS</span>
-                    <strong>@localSongCount</strong>
-                </div>
-                <div class="local-stat">
-                    <span class="local-stat-label">LOCAL AUDIO</span>
-                    <strong>@localAudioCount</strong>
-                </div>
-                <div class="local-stat">
-                    <span class="local-stat-label">SYNC STATUS</span>
-                    <strong class="@(localSyncClean ? "text-clean" : "text-warning")">
-                        <i class="ti @(localSyncClean ? "ti-circle-check" : "ti-alert-circle")"></i>
-                        @(localSyncClean ? "READY" : "CHECK REQUIRED")
-                    </strong>
-                </div>
-            </div>
-        </div>
-
-        <!-- LOCAL FOLDER -->
-        <div class="matte-card local-folder-card">
-            <div class="matte-tag">Local Source</div>
-            <div class="local-folder-grid">
-                <input type="text" class="matte-input" @bind="localFolderPath" placeholder="Path folder musik lokal..." />
-                <button class="btn-matte btn-primary" @onclick="ScanLocalLibrary" disabled="@isProcessing">
-                    <i class="ti ti-folder-search"></i> @(isProcessing ? "SCANNING..." : "SCAN LOCAL LIBRARY")
-                </button>
-            </div>
-            <div class="local-folder-note">
-                <span class="status-text">
-                    <i class="ti ti-info-circle"></i> Path lokal hanya dapat diproses oleh aplikasi/server jika folder tersebut dapat diakses oleh runtime Hypen.
-                </span>
-            </div>
-        </div>
-
-        <!-- LOCAL TOOLBAR -->
-        <div class="matte-toolbar">
-            <div class="matte-action-group">
-                <button class="btn-matte" @onclick="LoadLocalLibrary" disabled="@isProcessing">
-                    <i class="ti ti-refresh"></i> REFRESH LOCAL INDEX
-                </button>
-                <button class="btn-matte btn-success" @onclick="SyncLocalLibrary" disabled="@(isProcessing || localAudioCount == 0)">
-                    <i class="ti ti-database-import"></i> SYNC TO DATABASE
-                </button>
-            </div>
-
-            <div class="matte-search-group">
-                <span class="status-badge"><i class="ti ti-files"></i> INDEXED: @localAudioCount</span>
-                @if (localMissingCount > 0)
-                {
-                    <span class="dup-summary-tag"><i class="ti ti-alert-triangle"></i> MISSING: @localMissingCount</span>
-                }
-            </div>
-        </div>
-
-        <!-- LOCAL CONTENT DISPLAY -->
-        @if (isProcessing && localAudioCount == 0)
-        {
-            <div class="matte-card text-center py-4">
-                <div class="matte-tag">Local Storage Scanner</div>
-                <h3 class="card-title">Memindai Koleksi Musik Lokal...</h3>
-                <p class="status-text text-muted">Sistem sedang membaca indeks file audio lokal.</p>
-            </div>
-        }
-        else if (!isProcessing && localAudioCount == 0)
-        {
-            <div class="matte-card text-center py-4">
-                <div class="matte-tag">Local Index Empty</div>
-                <h3 class="card-title">Belum Ada Koleksi Lokal Terindeks</h3>
-                <p class="status-text text-muted">
-                    Masukkan path folder musik lokal kemudian jalankan <strong>SCAN LOCAL LIBRARY</strong>.
-                </p>
-            </div>
-        }
-        else
-        {
-            <div class="preview-container">
-                <div class="preview-header">
-                    <span>LOCAL MUSIC INDEX (@localAudioCount:N0)</span>
-                    <span class="@(localSyncClean ? "status-badge" : "dup-summary-tag")">
-                        @(localSyncClean ? "SYNC READY" : $"{localMissingCount} NEED ATTENTION")
-                    </span>
-                </div>
-
-                <div class="cluster-list">
-                    <div class="local-sync-result">
-                        <div class="local-result-row">
-                            <span>LOCAL AUDIO FILES</span>
-                            <strong>@localAudioCount</strong>
-                        </div>
-                        <div class="local-result-row">
-                            <span>DATABASE SONGS</span>
-                            <strong>@localSongCount</strong>
-                        </div>
-                        <div class="local-result-row">
-                            <span>MISSING / UNMATCHED</span>
-                            <strong class="@(localMissingCount > 0 ? "text-danger" : "text-clean")">@localMissingCount</strong>
-                        </div>
-                        <div class="local-result-row">
-                            <span>SYNC STATE</span>
-                            <strong class="@(localSyncClean ? "text-clean" : "text-warning")">
-                                @(localSyncClean ? "CLEAN" : "REVIEW")
-                            </strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-    }
-
-    <!-- ========================================================================= -->
-    <!-- TAB 3: GDRIVE MANAGEMENT -->
+    <!-- TAB 2: GDRIVE MANAGEMENT -->
     <!-- ========================================================================= -->
     @if (activeTab == "gdrive")
     {
