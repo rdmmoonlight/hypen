@@ -96,13 +96,29 @@ public partial class Index : ComponentBase
     // =========================================================================
     // DUPLICATE CHECK & HANDLING
     // =========================================================================
+    protected void RunDuplicateCheck()
+    {
+        CheckLocalDuplicates();
+
+        if (duplicateRawIds.Count > 0)
+        {
+            UpdateStatus($"Ditemukan {duplicateRawIds.Count} item duplikat di Staging Buffer.", false);
+        }
+        else
+        {
+            UpdateStatus("Pemeriksaan selesai: Tidak ditemukan data duplikat.", false);
+        }
+    }
+
     protected void CheckLocalDuplicates()
     {
         duplicateRawIds.Clear();
 
+        if (stagingList == null || stagingList.Count == 0) return;
+
         var duplicates = stagingList
             .Where(x => !string.IsNullOrWhiteSpace(x.Title) && !string.IsNullOrWhiteSpace(x.Artist))
-            .GroupBy(x => $"{x.Artist.Trim().ToLower()} - {x.Title.Trim().ToLower()}")
+            .GroupBy(x => $"{NormalizeString(x.Artist)} - {NormalizeString(x.Title)}")
             .Where(g => g.Count() > 1)
             .SelectMany(g => g);
 
@@ -110,13 +126,15 @@ public partial class Index : ComponentBase
         {
             duplicateRawIds.Add(item.Id);
         }
+
+        StateHasChanged();
     }
 
     protected async Task DeleteDuplicateStagingItems()
     {
         var duplicateGroups = stagingList
             .Where(x => !string.IsNullOrWhiteSpace(x.Title) && !string.IsNullOrWhiteSpace(x.Artist))
-            .GroupBy(x => $"{x.Artist.Trim().ToLower()} - {x.Title.Trim().ToLower()}")
+            .GroupBy(x => $"{NormalizeString(x.Artist)} - {NormalizeString(x.Title)}")
             .Where(g => g.Count() > 1)
             .ToList();
 
@@ -131,7 +149,7 @@ public partial class Index : ComponentBase
             isProcessing = true;
             int deletedCount = 0;
 
-            // Menyimpan item pertama dari grup, lalu menghapus sisanya
+            // Menyimpan item pertama dari grup, menghapus sisanya
             var idsToDelete = duplicateGroups
                 .SelectMany(g => g.Skip(1).Select(x => x.Id))
                 .ToList();
@@ -157,6 +175,13 @@ public partial class Index : ComponentBase
             isProcessing = false;
             StateHasChanged();
         }
+    }
+
+    private string NormalizeString(string input)
+    {
+        return string.Concat(input.Where(c => !char.IsPunctuation(c)))
+                     .Trim()
+                     .ToLowerInvariant();
     }
 
     // =========================================================================
