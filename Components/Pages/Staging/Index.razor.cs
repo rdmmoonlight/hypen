@@ -110,8 +110,8 @@ public partial class Index : ComponentBase
         {
             SmartMatchService.ApplyCandidateToItem(activeReviewItem, candidate);
 
-            activeReviewRawItem.Artist = activeReviewItem.CleanArtist;
-            activeReviewRawItem.Title = activeReviewItem.CleanTitle;
+            activeReviewRawItem.Artist = activeReviewItem.CleanArtist ?? string.Empty;
+            activeReviewRawItem.Title = activeReviewItem.CleanTitle ?? string.Empty;
             activeReviewRawItem.Album = activeReviewItem.Album;
             activeReviewRawItem.ReleaseYear = activeReviewItem.ReleaseYear;
             activeReviewRawItem.AlbumCoverUrl = activeReviewItem.AlbumCoverUrl;
