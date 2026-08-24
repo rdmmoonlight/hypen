@@ -43,7 +43,6 @@ public partial class Index : ComponentBase
         var files = e.GetMultipleFiles(5000);
         if (files.Count == 0) return;
 
-        // Filter ekstensi audio
         var validExtensions = new[] { ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac" };
         var audioFiles = files
             .Where(f => validExtensions.Contains(Path.GetExtension(f.Name).ToLowerInvariant()))
@@ -117,13 +116,13 @@ public partial class Index : ComponentBase
         }
     }
 
-    // 2. SIMPAN KE DATABASE DARI PENAMPUNGAN
+    // 2. SIMPAN HANYA KE TABEL local_tracks
     protected async Task SaveStagedTracksToDb()
     {
         if (!stagedTracks.Any()) return;
 
         isSyncing = true;
-        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke database...";
+        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke tabel local_tracks...";
         StateHasChanged();
 
         try
@@ -132,32 +131,9 @@ public partial class Index : ComponentBase
 
             foreach (var track in stagedTracks)
             {
-                var existingSong = await dbContext.Songs
-                    .FirstOrDefaultAsync(s => s.Title.ToLower() == track.Title.ToLower() && 
-                                              s.Artist.ToLower() == track.Artist.ToLower());
-
-                long songId;
-
-                if (existingSong == null)
-                {
-                    var newSong = new SongsModel
-                    {
-                        Title = track.Title,
-                        Artist = track.Artist,
-                        Status = "LOCAL_SYNC",
-                        IsDownloaded = true
-                    };
-
-                    dbContext.Songs.Add(newSong);
-                    await dbContext.SaveChangesAsync();
-                    songId = newSong.Id;
-                }
-                else
-                {
-                    songId = existingSong.Id;
-                }
-
                 var fileNameLower = track.FileName.ToLower();
+                
+                // Cek apakah file sudah pernah ada di tabel local_tracks
                 var existingLocalTrack = await dbContext.LocalTracks
                     .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == track.FileSizeBytes);
 
@@ -171,7 +147,7 @@ public partial class Index : ComponentBase
                         Title = track.Title,
                         Artist = track.Artist,
                         IsSyncedToDb = true,
-                        SongId = songId,
+                        SongId = null, // Tidak dihubungkan ke tabel songs
                         LastScannedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -181,7 +157,8 @@ public partial class Index : ComponentBase
                 }
                 else
                 {
-                    existingLocalTrack.SongId = songId;
+                    existingLocalTrack.Title = track.Title;
+                    existingLocalTrack.Artist = track.Artist;
                     existingLocalTrack.IsSyncedToDb = true;
                     existingLocalTrack.LastScannedAt = DateTime.UtcNow;
                     existingLocalTrack.UpdatedAt = DateTime.UtcNow;
@@ -190,7 +167,7 @@ public partial class Index : ComponentBase
 
             await dbContext.SaveChangesAsync();
 
-            statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke database!";
+            statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke tabel local_tracks!";
             stagedTracks.Clear();
             currentPage = 1;
         }
