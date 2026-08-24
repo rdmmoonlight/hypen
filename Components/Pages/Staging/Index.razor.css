@@ -158,10 +158,25 @@
     border-color: rgba(247, 37, 133, 0.4);
 }
 
-.clean-duplicates {
-    background: rgba(255, 183, 3, 0.15);
+.check-duplicates {
+    background: rgba(255, 183, 3, 0.1);
     color: #ffb703;
-    border-color: rgba(255, 183, 3, 0.4);
+    border-color: rgba(255, 183, 3, 0.3);
+}
+
+.check-duplicates:hover:not(:disabled) {
+    background: rgba(255, 183, 3, 0.2);
+}
+
+.clean-duplicates {
+    background: rgba(255, 183, 3, 0.2);
+    color: #ffb703;
+    border-color: rgba(255, 183, 3, 0.5);
+    font-weight: 600;
+}
+
+.clean-duplicates:hover:not(:disabled) {
+    background: rgba(255, 183, 3, 0.3);
 }
 
 .commit-all {
