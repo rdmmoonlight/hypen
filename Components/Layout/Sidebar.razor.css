@@ -167,8 +167,17 @@
     width: 100%;
 }
 
-.btn-dropdown-toggle {
-    outline: none;
+/* Tombol Pemicu Toggle Chevron Panah */
+.dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-trigger:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 /* Indikator Panah Dropdown */
@@ -180,7 +189,8 @@
     transition: transform 0.2s ease, color 0.2s ease;
 }
 
-.nav-item-nebula:hover .dropdown-arrow {
+.nav-item-nebula:hover .dropdown-arrow,
+.dropdown-trigger:hover .dropdown-arrow {
     color: #66fcf1 !important;
 }
 
