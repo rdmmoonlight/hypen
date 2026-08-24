@@ -43,21 +43,21 @@
 
             <!-- Vault Tools Dropdown Parent -->
             <div class="nav-dropdown-wrapper">
-                <button type="button" class="nav-item-nebula btn-dropdown-toggle w-100 border-0 bg-transparent text-start" @onclick="ToggleToolsSubmenu" title="Vault Tools &amp; Maintenance Center">
-                    <div class="d-flex align-items-center justify-content-between w-100">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-tools fs-5"></i>
-                            @if (isExpanded)
-                            {
-                                <span class="nav-text animate-fade ms-2">Vault Tools</span>
-                            }
-                        </div>
+                <NavLink href="tools" Match="NavLinkMatch.Prefix" class="nav-item-nebula d-flex align-items-center justify-content-between" @onclick="OnToolsParentClick" title="Vault Tools & Maintenance Center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-tools fs-5"></i>
                         @if (isExpanded)
                         {
-                            <i class="bi @(isToolsSubmenuOpen ? "bi-chevron-down" : "bi-chevron-right") dropdown-arrow ms-auto"></i>
+                            <span class="nav-text animate-fade ms-2">Vault Tools</span>
                         }
                     </div>
-                </button>
+                    @if (isExpanded)
+                    {
+                        <span class="dropdown-trigger p-1" @onclick:stopPropagation="true" @onclick="ToggleToolsSubmenu">
+                            <i class="bi @(isToolsSubmenuOpen ? "bi-chevron-down" : "bi-chevron-right") dropdown-arrow ms-auto"></i>
+                        </span>
+                    }
+                </NavLink>
 
                 <!-- Submenu / Dropdown Items -->
                 @if (isToolsSubmenuOpen && isExpanded)
