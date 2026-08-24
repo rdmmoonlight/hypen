@@ -103,7 +103,7 @@ public class SyncService
                 ? "LOCAL-" + Guid.NewGuid().ToString("N")[..12].ToUpper()
                 : item.FileName;
 
-            var rawEntity = new SongsModel
+            var rawEntity = new RawSongsModel
             {
                 YoutubeVideoId = fakeYtId,
                 Title = string.IsNullOrWhiteSpace(item.CleanTitle) ? "Untitled" : item.CleanTitle,
@@ -117,7 +117,7 @@ public class SyncService
                 Status = "PENDING"
             };
 
-            await context.SongsRaw.AddAsync(rawEntity);
+            await context.RawSongs.AddAsync(rawEntity);
 
             if (delayMilliseconds > 0)
             {
@@ -128,19 +128,19 @@ public class SyncService
         return await context.SaveChangesAsync();
     }
 
-    // Operational DB: Promotion ke Complete
+    // Operational DB: Promotion ke Complete (Production Library)
     public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        var rawItem = await context.SongsRaw.FindAsync(rawId);
+        var rawItem = await context.RawSongs.FindAsync(rawId);
         if (rawItem == null) return false;
 
         string ytId = rawItem.YoutubeVideoId ?? "";
         string audioUrl = rawItem.AudioUrl ?? "";
 
         // =========================================================================
-        // DETEKSI DUPLIKASI (Pencegahan Masuk ke SongsComplete)
+        // DETEKSI DUPLIKASI (Pencegahan Masuk ke Songs Production)
         // =========================================================================
         var candidateForCheck = new SongsModel
         {
@@ -158,13 +158,13 @@ public class SyncService
         }
 
         // =========================================================================
-        // PROSES PROMOSI KE COMPLETE
+        // PROSES PROMOSI KE SONGS (PRODUCTION LIBRARY)
         // =========================================================================
         await using var transaction = await context.Database.BeginTransactionAsync();
 
         try
         {
-            var existingComplete = await context.SongsComplete
+            var existingComplete = await context.Songs
                 .FirstOrDefaultAsync(c => c.YoutubeVideoId == ytId);
 
             string albumName = string.IsNullOrWhiteSpace(validatedData.Album) ? "Single" : validatedData.Album;
@@ -202,7 +202,7 @@ public class SyncService
                     IsDownloaded = true
                 };
 
-                await context.SongsComplete.AddAsync(newComplete);
+                await context.Songs.AddAsync(newComplete);
             }
 
             rawItem.Status = "PROCESSED";
