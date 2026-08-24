@@ -30,9 +30,9 @@
         </div>
     }
 
-    <!-- EKSTRAKSI / INGESTION CONTENT -->
-    <div class="ingest-grid">
-        <!-- INGESTION VIA YOUTUBE -->
+    <!-- EKSTRAKSI / INGESTION CONTENT (3 CARDS) -->
+    <div class="ingest-grid three-columns">
+        <!-- CARD 1: INGESTION VIA YOUTUBE -->
         <div class="card-ingest">
             <div class="source-tag">Source // Remote</div>
             <h3 class="card-title">YouTube Stream Ingest</h3>
@@ -47,15 +47,47 @@
             </button>
         </div>
 
-        <!-- INGESTION VIA LOCAL MP3 -->
+        <!-- CARD 2: INGESTION VIA LOCAL MP3 -->
         <div class="card-ingest">
-            <div class="source-tag">Source // Local</div>
+            <div class="source-tag">Source // Local File</div>
             <h3 class="card-title">Local Audio Ingest</h3>
 
             <div class="form-group">
                 <label class="form-label">Select Audio Files (.mp3)</label>
-                <InputFile OnChange="HandleFileSelection" multiple accept=".mp3" class="input-file" />
+                <InputFile OnChange="HandleFileSelection" multiple accept=".mp3" class="input-file" disabled="@isProcessing" />
             </div>
+            <small class="help-text">Ekstraksi cepat dari berkas MP3 individual.</small>
+        </div>
+
+        <!-- CARD 3: INGESTION VIA LOCAL SYNC -->
+        <div class="card-ingest">
+            <div class="source-tag">Source // Local Directory</div>
+            <h3 class="card-title">Local Sync Ingest</h3>
+
+            <div class="form-group mb-2">
+                <label class="form-label">Scan Mode</label>
+                <div class="mode-toggle-group">
+                    <button type="button" class="btn-mode @(uploadMode == "folder" ? "active" : "")" @onclick='() => SetUploadMode("folder")'>
+                        Folder Scan
+                    </button>
+                    <button type="button" class="btn-mode @(uploadMode == "file" ? "active" : "")" @onclick='() => SetUploadMode("file")'>
+                        Multi Files
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Select @(uploadMode == "folder" ? "Directory" : "Audio Files")</label>
+                @if (uploadMode == "folder")
+                {
+                    <InputFile OnChange="HandleLocalSyncSelection" webkitdirectory directory multiple class="input-file" disabled="@isProcessing" />
+                }
+                else
+                {
+                    <InputFile OnChange="HandleLocalSyncSelection" multiple accept=".mp3,.wav,.m4a,.flac,.ogg,.aac" class="input-file" disabled="@isProcessing" />
+                }
+            </div>
+            <small class="help-text">Pindai folder/direktori lokal secara otomatis.</small>
         </div>
     </div>
 
