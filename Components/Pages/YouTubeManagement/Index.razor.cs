@@ -11,23 +11,26 @@ public partial class Index : ComponentBase
     // UI STATE
     protected string StatusMessage { get; set; } = string.Empty;
     protected bool IsError { get; set; }
-    protected bool IsSyncing { get; set; }
+    protected bool IsLoadingPlaylists { get; set; }
+    protected bool IsInspectingVideo { get; set; }
     protected bool IsSaving { get; set; }
 
-    // TIMESTAMP SYNC
-    protected DateTime? LastSyncTime { get; set; }
+    // PLAYLIST SELECTION STATE
+    protected List<YouTubePlaylistModel> UserPlaylists { get; set; } = new();
+    protected YouTubePlaylistModel? SelectedPlaylist { get; set; }
+    protected DateTime? SelectedPlaylistLastSync { get; set; }
 
-    // DATA PREVIEW & SELECTION
-    protected List<YouTubePreviewModel> FetchedItems { get; set; } = new();
+    // PREVIEW & SELECTION DATA
+    protected List<YouTubePreviewModel> FetchedVideos { get; set; } = new();
     protected HashSet<string> SelectedVideoIds { get; set; } = new();
 
-    // PAGING STATE (Maksimal 50 item total / 10 per halaman UI)
+    // PAGING (Maksimal 50 item per halaman tabel UI)
     protected int PageSize { get; set; } = 10;
     protected int CurrentPage { get; set; } = 1;
-    protected int TotalPages => (int)Math.Ceiling((double)FetchedItems.Count / PageSize);
+    protected int TotalPages => (int)Math.Ceiling((double)FetchedVideos.Count / PageSize);
 
-    protected IEnumerable<YouTubePreviewModel> PagedItems =>
-        FetchedItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    protected IEnumerable<YouTubePreviewModel> PagedVideos =>
+        FetchedVideos.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
     // METRICS
     protected int PendingRawCount { get; set; }
@@ -36,50 +39,97 @@ public partial class Index : ComponentBase
     protected override async Task OnInitializedAsync()
     {
         await RefreshMetrics();
+        await LoadUserPlaylistsAsync();
     }
 
     // =========================================================================
-    // SYNC & FETCH PREVIEW
+    // STEP 1: LOAD PLAYLISTS
     // =========================================================================
-    protected async Task FetchLatestFromYouTubeAsync()
+    protected async Task LoadUserPlaylistsAsync()
     {
-        if (IsSyncing) return;
+        try
+        {
+            IsLoadingPlaylists = true;
+            UpdateStatus("Memuat daftar playlist dari akun YouTube...");
+
+            // Menyiapkan opsi default Liked Videos
+            UserPlaylists = new List<YouTubePlaylistModel>
+            {
+                new() { Id = "LL", Title = "Liked Videos (Disukai)", ItemCount = 0 }
+            };
+
+            // Di sini dapat ditambahkan fetch playlist publik/privat user dari service jika sudah ada
+            UpdateStatus("Daftar playlist berhasil dimuat. Silakan pilih playlist untuk di-inspeksi.");
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Gagal memuat playlist: {ex.Message}", error: true);
+        }
+        finally
+        {
+            IsLoadingPlaylists = false;
+            StateHasChanged();
+        }
+    }
+
+    protected void SelectPlaylist(YouTubePlaylistModel playlist)
+    {
+        SelectedPlaylist = playlist;
+        FetchedVideos.Clear();
+        SelectedVideoIds.Clear();
+        CurrentPage = 1;
+    }
+
+    // =========================================================================
+    // STEP 2: INSPECT ALL VIDEOS FROM SELECTED PLAYLIST (FULL FETCH)
+    // =========================================================================
+    protected async Task InspectSelectedPlaylistAsync()
+    {
+        if (SelectedPlaylist == null || IsInspectingVideo) return;
 
         try
         {
-            IsSyncing = true;
+            IsInspectingVideo = true;
             SelectedVideoIds.Clear();
             CurrentPage = 1;
-            UpdateStatus("Menarik data 50 item terbaru dari akun YouTube...");
 
-            var rawTupleList = await SyncService.FetchPlaylistItemsAsync("LL", 50);
+            bool isFirstSync = !SelectedPlaylistLastSync.HasValue;
+            string fetchModeText = isFirstSync 
+                ? "Menarik SELURUH item video (Belum pernah sync)..." 
+                : $"Menarik update video sejak {SelectedPlaylistLastSync:dd MMM yyyy HH:mm}...";
 
-            FetchedItems = rawTupleList.Select(item => new YouTubePreviewModel
+            UpdateStatus($"Memeriksa '{SelectedPlaylist.Title}': {fetchModeText}");
+
+            // Tarik tanpa limit (int.MaxValue / 0) jika belum pernah sync
+            int fetchLimit = isFirstSync ? int.MaxValue : 50;
+
+            var rawTupleList = await SyncService.FetchPlaylistItemsAsync(SelectedPlaylist.Id, fetchLimit);
+
+            FetchedVideos = rawTupleList.Select(item => new YouTubePreviewModel
             {
                 VideoId = item.VideoId,
                 Title = item.Title,
                 ChannelTitle = item.ChannelTitle
             }).ToList();
 
-            // Simpan timestamp penarikan data terakhir sebagai rujukan
-            LastSyncTime = DateTime.Now;
+            SelectedPlaylistLastSync = DateTime.Now;
 
-            if (FetchedItems.Count == 0)
+            if (FetchedVideos.Count == 0)
             {
-                UpdateStatus($"Tidak ditemukan item baru dari akun YouTube. (Terakhir di-sync: {LastSyncTime:dd MMM yyyy HH:mm:ss})");
+                UpdateStatus($"Tidak ditemukan video baru pada playlist '{SelectedPlaylist.Title}'.");
             }
             else
             {
-                UpdateStatus($"Berhasil memuat {FetchedItems.Count} item preview pada {LastSyncTime:HH:mm:ss}. Silakan pilih video yang ingin dimasukkan ke Staging.");
+                UpdateStatus($"Berhasil menarik {FetchedVideos.Count} video dari '{SelectedPlaylist.Title}'. Silakan pilih video yang akan disimpan.");
             }
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal menarik data dari YouTube: {ex.Message}", error: true);
+            UpdateStatus($"Gagal mendeteksi isi playlist: {ex.Message}", error: true);
         }
         finally
         {
-            IsSyncing = false;
+            IsInspectingVideo = false;
             StateHasChanged();
         }
     }
@@ -88,12 +138,12 @@ public partial class Index : ComponentBase
     // SELECTION & PAGING HANDLERS
     // =========================================================================
     protected bool IsAllPageSelected =>
-        PagedItems.Any() && PagedItems.All(x => SelectedVideoIds.Contains(x.VideoId));
+        PagedVideos.Any() && PagedVideos.All(x => SelectedVideoIds.Contains(x.VideoId));
 
     protected void ToggleSelectAllPage(ChangeEventArgs e)
     {
         bool isChecked = (bool)(e.Value ?? false);
-        foreach (var item in PagedItems)
+        foreach (var item in PagedVideos)
         {
             if (isChecked) SelectedVideoIds.Add(item.VideoId);
             else SelectedVideoIds.Remove(item.VideoId);
@@ -117,7 +167,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // SAVE SELECTED TO STAGING DB
+    // STEP 3: SAVE SELECTED TO STAGING DB
     // =========================================================================
     protected async Task SaveSelectedToStagingAsync()
     {
@@ -126,22 +176,21 @@ public partial class Index : ComponentBase
         try
         {
             IsSaving = true;
-            UpdateStatus($"Menyimpan {SelectedVideoIds.Count} item terpilih ke Staging Buffer...");
+            UpdateStatus($"Menyimpan {SelectedVideoIds.Count} video terpilih ke Staging Database...");
 
             int savedCount = 0;
-
             foreach (var videoId in SelectedVideoIds.ToList())
             {
                 int result = await SyncService.SyncPlaylistToRawAsync(videoId, 1);
                 savedCount += result;
             }
 
-            FetchedItems.RemoveAll(x => SelectedVideoIds.Contains(x.VideoId));
+            FetchedVideos.RemoveAll(x => SelectedVideoIds.Contains(x.VideoId));
             SelectedVideoIds.Clear();
 
             if (CurrentPage > TotalPages && CurrentPage > 1) CurrentPage = TotalPages;
 
-            UpdateStatus($"Berhasil menyimpan {savedCount} item terpilih ke Staging Database!");
+            UpdateStatus($"Berhasil menyimpan {savedCount} item terpilih ke Staging!");
             await RefreshMetrics();
         }
         catch (Exception ex)
@@ -178,6 +227,13 @@ public partial class Index : ComponentBase
         IsError = error;
         StateHasChanged();
     }
+}
+
+public class YouTubePlaylistModel
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public int ItemCount { get; set; }
 }
 
 public class YouTubePreviewModel
