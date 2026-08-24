@@ -1,0 +1,98 @@
+@page "/youtubemanagement"
+@namespace Hypen.Web.Components.Pages.YouTubeManagement
+@inherits YouTubeAutoSync
+
+<PageTitle>YouTube Auto-Detect Sync - Hypen</PageTitle>
+
+<div class="yt-sync-container">
+    <div class="yt-sync-header">
+        <h2 class="yt-sync-title">YouTube Auto-Detect Sync</h2>
+        <p class="yt-sync-subtitle">Deteksi otomatis video yang disukai (Liked Videos) dan lagu baru dari playlist YouTube ke Staging</p>
+    </div>
+
+    <!-- Status Alert Bar -->
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <div class="yt-status-alert @(IsError ? "yt-status-error" : "yt-status-success")">
+            <span class="yt-status-icon">@(IsError ? "⚠️" : "ℹ️")</span>
+            <span class="yt-status-text">@StatusMessage</span>
+        </div>
+    }
+
+    <div class="yt-sync-grid">
+        <!-- Configuration Card -->
+        <div class="yt-card">
+            <div class="yt-card-header">
+                <h3>Pengaturan Sinkronisasi</h3>
+            </div>
+            <div class="yt-card-body">
+                <div class="yt-form-group">
+                    <label class="yt-checkbox-label">
+                        <input type="checkbox" @bind="SyncLikedVideos" disabled="@IsSyncing" />
+                        <span>Deteksi Liked Videos (Video Disukai)</span>
+                    </label>
+                </div>
+
+                <div class="yt-form-group">
+                    <label class="yt-checkbox-label">
+                        <input type="checkbox" @bind="SyncPlaylists" disabled="@IsSyncing" />
+                        <span>Deteksi Item Playlist YouTube</span>
+                    </label>
+                </div>
+
+                @if (SyncPlaylists)
+                {
+                    <div class="yt-form-group yt-nested-input">
+                        <label for="playlistId">Target Playlist ID (Opsional):</label>
+                        <input id="playlistId" 
+                               type="text" 
+                               class="yt-input" 
+                               placeholder="Kosongkan untuk semua playlist" 
+                               @bind="TargetPlaylistId" 
+                               disabled="@IsSyncing" />
+                        <small class="yt-input-help">Jika diisi, hanya playlist ini yang akan diproses.</small>
+                    </div>
+                }
+
+                <div class="yt-form-actions">
+                    <button class="yt-btn yt-btn-primary" @onclick="ExecuteAutoSyncAsync" disabled="@IsSyncing">
+                        @if (IsSyncing)
+                        {
+                            <span class="yt-spinner"></span>
+                            <span>Menyingkronkan...</span>
+                        }
+                        else
+                        {
+                            <span>▶ Jalankan Auto Detect</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics & Summary Card -->
+        <div class="yt-card">
+            <div class="yt-card-header">
+                <h3>Ringkasan Sinkronisasi</h3>
+            </div>
+            <div class="yt-card-body">
+                <div class="yt-metrics-container">
+                    <div class="yt-metric-box">
+                        <span class="yt-metric-value">@TotalFetched</span>
+                        <span class="yt-metric-label">Item Terdeteksi</span>
+                    </div>
+
+                    <div class="yt-metric-box">
+                        <span class="yt-metric-value">@TotalAddedToStaging</span>
+                        <span class="yt-metric-label">Masuk Staging</span>
+                    </div>
+                </div>
+
+                <div class="yt-info-row">
+                    <span class="yt-info-label">Terakhir Dijalankan:</span>
+                    <span class="yt-info-value">@(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "-")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
