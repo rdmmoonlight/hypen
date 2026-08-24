@@ -15,11 +15,20 @@ public partial class Index : ComponentBase
     [Inject]
     protected AudioMetadataService MetadataService { get; set; } = default!;
 
+    // Status State
+    protected bool isExtracting;
     protected bool isSyncing;
     protected int processedCount;
     protected int totalFiles;
     protected string? statusMessage;
 
+    // Staging / Penampungan Properties
+    protected List<StagedTrackDto> stagedTracks = new();
+    protected int currentPage = 1;
+    protected int pageSize = 50;
+    protected int totalPages => (int)Math.Ceiling((double)stagedTracks.Count / pageSize);
+
+    // 1. TAMUNG DULU DI PAGE (HANYA EKSTRAKSI METADATA)
     protected async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
         var files = e.GetMultipleFiles(2000);
@@ -28,14 +37,12 @@ public partial class Index : ComponentBase
 
         if (totalFiles == 0) return;
 
-        isSyncing = true;
-        statusMessage = $"Mulai memproses {totalFiles} file audio...";
+        isExtracting = true;
+        statusMessage = $"Mengekstrak {totalFiles} file audio ke penampungan...";
         StateHasChanged();
 
         try
         {
-            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-
             foreach (var file in files)
             {
                 var ext = Path.GetExtension(file.Name).ToLower();
@@ -54,9 +61,51 @@ public partial class Index : ComponentBase
                 string title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle;
                 string artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist;
 
+                // Ditampung sementara di list UI
+                stagedTracks.Add(new StagedTrackDto
+                {
+                    FileName = file.Name,
+                    FileSizeBytes = file.Size,
+                    Title = title,
+                    Artist = artist
+                });
+
+                processedCount++;
+                StateHasChanged();
+            }
+
+            ReindexRowNumbers();
+            statusMessage = $"Berhasil mengekstrak {processedCount} file. Silakan periksa daftar di bawah sebelum menyimpan.";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal mengekstrak metadata: {ex.Message}";
+        }
+        finally
+        {
+            isExtracting = false;
+            StateHasChanged();
+        }
+    }
+
+    // 2. SIMPAN KE DATABASE DARI PENAMPUNGAN
+    protected async Task SaveStagedTracksToDb()
+    {
+        if (!stagedTracks.Any()) return;
+
+        isSyncing = true;
+        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke database...";
+        StateHasChanged();
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            foreach (var track in stagedTracks)
+            {
                 var existingSong = await dbContext.Songs
-                    .FirstOrDefaultAsync(s => s.Title.ToLower() == title.ToLower() && 
-                                              s.Artist.ToLower() == artist.ToLower());
+                    .FirstOrDefaultAsync(s => s.Title.ToLower() == track.Title.ToLower() && 
+                                              s.Artist.ToLower() == track.Artist.ToLower());
 
                 long songId;
 
@@ -64,8 +113,8 @@ public partial class Index : ComponentBase
                 {
                     var newSong = new SongsModel
                     {
-                        Title = title,
-                        Artist = artist,
+                        Title = track.Title,
+                        Artist = track.Artist,
                         Status = "LOCAL_SYNC",
                         IsDownloaded = true
                     };
@@ -79,19 +128,19 @@ public partial class Index : ComponentBase
                     songId = existingSong.Id;
                 }
 
-                var fileNameLower = file.Name.ToLower();
+                var fileNameLower = track.FileName.ToLower();
                 var existingLocalTrack = await dbContext.LocalTracks
-                    .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == file.Size);
+                    .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == track.FileSizeBytes);
 
                 if (existingLocalTrack == null)
                 {
                     var localTrack = new LocalTrackModel
                     {
-                        FilePath = file.Name,
-                        FileName = file.Name,
-                        FileSizeBytes = file.Size,
-                        Title = title,
-                        Artist = artist,
+                        FilePath = track.FileName,
+                        FileName = track.FileName,
+                        FileSizeBytes = track.FileSizeBytes,
+                        Title = track.Title,
+                        Artist = track.Artist,
                         IsSyncedToDb = true,
                         SongId = songId,
                         LastScannedAt = DateTime.UtcNow,
@@ -108,22 +157,100 @@ public partial class Index : ComponentBase
                     existingLocalTrack.LastScannedAt = DateTime.UtcNow;
                     existingLocalTrack.UpdatedAt = DateTime.UtcNow;
                 }
-
-                processedCount++;
-                StateHasChanged();
             }
 
             await dbContext.SaveChangesAsync();
-            statusMessage = $"Sukses menyinkronkan {processedCount} file ke database!";
+
+            statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke database!";
+            stagedTracks.Clear();
+            currentPage = 1;
         }
         catch (Exception ex)
         {
-            statusMessage = $"Gagal menyinkronkan file: {ex.Message}";
+            statusMessage = $"Gagal menyimpan ke database: {ex.Message}";
         }
         finally
         {
             isSyncing = false;
             StateHasChanged();
         }
+    }
+
+    // Helper Functions & Pagination
+    protected void RemoveTrack(StagedTrackDto track)
+    {
+        stagedTracks.Remove(track);
+        ReindexRowNumbers();
+        if (currentPage > totalPages && totalPages > 0)
+        {
+            currentPage = totalPages;
+        }
+    }
+
+    protected void ClearStagedTracks()
+    {
+        stagedTracks.Clear();
+        currentPage = 1;
+        statusMessage = "Daftar penampungan dibersihkan.";
+    }
+
+    private void ReindexRowNumbers()
+    {
+        for (int i = 0; i < stagedTracks.Count; i++)
+        {
+            stagedTracks[i].RowNumber = i + 1;
+        }
+    }
+
+    protected IEnumerable<StagedTrackDto> GetPagedTracks()
+    {
+        return stagedTracks
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+    }
+
+    protected void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+        }
+    }
+
+    protected void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    protected void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    protected string FormatBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
+
+    public class StagedTrackDto
+    {
+        public int RowNumber { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Artist { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public long FileSizeBytes { get; set; }
     }
 }
