@@ -28,7 +28,7 @@ public partial class Sidebar
         }
     }
 
-    private async Task ToggleToolsSubmenu()
+    private async Task OnToolsParentClick()
     {
         if (!isExpanded)
         {
@@ -39,6 +39,12 @@ public partial class Sidebar
             }
         }
 
+        // Otomatis buka submenu ketika menu Vault Tools diklik
+        isToolsSubmenuOpen = true;
+    }
+
+    private void ToggleToolsSubmenu()
+    {
         isToolsSubmenuOpen = !isToolsSubmenuOpen;
     }
 
