@@ -64,7 +64,7 @@ namespace Hypen.Web.Components
 
         protected void NavigateToDuplicateDetector()
         {
-            Navigation.NavigateTo("/tools/drivedetector");
+            Navigation.NavigateTo("/tools/dedup");
         }
 
         protected void NavigateToLocalSync()
@@ -74,12 +74,12 @@ namespace Hypen.Web.Components
 
         protected void NavigateToGDriveManagement()
         {
-            Navigation.NavigateTo("/tools/gdrive-management");
+            Navigation.NavigateTo("/tools/drivedetector");
         }
 
         protected void NavigateToSetting()
         {
-            Navigation.NavigateTo("/setting");
+            Navigation.NavigateTo("/settings");
         }
     }
 }
