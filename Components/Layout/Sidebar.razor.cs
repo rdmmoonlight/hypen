@@ -79,7 +79,7 @@ namespace Hypen.Web.Components
 
         protected void NavigateToSetting()
         {
-            Navigation.NavigateTo("/settings");
+            Navigation.NavigateTo("/settingss");
         }
     }
 }
