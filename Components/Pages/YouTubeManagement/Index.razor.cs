@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
+using Hypen.Web.Models;
 using Hypen.Web.Services;
 
 namespace Hypen.Web.Components.Pages.YouTubeManagement;
@@ -7,6 +10,7 @@ public partial class Index : ComponentBase
 {
     [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
     [Inject] protected ISongProcessorService ProcessorService { get; set; } = default!;
+    [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
     // UI STATE
     protected string StatusMessage { get; set; } = string.Empty;
@@ -52,13 +56,11 @@ public partial class Index : ComponentBase
             IsLoadingPlaylists = true;
             UpdateStatus("Memuat daftar playlist dari akun YouTube...");
 
-            // Playlist standar bawaan akun (Liked Videos)
             UserPlaylists = new List<YouTubePlaylistModel>
             {
                 new() { Id = "LL", Title = "Liked Videos (Disukai)", ItemCount = 0 }
             };
 
-            // Memanggil service API untuk mengambil playlist pengguna
             var remotePlaylists = await SyncService.GetUserPlaylistsAsync();
             if (remotePlaylists != null && remotePlaylists.Count > 0)
             {
@@ -114,9 +116,7 @@ public partial class Index : ComponentBase
 
             UpdateStatus($"Memeriksa '{SelectedPlaylist.Title}': {fetchModeText}");
 
-            // Jika belum pernah sync, tarik tanpa limit (int.MaxValue)
             int fetchLimit = isFirstSync ? int.MaxValue : 50;
-
             var rawTupleList = await SyncService.FetchPlaylistItemsAsync(SelectedPlaylist.Id, fetchLimit);
 
             FetchedVideos = rawTupleList.Select(item => new YouTubePreviewModel
@@ -181,7 +181,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // STEP 3: SAVE SELECTED TO STAGING DB
+    // STEP 3: SAVE SELECTED DIRECTLY TO STAGING DB (RAW_SONGS)
     // =========================================================================
     protected async Task SaveSelectedToStagingAsync()
     {
@@ -190,21 +190,41 @@ public partial class Index : ComponentBase
         try
         {
             IsSaving = true;
-            UpdateStatus($"Menyimpan {SelectedVideoIds.Count} video terpilih ke Staging Database...");
+            UpdateStatus($"Menyimpan {SelectedVideoIds.Count} video terpilih ke tabel raw_songs (Staging)...");
 
             int savedCount = 0;
+            using var context = await DbContextFactory.CreateDbContextAsync();
+
             foreach (var videoId in SelectedVideoIds.ToList())
             {
-                int result = await SyncService.SyncPlaylistToRawAsync(videoId, 1);
-                savedCount += result;
+                // Cari data detail preview berdasarkan VideoId yang dipilih
+                var videoModel = FetchedVideos.FirstOrDefault(x => x.VideoId == videoId);
+                if (videoModel == null) continue;
+
+                // Cek apakah video dengan judul/artis atau referensi ini sudah ada di raw_songs (opsional pencegahan duplikat hulu)
+                // Memasukkan data mentah ke tabel RawSongsModel
+                var rawEntity = new RawSongsModel
+                {
+                    Title = videoModel.Title,
+                    Artist = videoModel.ChannelTitle, // Default awal artist menggunakan Channel Title YouTube
+                    Album = "YouTube Sync",
+                    Country = "ID",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                context.RawSongs.Add(rawEntity);
+                savedCount++;
             }
 
+            await context.SaveChangesAsync();
+
+            // Hapus dari daftar preview lokal setelah sukses disimpan
             FetchedVideos.RemoveAll(x => SelectedVideoIds.Contains(x.VideoId));
             SelectedVideoIds.Clear();
 
             if (CurrentPage > TotalPages && CurrentPage > 1) CurrentPage = TotalPages;
 
-            UpdateStatus($"Berhasil menyimpan {savedCount} item terpilih ke Staging!");
+            UpdateStatus($"Berhasil menyimpan {savedCount} item ke Staging! Silakan buka menu Staging untuk verifikasi.");
             await RefreshMetrics();
         }
         catch (Exception ex)
@@ -222,7 +242,8 @@ public partial class Index : ComponentBase
     {
         try
         {
-            PendingRawCount = await SyncService.GetPendingRawCountAsync();
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            PendingRawCount = await context.RawSongs.CountAsync();
             CompletedSongsCount = await SyncService.GetCompletedCountAsync();
         }
         catch (Exception ex)
