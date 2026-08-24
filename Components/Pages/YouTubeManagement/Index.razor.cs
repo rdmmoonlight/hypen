@@ -24,7 +24,7 @@ public partial class Index : ComponentBase
     protected List<YouTubePreviewModel> FetchedVideos { get; set; } = new();
     protected HashSet<string> SelectedVideoIds { get; set; } = new();
 
-    // PAGING (Maksimal 50 item per halaman tabel UI)
+    // PAGING (10 item per halaman UI)
     protected int PageSize { get; set; } = 10;
     protected int CurrentPage { get; set; } = 1;
     protected int TotalPages => (int)Math.Ceiling((double)FetchedVideos.Count / PageSize);
@@ -43,7 +43,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // STEP 1: LOAD PLAYLISTS
+    // STEP 1: LOAD ALL USER PLAYLISTS FROM API
     // =========================================================================
     protected async Task LoadUserPlaylistsAsync()
     {
@@ -52,18 +52,32 @@ public partial class Index : ComponentBase
             IsLoadingPlaylists = true;
             UpdateStatus("Memuat daftar playlist dari akun YouTube...");
 
-            // Menyiapkan opsi default Liked Videos
+            // Playlist standar bawaan akun (Liked Videos)
             UserPlaylists = new List<YouTubePlaylistModel>
             {
                 new() { Id = "LL", Title = "Liked Videos (Disukai)", ItemCount = 0 }
             };
 
-            // Di sini dapat ditambahkan fetch playlist publik/privat user dari service jika sudah ada
-            UpdateStatus("Daftar playlist berhasil dimuat. Silakan pilih playlist untuk di-inspeksi.");
+            // Memanggil service API untuk mengambil playlist pengguna
+            var remotePlaylists = await SyncService.GetUserPlaylistsAsync();
+            if (remotePlaylists != null && remotePlaylists.Count > 0)
+            {
+                foreach (var pl in remotePlaylists)
+                {
+                    UserPlaylists.Add(new YouTubePlaylistModel
+                    {
+                        Id = pl.PlaylistId,
+                        Title = pl.Title,
+                        ItemCount = 0
+                    });
+                }
+            }
+
+            UpdateStatus($"Daftar playlist berhasil dimuat ({UserPlaylists.Count} playlist ditemukan). Silakan pilih playlist untuk di-inspeksi.");
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal memuat playlist: {ex.Message}", error: true);
+            UpdateStatus($"Gagal memuat daftar playlist: {ex.Message}", error: true);
         }
         finally
         {
@@ -100,7 +114,7 @@ public partial class Index : ComponentBase
 
             UpdateStatus($"Memeriksa '{SelectedPlaylist.Title}': {fetchModeText}");
 
-            // Tarik tanpa limit (int.MaxValue / 0) jika belum pernah sync
+            // Jika belum pernah sync, tarik tanpa limit (int.MaxValue)
             int fetchLimit = isFirstSync ? int.MaxValue : 50;
 
             var rawTupleList = await SyncService.FetchPlaylistItemsAsync(SelectedPlaylist.Id, fetchLimit);
@@ -120,7 +134,7 @@ public partial class Index : ComponentBase
             }
             else
             {
-                UpdateStatus($"Berhasil menarik {FetchedVideos.Count} video dari '{SelectedPlaylist.Title}'. Silakan pilih video yang akan disimpan.");
+                UpdateStatus($"Berhasil menarik {FetchedVideos.Count} video dari '{SelectedPlaylist.Title}'. Silakan pilih video yang akan disimpan ke Staging.");
             }
         }
         catch (Exception ex)
