@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
 
-namespace Hypen.Web.Pages.Tools;
+namespace Hypen.Web.Components.Pages.Tools.LocalSync;
 
-public partial class LocalSync : ComponentBase
+public partial class Index : ComponentBase
 {
     [Inject]
     protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
@@ -49,14 +49,11 @@ public partial class LocalSync : ComponentBase
                 await stream.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                // Ekstraksi metadata
                 var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                // Handling fallback jika metadata null/kosong
                 string title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle;
                 string artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist;
 
-                // Pencarian lagu yang sudah ada (Aman dari NullReferenceException)
                 var existingSong = await dbContext.Songs
                     .FirstOrDefaultAsync(s => s.Title.ToLower() == title.ToLower() && 
                                               s.Artist.ToLower() == artist.ToLower());
@@ -74,7 +71,7 @@ public partial class LocalSync : ComponentBase
                     };
 
                     dbContext.Songs.Add(newSong);
-                    await dbContext.SaveChangesAsync(); // Simpan untuk mendapatkan ID baru (PK)
+                    await dbContext.SaveChangesAsync();
                     songId = newSong.Id;
                 }
                 else
@@ -82,7 +79,6 @@ public partial class LocalSync : ComponentBase
                     songId = existingSong.Id;
                 }
 
-                // Cek ketersediaan LocalTrack
                 var fileNameLower = file.Name.ToLower();
                 var existingLocalTrack = await dbContext.LocalTracks
                     .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == file.Size);
@@ -97,7 +93,7 @@ public partial class LocalSync : ComponentBase
                         Title = title,
                         Artist = artist,
                         IsSyncedToDb = true,
-                        SongId = songId, // long? tanpa cast
+                        SongId = songId,
                         LastScannedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -117,7 +113,6 @@ public partial class LocalSync : ComponentBase
                 StateHasChanged();
             }
 
-            // Simpan seluruh entitas LocalTrackModel baru/yang diupdate
             await dbContext.SaveChangesAsync();
             statusMessage = $"Sukses menyinkronkan {processedCount} file ke database!";
         }
