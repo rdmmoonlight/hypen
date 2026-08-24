@@ -5,7 +5,7 @@ using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
-namespace Hypen.Web.Pages.Tools;
+namespace Hypen.Web.Components.Pages.Tools;
 
 public partial class Index : ComponentBase
 {
