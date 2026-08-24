@@ -18,6 +18,9 @@ public partial class Index : ComponentBase
     // Upload Mode state: "folder" atau "file"
     protected string uploadMode = "folder";
 
+    // Active Tab State: "extract" atau "database"
+    protected string activeTab = "extract";
+
     // Status State
     protected bool isExtracting;
     protected bool isSyncing;
@@ -25,11 +28,21 @@ public partial class Index : ComponentBase
     protected int totalFiles;
     protected string? statusMessage;
 
-    // Staging / Penampungan Properties
+    // Data Penampungan Ekstraksi (Staging)
     protected List<StagedTrackDto> stagedTracks = new();
+
+    // Data Tersimpan di Database
+    protected List<StagedTrackDto> savedDbTracks = new();
+
+    // Paginasi Properties
     protected int currentPage = 1;
     protected int pageSize = 50;
-    protected int totalPages => (int)Math.Ceiling((double)stagedTracks.Count / pageSize);
+    protected int totalPages => (int)Math.Ceiling((double)GetCurrentTabList().Count / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSavedTracksFromDb();
+    }
 
     protected void SetUploadMode(string mode)
     {
@@ -37,7 +50,42 @@ public partial class Index : ComponentBase
         statusMessage = null;
     }
 
-    // 1. TAMPUNG DULU DI PAGE (HANYA EKSTRAKSI METADATA)
+    protected void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        currentPage = 1;
+    }
+
+    protected List<StagedTrackDto> GetCurrentTabList()
+    {
+        return activeTab == "extract" ? stagedTracks : savedDbTracks;
+    }
+
+    private async Task LoadSavedTracksFromDb()
+    {
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var dbTracks = await dbContext.LocalTracks
+                .OrderByDescending(lt => lt.UpdatedAt)
+                .ToListAsync();
+
+            savedDbTracks = dbTracks.Select((t, index) => new StagedTrackDto
+            {
+                RowNumber = index + 1,
+                Title = t.Title ?? Path.GetFileNameWithoutExtension(t.FileName),
+                Artist = t.Artist ?? "Unknown Artist",
+                FileName = t.FileName,
+                FileSizeBytes = t.FileSizeBytes
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Gagal memuat data local_tracks dari DB: {ex.Message}");
+        }
+    }
+
+    // 1. TAMPUNG METADATA HASIL EXTRACTION
     protected async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
         var files = e.GetMultipleFiles(5000);
@@ -102,8 +150,10 @@ public partial class Index : ComponentBase
                 StateHasChanged();
             }
 
-            ReindexRowNumbers();
-            statusMessage = $"Berhasil mengekstrak {stagedTracks.Count} file audio. Silakan periksa daftar di bawah sebelum menyimpan.";
+            ReindexRowNumbers(stagedTracks);
+            activeTab = "extract"; // Pindah otomatis ke tab ekstraksi
+            currentPage = 1;
+            statusMessage = $"Berhasil mengekstrak {stagedTracks.Count} file audio. Silakan periksa daftar sebelum menyimpan.";
         }
         catch (Exception ex)
         {
@@ -133,7 +183,6 @@ public partial class Index : ComponentBase
             {
                 var fileNameLower = track.FileName.ToLower();
                 
-                // Cek apakah file sudah pernah ada di tabel local_tracks
                 var existingLocalTrack = await dbContext.LocalTracks
                     .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == track.FileSizeBytes);
 
@@ -147,7 +196,7 @@ public partial class Index : ComponentBase
                         Title = track.Title,
                         Artist = track.Artist,
                         IsSyncedToDb = true,
-                        SongId = null, // Tidak dihubungkan ke tabel songs
+                        SongId = null,
                         LastScannedAt = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -169,6 +218,10 @@ public partial class Index : ComponentBase
 
             statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke tabel local_tracks!";
             stagedTracks.Clear();
+
+            // Refresh data tab tersimpan DB dan alihkan tab aktif ke "Tersimpan di DB"
+            await LoadSavedTracksFromDb();
+            activeTab = "database";
             currentPage = 1;
         }
         catch (Exception ex)
@@ -186,7 +239,7 @@ public partial class Index : ComponentBase
     protected void RemoveTrack(StagedTrackDto track)
     {
         stagedTracks.Remove(track);
-        ReindexRowNumbers();
+        ReindexRowNumbers(stagedTracks);
         if (currentPage > totalPages && totalPages > 0)
         {
             currentPage = totalPages;
@@ -200,17 +253,17 @@ public partial class Index : ComponentBase
         statusMessage = "Daftar penampungan dibersihkan.";
     }
 
-    private void ReindexRowNumbers()
+    private void ReindexRowNumbers(List<StagedTrackDto> list)
     {
-        for (int i = 0; i < stagedTracks.Count; i++)
+        for (int i = 0; i < list.Count; i++)
         {
-            stagedTracks[i].RowNumber = i + 1;
+            list[i].RowNumber = i + 1;
         }
     }
 
     protected IEnumerable<StagedTrackDto> GetPagedTracks()
     {
-        return stagedTracks
+        return GetCurrentTabList()
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize);
     }
