@@ -6,7 +6,7 @@
 <div class="yt-sync-container">
     <div class="yt-sync-header">
         <h2 class="yt-sync-title">YouTube Auto-Detect Sync</h2>
-        <p class="yt-sync-subtitle">Tarik dan simpan lagu baru dari Playlist YouTube langsung ke Staging Buffer</p>
+        <p class="yt-sync-subtitle">Sinkronisasi otomatis untuk mendeteksi lagu dan playlist terbaru langsung dari akun YouTube & YouTube Music Anda</p>
     </div>
 
     @if (!string.IsNullOrEmpty(StatusMessage))
@@ -18,51 +18,36 @@
     }
 
     <div class="yt-sync-grid">
-        <!-- Configuration Card -->
+        <!-- Action Trigger Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Pengaturan Sinkronisasi</h3>
+                <h3>Sinkronisasi Akun</h3>
             </div>
             <div class="yt-card-body">
-                <div class="yt-form-group">
-                    <label for="playlistId">Target Playlist ID:</label>
-                    <input id="playlistId" 
-                           type="text" 
-                           class="yt-input" 
-                           placeholder="Masukkan ID Playlist (contoh: PLx0s3...)" 
-                           @bind="TargetPlaylistId" 
-                           disabled="@IsSyncing" />
-                </div>
-
-                <div class="yt-form-group">
-                    <label for="maxResults">Batas Maksimal Video (Max Results):</label>
-                    <input id="maxResults" 
-                           type="number" 
-                           class="yt-input" 
-                           @bind="MaxResults" 
-                           disabled="@IsSyncing" />
-                </div>
+                <p class="yt-card-desc">
+                    Klik tombol di bawah untuk memeriksa pembaruan library, playlist, dan menyinkronkan data lagu terbaru ke Staging Buffer.
+                </p>
 
                 <div class="yt-form-actions">
                     <button class="yt-btn yt-btn-primary" @onclick="ExecuteAutoSyncAsync" disabled="@IsSyncing">
                         @if (IsSyncing)
                         {
                             <span class="yt-spinner"></span>
-                            <span>Menyingkronkan...</span>
+                            <span>Menyinkronkan Akun...</span>
                         }
                         else
                         {
-                            <span>▶ Jalankan Auto Detect</span>
+                            <span>🔄 Sync Data Terbaru dari Akun</span>
                         }
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Metrics & Summary Card -->
+        <!-- Summary & Status Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Ringkasan Staging</h3>
+                <h3>Status Library & Staging</h3>
             </div>
             <div class="yt-card-body">
                 <div class="yt-metrics-container">
@@ -78,11 +63,11 @@
                 </div>
 
                 <div class="yt-info-row">
-                    <span class="yt-info-label">Hasil Sync Terakhir:</span>
-                    <span class="yt-info-value">@TotalAddedToStaging item ditambahkan</span>
+                    <span class="yt-info-label">Item Baru Ditemukan:</span>
+                    <span class="yt-info-value">@TotalAddedToStaging lagu</span>
                 </div>
                 <div class="yt-info-row">
-                    <span class="yt-info-label">Waktu Sync Terakhir:</span>
+                    <span class="yt-info-label">Terakhir Disinkronkan:</span>
                     <span class="yt-info-value">@(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "-")</span>
                 </div>
             </div>
