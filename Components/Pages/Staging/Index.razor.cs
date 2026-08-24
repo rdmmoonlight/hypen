@@ -8,7 +8,6 @@ public partial class Index : ComponentBase
 {
     [Inject] protected ISongProcessorService ProcessorService { get; set; } = default!;
     [Inject] protected SyncService AppSyncService { get; set; } = default!;
-    [Inject] protected MusicSmartMatchService SmartMatchService { get; set; } = default!;
     [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
 
     // UI STATE
@@ -18,13 +17,10 @@ public partial class Index : ComponentBase
 
     // SELECTION & STAGING STATE
     protected HashSet<long> selectedRawIds = new();
+    protected HashSet<long> duplicateRawIds = new();
     protected List<RawSongsModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
-
-    // REVIEW UI STATE
-    protected LocalMp3ExtractModel? activeReviewItem;
-    protected RawSongsModel? activeReviewRawItem;
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,6 +56,8 @@ public partial class Index : ComponentBase
             var data = await ProcessorService.GetPendingRawAsync();
             stagingList = data ?? [];
             selectedRawIds.IntersectWith(stagingList.Select(x => x.Id));
+            
+            CheckLocalDuplicates();
         }
         catch (Exception ex)
         {
@@ -96,100 +94,63 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // MODAL HANDLERS
+    // DUPLICATE CHECK & HANDLING
     // =========================================================================
-    protected void CloseReviewModal()
+    protected void CheckLocalDuplicates()
     {
-        activeReviewItem = null;
-        activeReviewRawItem = null;
-    }
+        duplicateRawIds.Clear();
 
-    protected void SelectCandidate(iTunesCandidateModel candidate)
-    {
-        if (activeReviewItem != null && activeReviewRawItem != null)
+        var duplicates = stagingList
+            .Where(x => !string.IsNullOrWhiteSpace(x.Title) && !string.IsNullOrWhiteSpace(x.Artist))
+            .GroupBy(x => $"{x.Artist.Trim().ToLower()} - {x.Title.Trim().ToLower()}")
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g);
+
+        foreach (var item in duplicates)
         {
-            SmartMatchService.ApplyCandidateToItem(activeReviewItem, candidate);
-
-            activeReviewRawItem.Artist = activeReviewItem.CleanArtist ?? string.Empty;
-            activeReviewRawItem.Title = activeReviewItem.CleanTitle ?? string.Empty;
-            activeReviewRawItem.Album = activeReviewItem.Album;
-            activeReviewRawItem.ReleaseYear = activeReviewItem.ReleaseYear;
-            activeReviewRawItem.AlbumCoverUrl = activeReviewItem.AlbumCoverUrl;
-            activeReviewRawItem.DurationSeconds = activeReviewItem.DurationSeconds;
-
-            CloseReviewModal();
-            StateHasChanged();
+            duplicateRawIds.Add(item.Id);
         }
     }
 
-    // =========================================================================
-    // SMART MATCH OPERATIONS
-    // =========================================================================
-    protected async Task SmartMatchSingleRaw(RawSongsModel raw)
+    protected async Task DeleteDuplicateStagingItems()
     {
+        var duplicateGroups = stagingList
+            .Where(x => !string.IsNullOrWhiteSpace(x.Title) && !string.IsNullOrWhiteSpace(x.Artist))
+            .GroupBy(x => $"{x.Artist.Trim().ToLower()} - {x.Title.Trim().ToLower()}")
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        if (duplicateGroups.Count == 0)
+        {
+            UpdateStatus("Tidak ada data duplikat yang ditemukan.");
+            return;
+        }
+
         try
         {
             isProcessing = true;
-            UpdateStatus($"Memulai Smart Match untuk: '{raw.Title}'...");
+            int deletedCount = 0;
 
-            var modelToMatch = MapRawToExtractModel(raw);
-            await AppSyncService.SmartMatchFromInternetAsync(modelToMatch);
-            ApplyMatchToRaw(raw, modelToMatch);
+            // Menyimpan item pertama dari grup, lalu menghapus sisanya
+            var idsToDelete = duplicateGroups
+                .SelectMany(g => g.Skip(1).Select(x => x.Id))
+                .ToList();
 
-            if (modelToMatch.IsNeedsReview && modelToMatch.Candidates.Count > 0)
+            UpdateStatus($"Menghapus {idsToDelete.Count} item duplikat...");
+
+            foreach (var id in idsToDelete)
             {
-                activeReviewItem = modelToMatch;
-                activeReviewRawItem = raw;
-                UpdateStatus($"Smart Match selesai. Ditemukan opsi kandidat untuk '{raw.Title}'.");
+                await ProcessorService.DeleteRawAsync(id);
+                deletedCount++;
             }
-            else
-            {
-                UpdateStatus($"Smart Match selesai untuk '{raw.Title}'.");
-            }
+
+            UpdateStatus($"Berhasil menghapus {deletedCount} data duplikat.");
+            await RefreshMetrics();
+            await LoadStagingData();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal Smart Match #{raw.Id}: {ex.Message}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    protected async Task SmartMatchSelected()
-    {
-        var targetList = stagingList.Where(x => selectedRawIds.Contains(x.Id)).ToList();
-        if (targetList.Count == 0) return;
-        await ProcessBatchSmartMatch(targetList);
-    }
-
-    protected async Task SmartMatchAllPending()
-    {
-        if (stagingList.Count == 0) return;
-        await ProcessBatchSmartMatch(stagingList);
-    }
-
-    private async Task ProcessBatchSmartMatch(List<RawSongsModel> targetList)
-    {
-        try
-        {
-            isProcessing = true;
-            int count = 0;
-            foreach (var raw in targetList)
-            {
-                count++;
-                UpdateStatus($"[{count}/{targetList.Count}] Smart Match: '{raw.Title}'...");
-                var modelToMatch = MapRawToExtractModel(raw);
-                await AppSyncService.SmartMatchFromInternetAsync(modelToMatch);
-                ApplyMatchToRaw(raw, modelToMatch);
-            }
-            UpdateStatus($"Smart Match untuk {targetList.Count} item selesai.");
-        }
-        catch (Exception ex)
-        {
-            UpdateStatus($"Gagal Smart Match Batch: {ex.Message}", true);
+            UpdateStatus($"Gagal menghapus data duplikat: {ex.Message}", true);
         }
         finally
         {
@@ -347,14 +308,4 @@ public partial class Index : ComponentBase
         DurationSeconds = raw.DurationSeconds,
         MusicBrainzId = raw.MusicBrainzId
     };
-
-    private void ApplyMatchToRaw(RawSongsModel raw, LocalMp3ExtractModel match)
-    {
-        raw.Artist = match.CleanArtist ?? string.Empty;
-        raw.Title = match.CleanTitle ?? string.Empty;
-        if (!string.IsNullOrEmpty(match.Album)) raw.Album = match.Album;
-        if (match.ReleaseYear.HasValue) raw.ReleaseYear = match.ReleaseYear;
-        if (!string.IsNullOrEmpty(match.AlbumCoverUrl)) raw.AlbumCoverUrl = match.AlbumCoverUrl;
-        if (match.DurationSeconds.HasValue) raw.DurationSeconds = match.DurationSeconds;
-    }
 }
