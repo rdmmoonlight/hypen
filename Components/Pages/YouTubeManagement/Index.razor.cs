@@ -14,6 +14,9 @@ public partial class Index : ComponentBase
     protected bool IsSyncing { get; set; }
     protected bool IsSaving { get; set; }
 
+    // TIMESTAMP SYNC
+    protected DateTime? LastSyncTime { get; set; }
+
     // DATA PREVIEW & SELECTION
     protected List<YouTubePreviewModel> FetchedItems { get; set; } = new();
     protected HashSet<string> SelectedVideoIds { get; set; } = new();
@@ -58,13 +61,16 @@ public partial class Index : ComponentBase
                 ChannelTitle = item.ChannelTitle
             }).ToList();
 
+            // Simpan timestamp penarikan data terakhir sebagai rujukan
+            LastSyncTime = DateTime.Now;
+
             if (FetchedItems.Count == 0)
             {
-                UpdateStatus("Tidak ditemukan item baru dari akun YouTube.");
+                UpdateStatus($"Tidak ditemukan item baru dari akun YouTube. (Terakhir di-sync: {LastSyncTime:dd MMM yyyy HH:mm:ss})");
             }
             else
             {
-                UpdateStatus($"Berhasil memuat {FetchedItems.Count} item preview. Silakan pilih video yang ingin dimasukkan ke Staging.");
+                UpdateStatus($"Berhasil memuat {FetchedItems.Count} item preview pada {LastSyncTime:HH:mm:ss}. Silakan pilih video yang ingin dimasukkan ke Staging.");
             }
         }
         catch (Exception ex)
@@ -126,7 +132,6 @@ public partial class Index : ComponentBase
 
             foreach (var videoId in SelectedVideoIds.ToList())
             {
-                // Menggunakan service eksisting IYouTubeSyncService untuk menyimpan item ke staging
                 int result = await SyncService.SyncPlaylistToRawAsync(videoId, 1);
                 savedCount += result;
             }
