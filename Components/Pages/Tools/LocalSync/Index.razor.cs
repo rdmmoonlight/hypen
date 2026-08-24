@@ -28,14 +28,28 @@ public partial class Index : ComponentBase
     protected int pageSize = 50;
     protected int totalPages => (int)Math.Ceiling((double)stagedTracks.Count / pageSize);
 
-    // 1. TAMUNG DULU DI PAGE (HANYA EKSTRAKSI METADATA)
+    // 1. TAMPUNG DULU DI PAGE (HANYA EKSTRAKSI METADATA)
     protected async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        var files = e.GetMultipleFiles(2000);
-        totalFiles = files.Count;
+        // Mengambil hingga 5000 file dari folder/subfolder
+        var files = e.GetMultipleFiles(5000);
+        if (files.Count == 0) return;
+
+        // Filter ekstensi audio secara ketat di C# (mencegah bug webkitdirectory browser)
+        var validExtensions = new[] { ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac" };
+        var audioFiles = files
+            .Where(f => validExtensions.Contains(Path.GetExtension(f.Name).ToLowerInvariant()))
+            .ToList();
+
+        totalFiles = audioFiles.Count;
         processedCount = 0;
 
-        if (totalFiles == 0) return;
+        if (totalFiles == 0)
+        {
+            statusMessage = "Tidak ditemukan file audio (.mp3, .wav, .m4a, .flac) di dalam folder tersebut.";
+            StateHasChanged();
+            return;
+        }
 
         isExtracting = true;
         statusMessage = $"Mengekstrak {totalFiles} file audio ke penampungan...";
@@ -43,39 +57,46 @@ public partial class Index : ComponentBase
 
         try
         {
-            foreach (var file in files)
+            foreach (var file in audioFiles)
             {
-                var ext = Path.GetExtension(file.Name).ToLower();
-                if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".flac")
+                try
                 {
-                    continue;
+                    using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
+                    using var memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream);
+                    memoryStream.Position = 0;
+
+                    var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
+
+                    string title = string.IsNullOrWhiteSpace(extractedTitle) 
+                        ? Path.GetFileNameWithoutExtension(file.Name) 
+                        : extractedTitle;
+                        
+                    string artist = string.IsNullOrWhiteSpace(extractedArtist) 
+                        ? "Unknown Artist" 
+                        : extractedArtist;
+
+                    // Ditampung sementara di list UI
+                    stagedTracks.Add(new StagedTrackDto
+                    {
+                        FileName = file.Name,
+                        FileSizeBytes = file.Size,
+                        Title = title,
+                        Artist = artist
+                    });
                 }
-
-                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
-                memoryStream.Position = 0;
-
-                var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
-
-                string title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle;
-                string artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist;
-
-                // Ditampung sementara di list UI
-                stagedTracks.Add(new StagedTrackDto
+                catch (Exception ex)
                 {
-                    FileName = file.Name,
-                    FileSizeBytes = file.Size,
-                    Title = title,
-                    Artist = artist
-                });
+                    // Melompati file jika terjadi error pembacaan individual
+                    Console.WriteLine($"Gagal mengekstrak metadata untuk {file.Name}: {ex.Message}");
+                }
 
                 processedCount++;
                 StateHasChanged();
             }
 
             ReindexRowNumbers();
-            statusMessage = $"Berhasil mengekstrak {processedCount} file. Silakan periksa daftar di bawah sebelum menyimpan.";
+            statusMessage = $"Berhasil mengekstrak {stagedTracks.Count} file audio. Silakan periksa daftar di bawah sebelum menyimpan.";
         }
         catch (Exception ex)
         {
