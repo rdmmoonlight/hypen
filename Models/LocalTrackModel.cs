@@ -13,7 +13,9 @@ public class LocalTrackModel
     public string? Album { get; set; }
     public int DurationSeconds { get; set; }
     public bool IsSyncedToDb { get; set; }
-    public int? SongId { get; set; }
+    
+    // Diubah dari int? menjadi long? agar sesuai dengan SongsModel.Id (long)
+    public long? SongId { get; set; }
 
     public DateTime LastScannedAt { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
