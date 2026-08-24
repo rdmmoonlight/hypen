@@ -41,9 +41,9 @@
         </p>
 
         <div class="local-folder-grid">
+            <!-- Disini atribut accept dilepas agar browser tidak memblokir pembacaan file .mp3 saat webkitdirectory aktif -->
             <InputFile OnChange="HandleFileSelected" 
                        Multiple 
-                       accept=".mp3,.wav,.m4a,.flac" 
                        class="matte-input" 
                        disabled="@(isExtracting || isSyncing)"
                        @attributes='new Dictionary<string, object> { { "webkitdirectory", "true" } }' />
