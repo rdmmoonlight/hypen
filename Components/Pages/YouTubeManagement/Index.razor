@@ -6,7 +6,7 @@
 <div class="yt-sync-container">
     <div class="yt-sync-header">
         <h2 class="yt-sync-title">YouTube Auto-Detect Sync</h2>
-        <p class="yt-sync-subtitle">Tarik item terbaru dari akun YouTube Anda, pilih video lagu yang valid, dan masukkan ke Staging.</p>
+        <p class="yt-sync-subtitle">Pilih playlist sumber, inspeksi daftar video (penarikan penuh jika pertama kali sync), dan tentukan lagu yang dimasukkan ke Staging.</p>
     </div>
 
     @if (!string.IsNullOrEmpty(StatusMessage))
@@ -17,31 +17,64 @@
         </div>
     }
 
-    <!-- Action & Metrics Bar -->
+    <!-- STEP 1: PLAYLIST SELECTION & DB METRICS -->
     <div class="yt-sync-grid">
+        <!-- Playlist Picker Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Tarik Data Akun</h3>
+                <h3>1. Pilih Playlist Sumber</h3>
             </div>
             <div class="yt-card-body">
-                <button class="yt-btn yt-btn-primary" @onclick="FetchLatestFromYouTubeAsync" disabled="@(IsSyncing || IsSaving)">
-                    @if (IsSyncing)
-                    {
+                @if (IsLoadingPlaylists)
+                {
+                    <div class="d-flex align-items-center gap-2">
                         <span class="yt-spinner"></span>
-                        <span>Menarik 50 Data Terbaru...</span>
-                    }
-                    else
-                    {
-                        <i class="ti ti-refresh"></i>
-                        <span>Sync Data Akun YouTube (Maks 50)</span>
-                    }
-                </button>
+                        <span>Memuat playlist akun...</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="yt-playlist-list">
+                        @foreach (var pl in UserPlaylists)
+                        {
+                            bool isSelected = SelectedPlaylist?.Id == pl.Id;
+                            <div class="yt-playlist-item @(isSelected ? "active" : "")" @onclick="() => SelectPlaylist(pl)">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="ti ti-playlist text-primary fs-4"></i>
+                                    <div>
+                                        <strong>@pl.Title</strong>
+                                        <div class="text-muted small">ID: @pl.Id</div>
+                                    </div>
+                                </div>
+                                <i class="ti @(isSelected ? "ti-circle-check-filled text-primary" : "ti-circle") fs-5"></i>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-3">
+                        <button class="yt-btn yt-btn-primary" 
+                                @onclick="InspectSelectedPlaylistAsync" 
+                                disabled="@(SelectedPlaylist == null || IsInspectingVideo)">
+                            @if (IsInspectingVideo)
+                            {
+                                <span class="yt-spinner"></span>
+                                <span>Menginspeksi Video...</span>
+                            }
+                            else
+                            {
+                                <i class="ti ti-search"></i>
+                                <span>Inspeksi Playlist Terpilih</span>
+                            }
+                        </button>
+                    </div>
+                }
             </div>
         </div>
 
+        <!-- System & Timestamp Status -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Status Database & Timestamp</h3>
+                <h3>Informasi Sinkronisasi</h3>
             </div>
             <div class="yt-card-body">
                 <div class="yt-metrics-container">
@@ -55,24 +88,31 @@
                     </div>
                 </div>
 
-                <div class="yt-info-row" style="margin-top: 1rem; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
-                    <span class="yt-info-label"><i class="ti ti-clock"></i> Sync Terakhir:</span>
+                <div class="yt-info-row mt-3 pt-2 border-top">
+                    <span class="yt-info-label"><i class="ti ti-playlist"></i> Target:</span>
+                    <strong class="yt-info-value">@(SelectedPlaylist?.Title ?? "Belum dipilih")</strong>
+                </div>
+
+                <div class="yt-info-row">
+                    <span class="yt-info-label"><i class="ti ti-clock"></i> Last Sync:</span>
                     <strong class="yt-info-value">
-                        @(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "Belum Pernah Sync")
+                        @(SelectedPlaylistLastSync.HasValue 
+                            ? SelectedPlaylistLastSync.Value.ToString("dd MMM yyyy HH:mm:ss") 
+                            : "Belum Pernah Sync (Tarik Semua)")
                     </strong>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Preview & Selection Table -->
-    @if (FetchedItems.Count > 0)
+    <!-- STEP 2: VIDEO INSPECTION & BATCH SELECTION TABLE -->
+    @if (FetchedVideos.Count > 0)
     {
-        <div class="yt-card yt-preview-table-card">
+        <div class="yt-card yt-preview-table-card mt-4">
             <div class="yt-card-header yt-table-header-flex">
                 <div>
-                    <h3>Hasil Preview YouTube (@FetchedItems.Count Item)</h3>
-                    <small class="text-muted">Rujukan Penarikan: @(LastSyncTime?.ToString("dd MMM yyyy HH:mm:ss"))</small>
+                    <h3>2. Hasil Inspeksi (@FetchedVideos.Count Video Ditemukan)</h3>
+                    <small class="text-muted">Centang video yang merupakan lagu sebelum disimpan ke database</small>
                 </div>
                 <button class="yt-btn yt-btn-success" @onclick="SaveSelectedToStagingAsync" disabled="@(SelectedVideoIds.Count == 0 || IsSaving)">
                     @if (IsSaving)
@@ -101,7 +141,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in PagedItems)
+                        @foreach (var item in PagedVideos)
                         {
                             bool isSelected = SelectedVideoIds.Contains(item.VideoId);
                             <tr class="@(isSelected ? "yt-row-selected" : "")">
@@ -135,7 +175,7 @@
                     <button class="yt-page-btn" disabled="@(CurrentPage == 1)" @onclick="() => GoToPage(CurrentPage - 1)">
                         <i class="ti ti-chevron-left"></i> Prev
                     </button>
-                    <span class="yt-page-info">Halaman @CurrentPage dari @TotalPages</span>
+                    <span class="yt-page-info">Halaman @CurrentPage dari @TotalPages (Per halaman: @PageSize)</span>
                     <button class="yt-page-btn" disabled="@(CurrentPage == TotalPages)" @onclick="() => GoToPage(CurrentPage + 1)">
                         Next <i class="ti ti-chevron-right"></i>
                     </button>
