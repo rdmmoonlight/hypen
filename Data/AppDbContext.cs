@@ -7,14 +7,13 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // Master DbSet Songs (Production Library)
+    // Master DbSet Songs (Production Library SSOT)
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // TABEL STAGING / RAW (Pintu Masuk & Arena Pertandingan Duplikat)
+    // TABEL STAGING / RAW (Pintu Masuk & Arena Pertandingan Duplikat Fisik)
     public DbSet<RawSongsModel> RawSongs { get; set; } = default!;
 
-    // Alias Property (Jika masih dibutuhkan service lain)
-    public DbSet<SongsModel> SongsRaw => Songs;
+    // Alias Property (Hanya untuk SongsComplete, SongsRaw dihapus agar menunjuk ke tabel raw_songs)
     public DbSet<SongsModel> SongsComplete => Songs;
 
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
@@ -67,7 +66,7 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // MAPPING TABEL: raw_songs (Staging / Buffer Area)
+        // MAPPING TABEL: raw_songs (Staging / Buffer Karantina)
         // =========================================================================
         modelBuilder.Entity<RawSongsModel>(entity =>
         {
@@ -75,17 +74,29 @@ public class AppDbContext : DbContext
 
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
-            entity.Property(e => e.Title).HasColumnName("title");
-            entity.Property(e => e.Artist).HasColumnName("artist");
-            entity.Property(e => e.Album).HasColumnName("album");
-            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
-            entity.Property(e => e.Country).HasColumnName("country");
-            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
+            entity.Property(e => e.RawId).HasColumnName("raw_id");
+            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
             entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
-            
-            // Sesuaikan properti tanggal jika ada di model Anda (misal: CreatedAt)
+            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
+            entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
+            entity.Property(e => e.Album).HasColumnName("album").HasDefaultValue("Single");
+            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
+            entity.Property(e => e.Country).HasColumnName("country").HasDefaultValue("Unknown");
+            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
+            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
+            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
+            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
+            entity.Property(e => e.IsComplete).HasColumnName("is_complete").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            // Abaikan helper/alias properties
+            entity.Ignore(e => e.YoutubeId);
+            entity.Ignore(e => e.Mbid);
+            entity.Ignore(e => e.Cover);
+            entity.Ignore(e => e.StreamUrl);
+            entity.Ignore(e => e.Provider);
+            entity.Ignore(e => e.IsSelected);
         });
 
         // =========================================================================
@@ -153,7 +164,7 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // MAPPING TABEL BARU: local_tracks (Local Sync Engine)
+        // MAPPING TABEL: local_tracks (Local Sync Engine)
         // =========================================================================
         modelBuilder.Entity<LocalTrackModel>(entity =>
         {
@@ -174,7 +185,6 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
 
-            // Relasi opsional ke master tabel songs
             entity.HasOne(e => e.Song)
                 .WithMany()
                 .HasForeignKey(e => e.SongId)
