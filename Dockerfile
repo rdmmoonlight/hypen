@@ -4,18 +4,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy seluruh file project (.csproj) beserta dependensi lokalnya
-COPY ["apps/web/Hypen.Web.csproj", "apps/web/"]
-COPY ["src/JUUI/JUUI.csproj", "src/JUUI/"]
+# Copy project file dari root
+COPY ["Hypen.Web.csproj", "./"]
+RUN dotnet restore "Hypen.Web.csproj"
 
-# Restore dependensi dengan parameter verbose jika terjadi kelambatan jaringan
-RUN dotnet restore "apps/web/Hypen.Web.csproj" --disable-parallel
-
-# Copy seluruh source code repositori
+# Copy seluruh kode sumber dan publish
 COPY . .
-
-# Publish aplikasi ke folder /app/publish
-WORKDIR "/src/apps/web"
 RUN dotnet publish "Hypen.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # ==========================================
@@ -24,13 +18,13 @@ RUN dotnet publish "Hypen.Web.csproj" -c Release -o /app/publish /p:UseAppHost=f
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Install ca-certificates & curl untuk healthcheck
+# Install ca-certificates & curl untuk healthcheck / kebutuhan HTTPS standar
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy hasil publish dari stage build
+# Copy hasil publish dotnet dari stage build
 COPY --from=build /app/publish .
 
 # Set Port & Environment untuk Render / Cloud Hosting
