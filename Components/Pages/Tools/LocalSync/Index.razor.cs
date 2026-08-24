@@ -18,7 +18,7 @@ public partial class Index : ComponentBase
     // Upload Mode state: "folder" atau "file"
     protected string uploadMode = "folder";
 
-    // Active Tab State: "extract" atau "database"
+    // Active Tab State: "extract" atau "database" (Sekarang "database" merujuk ke tabel raw_songs/Staging)
     protected string activeTab = "extract";
 
     // Status State
@@ -28,10 +28,10 @@ public partial class Index : ComponentBase
     protected int totalFiles;
     protected string? statusMessage;
 
-    // Data Penampungan Ekstraksi (Staging)
+    // Data Penampungan Ekstraksi (Staging Memori)
     protected List<StagedTrackDto> stagedTracks = new();
 
-    // Data Tersimpan di Database
+    // Data Tersimpan di Database (Raw Songs / Staging Buffer)
     protected List<StagedTrackDto> savedDbTracks = new();
 
     // Paginasi Properties
@@ -66,22 +66,22 @@ public partial class Index : ComponentBase
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-            var dbTracks = await dbContext.LocalTracks
-                .OrderByDescending(lt => lt.UpdatedAt)
+            var rawTracks = await dbContext.RawSongs
+                .OrderByDescending(r => r.Id)
                 .ToListAsync();
 
-            savedDbTracks = dbTracks.Select((t, index) => new StagedTrackDto
+            savedDbTracks = rawTracks.Select((t, index) => new StagedTrackDto
             {
                 RowNumber = index + 1,
-                Title = t.Title ?? Path.GetFileNameWithoutExtension(t.FileName),
-                Artist = t.Artist ?? "Unknown Artist",
-                FileName = t.FileName,
-                FileSizeBytes = t.FileSizeBytes
+                Title = t.Title,
+                Artist = t.Artist,
+                FileName = t.AlbumCoverUrl ?? "Local Audio File", // Menyesuaikan tampilan dengan field yang ada
+                FileSizeBytes = 0
             }).ToList();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Gagal memuat data local_tracks dari DB: {ex.Message}");
+            Console.WriteLine($"Gagal memuat data raw_songs dari DB: {ex.Message}");
         }
     }
 
@@ -153,7 +153,7 @@ public partial class Index : ComponentBase
             ReindexRowNumbers(stagedTracks);
             activeTab = "extract"; // Pindah otomatis ke tab ekstraksi
             currentPage = 1;
-            statusMessage = $"Berhasil mengekstrak {stagedTracks.Count} file audio. Silakan periksa daftar sebelum menyimpan.";
+            statusMessage = $"Berhasil mengekstrak {stagedTracks.Count} file audio. Silakan periksa daftar sebelum mengirim ke Staging.";
         }
         catch (Exception ex)
         {
@@ -166,13 +166,13 @@ public partial class Index : ComponentBase
         }
     }
 
-    // 2. SIMPAN HANYA KE TABEL local_tracks
+    // 2. SIMPAN LANGSUNG KE TABEL FISIK RAW_SONGS (STAGING BUFFER)
     protected async Task SaveStagedTracksToDb()
     {
         if (!stagedTracks.Any()) return;
 
         isSyncing = true;
-        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke tabel local_tracks...";
+        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke tabel raw_songs (Staging)...";
         StateHasChanged();
 
         try
@@ -181,52 +181,32 @@ public partial class Index : ComponentBase
 
             foreach (var track in stagedTracks)
             {
-                var fileNameLower = track.FileName.ToLower();
-                
-                var existingLocalTrack = await dbContext.LocalTracks
-                    .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == track.FileSizeBytes);
-
-                if (existingLocalTrack == null)
+                var rawEntity = new RawSongsModel
                 {
-                    var localTrack = new LocalTrackModel
-                    {
-                        FilePath = track.FileName,
-                        FileName = track.FileName,
-                        FileSizeBytes = track.FileSizeBytes,
-                        Title = track.Title,
-                        Artist = track.Artist,
-                        IsSyncedToDb = true,
-                        SongId = null,
-                        LastScannedAt = DateTime.UtcNow,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
+                    Title = track.Title,
+                    Artist = track.Artist,
+                    Album = "Local Sync",
+                    Country = "ID",
+                    AlbumCoverUrl = track.FileName, // Menyimpan nama file asli sebagai referensi
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                    dbContext.LocalTracks.Add(localTrack);
-                }
-                else
-                {
-                    existingLocalTrack.Title = track.Title;
-                    existingLocalTrack.Artist = track.Artist;
-                    existingLocalTrack.IsSyncedToDb = true;
-                    existingLocalTrack.LastScannedAt = DateTime.UtcNow;
-                    existingLocalTrack.UpdatedAt = DateTime.UtcNow;
-                }
+                dbContext.RawSongs.Add(rawEntity);
             }
 
             await dbContext.SaveChangesAsync();
 
-            statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke tabel local_tracks!";
+            statusMessage = $"Sukses! {stagedTracks.Count} file audio berhasil masuk ke Staging Database (raw_songs).";
             stagedTracks.Clear();
 
-            // Refresh data tab tersimpan DB dan alihkan tab aktif ke "Tersimpan di DB"
+            // Refresh data tab tersimpan DB dan alihkan tab aktif ke peninjauan database staging
             await LoadSavedTracksFromDb();
             activeTab = "database";
             currentPage = 1;
         }
         catch (Exception ex)
         {
-            statusMessage = $"Gagal menyimpan ke database: {ex.Message}";
+            statusMessage = $"Gagal menyimpan ke tabel raw_songs: {ex.Message}";
         }
         finally
         {
