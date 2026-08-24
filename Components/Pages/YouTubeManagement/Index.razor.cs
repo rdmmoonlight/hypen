@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Hypen.Web.Models;
 using Hypen.Web.Services;
 
 namespace Hypen.Web.Components.Pages.YouTubeManagement;
@@ -19,7 +18,7 @@ public partial class Index : ComponentBase
     protected List<YouTubePreviewModel> FetchedItems { get; set; } = new();
     protected HashSet<string> SelectedVideoIds { get; set; } = new();
 
-    // PAGING STATE (Maksimal 50 item total / 10-15 per halaman UI)
+    // PAGING STATE (Maksimal 50 item total / 10 per halaman UI)
     protected int PageSize { get; set; } = 10;
     protected int CurrentPage { get; set; } = 1;
     protected int TotalPages => (int)Math.Ceiling((double)FetchedItems.Count / PageSize);
@@ -50,7 +49,6 @@ public partial class Index : ComponentBase
             CurrentPage = 1;
             UpdateStatus("Menarik data 50 item terbaru dari akun YouTube...");
 
-            // Tarik 50 item terbaru dari Liked Videos ke memori (tanpa simpan ke DB)
             var rawTupleList = await SyncService.FetchPlaylistItemsAsync("LL", 50);
 
             FetchedItems = rawTupleList.Select(item => new YouTubePreviewModel
@@ -124,25 +122,15 @@ public partial class Index : ComponentBase
             IsSaving = true;
             UpdateStatus($"Menyimpan {SelectedVideoIds.Count} item terpilih ke Staging Buffer...");
 
-            var selectedItems = FetchedItems.Where(x => SelectedVideoIds.Contains(x.VideoId)).ToList();
             int savedCount = 0;
 
-            foreach (var item in selectedItems)
+            foreach (var videoId in SelectedVideoIds.ToList())
             {
-                // Pembuatan model RawSongsModel / proses simpan staging
-                var rawModel = new RawSongsModel
-                {
-                    Title = item.Title,
-                    Artist = item.ChannelTitle,
-                    YoutubeId = item.VideoId,
-                    Url = $"https://www.youtube.com/watch?v={item.VideoId}"
-                };
-
-                await ProcessorService.SaveRawAsync(rawModel);
-                savedCount++;
+                // Menggunakan service eksisting IYouTubeSyncService untuk menyimpan item ke staging
+                int result = await SyncService.SyncPlaylistToRawAsync(videoId, 1);
+                savedCount += result;
             }
 
-            // Hapus item yang sudah berhasil disimpan dari list preview
             FetchedItems.RemoveAll(x => SelectedVideoIds.Contains(x.VideoId));
             SelectedVideoIds.Clear();
 
