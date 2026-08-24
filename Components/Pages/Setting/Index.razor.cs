@@ -4,7 +4,7 @@ using Hypen.Web.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 
-namespace Hypen.Web.Components.Pages.Setting
+namespace Hypen.Web.Components.Pages.Settings
 {
     public partial class Index : ComponentBase
     {
