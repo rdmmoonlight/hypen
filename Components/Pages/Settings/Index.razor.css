@@ -1,5 +1,5 @@
 /* =========================================================================
-   HYPEN SIDEBAR - MATTE DARK SLATE STYLE
+   HYPEN SIDEBAR - MATTE DARK SLATE WITH TABLER ICONS
    ========================================================================= */
 
 .hypen-sidebar {
@@ -34,7 +34,6 @@
     padding: 18px 8px;
 }
 
-/* Header Section */
 .sidebar-top {
     display: flex;
     flex-direction: column;
@@ -78,7 +77,6 @@
     white-space: nowrap;
 }
 
-/* Toggle Button */
 .toggle-btn {
     background: #181b20;
     border: 1px solid #262c36;
@@ -100,7 +98,6 @@
     color: #f1f5f9;
 }
 
-/* Navigation List & Scrollbar */
 .sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -120,16 +117,16 @@
 }
 
 /* ----------------------------------------------------------------- */
-/* NAVIGATION ITEMS & ICONS                                          */
+/* NAVIGATION ITEMS & TABLER ICONS BOX                               */
 /* ----------------------------------------------------------------- */
 
 .nav-item-nebula {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     text-decoration: none;
     color: #94a3b8;
-    padding: 9px 12px;
+    padding: 8px 10px;
     border-radius: 6px;
     font-size: 0.85rem;
     font-weight: 500;
@@ -139,29 +136,28 @@
     border: 1px solid transparent;
 }
 
-/* Kotak Ikon disamakan ukurannya dengan Matte Style */
+/* Penyelarasan Kotak Ikon khas Tabler / Matte */
 .nav-item-nebula i {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    font-size: 1.1rem !important;
-    color: #38bdf8 !important;
+    width: 32px;
+    height: 32px;
+    font-size: 1.15rem;
+    color: #38bdf8;
     background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.15);
-    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    border-radius: 6px;
     flex-shrink: 0;
     transition: all 0.15s ease;
 }
 
-/* State Collapsed Sidebar */
 .hypen-sidebar.collapsed .nav-item-nebula {
     justify-content: center;
-    padding: 10px 0;
+    padding: 8px 0;
 }
 
-/* Hover & Active States Menu */
+/* Hover & Active States */
 .nav-item-nebula:hover {
     color: #f1f5f9 !important;
     background: #181b20;
@@ -176,13 +172,13 @@
 
 .nav-item-nebula:hover i,
 .nav-item-nebula.active i {
-    color: #38bdf8 !important;
+    color: #38bdf8;
     background: rgba(56, 189, 248, 0.15);
-    border-color: rgba(56, 189, 248, 0.3);
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
 /* ----------------------------------------------------------------- */
-/* SUBMENU / DROPDOWN TOOLS STYLES                                   */
+/* SUBMENU DROPDOWN STYLES                                           */
 /* ----------------------------------------------------------------- */
 
 .nav-dropdown-wrapper {
@@ -191,13 +187,12 @@
     width: 100%;
 }
 
-/* Tombol Chevron Trigger */
 .dropdown-trigger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    padding: 2px 4px;
+    padding: 2px;
     transition: background 0.15s ease;
 }
 
@@ -206,9 +201,9 @@
 }
 
 .dropdown-arrow {
-    width: 14px !important;
-    height: 14px !important;
-    font-size: 0.75rem !important;
+    width: auto !important;
+    height: auto !important;
+    font-size: 0.9rem !important;
     color: #64748b !important;
     background: transparent !important;
     border: none !important;
@@ -220,7 +215,6 @@
     color: #38bdf8 !important;
 }
 
-/* Container Submenu Anak */
 .submenu-container {
     display: flex;
     flex-direction: column;
@@ -228,25 +222,22 @@
     margin-top: 4px;
     padding-left: 10px;
     border-left: 1px solid #262c36;
-    margin-left: 20px;
+    margin-left: 18px;
 }
 
-/* Item Submenu */
 .submenu-item {
-    padding: 7px 10px;
+    padding: 6px 8px;
     font-size: 0.78rem;
-    border-radius: 4px;
-    gap: 10px;
 }
 
 .submenu-item i {
-    width: 22px;
-    height: 22px;
-    font-size: 0.9rem !important;
+    width: 26px;
+    height: 26px;
+    font-size: 0.95rem;
 }
 
 /* ----------------------------------------------------------------- */
-/* FOOTER SECTION                                                    */
+/* FOOTER                                                            */
 /* ----------------------------------------------------------------- */
 
 .sidebar-footer {
