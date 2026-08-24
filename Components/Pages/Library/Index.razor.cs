@@ -3,7 +3,7 @@ using Microsoft.JSInterop;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
-namespace Hypen.Web.Pages.Library;
+namespace Hypen.Web.Components.Pages.Library;
 
 public partial class Index : ComponentBase
 {
