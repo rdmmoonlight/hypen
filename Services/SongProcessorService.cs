@@ -22,7 +22,7 @@ public class SongProcessorService : ISongProcessorService
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        return await context.SongsRaw
+        return await context.RawSongs
             .AsNoTracking()
             .Where(s => s.Status == "PENDING")
             .OrderByDescending(s => s.Id)
@@ -33,10 +33,10 @@ public class SongProcessorService : ISongProcessorService
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        var item = await context.SongsRaw.FindAsync(rawId);
+        var item = await context.RawSongs.FindAsync(rawId);
         if (item == null) return false;
 
-        context.SongsRaw.Remove(item);
+        context.RawSongs.Remove(item);
         int affected = await context.SaveChangesAsync();
         return affected > 0;
     }
@@ -45,7 +45,7 @@ public class SongProcessorService : ISongProcessorService
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        var pendingList = await context.SongsRaw
+        var pendingList = await context.RawSongs
             .Where(s => s.Status == "PENDING")
             .OrderBy(s => s.Id)
             .Take(10)
@@ -60,7 +60,7 @@ public class SongProcessorService : ISongProcessorService
                 var (artist, title) = CleanTitle(raw.Title, raw.Artist);
                 var (album, year, itunesCover) = await FetchItunesMetadataAsync(artist, title);
 
-                var existingSong = await context.SongsComplete
+                var existingSong = await context.Songs
                     .FirstOrDefaultAsync(c => c.YoutubeVideoId == raw.YoutubeVideoId);
 
                 if (existingSong != null)
@@ -73,7 +73,7 @@ public class SongProcessorService : ISongProcessorService
                 }
                 else
                 {
-                    context.SongsComplete.Add(new CloudSongsModel
+                    context.Songs.Add(new CloudSongsModel
                     {
                         RawId = raw.Id,
                         YoutubeVideoId = raw.YoutubeVideoId ?? "",
