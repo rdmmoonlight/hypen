@@ -6,7 +6,7 @@ using Hypen.Web.Services;
 
 namespace Hypen.Web.Components.Pages.Tools.DriveDetector;
 
-public partial class DriveDetector : ComponentBase
+public partial class Index : ComponentBase
 {
     [Inject]
     protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
