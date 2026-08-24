@@ -13,7 +13,8 @@
         <div>
             <div class="mb-2">
                 <a href="/tools" class="btn-matte btn-sm text-decoration-none">
-                    <i class="ti ti-arrow-left"></i> Kembali </a>
+                    <i class="ti ti-arrow-left"></i> Kembali
+                </a>
             </div>
             <div class="matte-subtitle">Local Storage Sync Engine</div>
             <h1 class="matte-title">Sync MP3 Lokal Ke Database</h1>
@@ -36,7 +37,7 @@
         <div class="matte-tag">Audio Directory &amp; File Scanner</div>
         <div class="card-title mt-2">Pilih Folder atau File Audio dari Komputer</div>
         <p class="status-text text-muted mb-3">
-            Pilih folder atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menyinkronkan ke database.
+            Pilih folder atau beberapa file audio (.mp3, .wav, .m4a, .flac) untuk mengekstrak metadata dan menampungnya di halaman ini terlebih dahulu.
         </p>
 
         <div class="local-folder-grid">
@@ -44,37 +45,371 @@
                        Multiple 
                        accept=".mp3,.wav,.m4a,.flac" 
                        class="matte-input" 
-                       disabled="@isSyncing"
+                       disabled="@(isExtracting || isSyncing)"
                        @attributes='new Dictionary<string, object> { { "webkitdirectory", "true" } }' />
         </div>
 
         <div class="local-folder-note">
             <span class="status-text">
-                <i class="ti ti-shield-check"></i> Metadata diekstrak presisi menggunakan TagLib# dan disimpan ke tabel master SSOT.
+                <i class="ti ti-shield-check"></i> Metadata diekstrak presisi menggunakan TagLib# lalu ditampung di tabel sementara sebelum disimpan.
             </span>
         </div>
     </div>
 
-    <!-- PROGRESS / STATUS CARD -->
-    @if (isSyncing)
+    <!-- PROGRESS CARD -->
+    @if (isExtracting)
     {
         <div class="matte-card text-center py-4">
-            <div class="matte-tag">Processing Engine</div>
-            <h3 class="card-title">Sedang Memproses &amp; Menyinkronkan File...</h3>
+            <div class="matte-tag">Extraction Engine</div>
+            <h3 class="card-title">Mengekstrak Metadata File Audio...</h3>
             <p class="status-text text-muted">
                 Diproses: <strong>@processedCount</strong> dari total <strong>@totalFiles</strong> file.
             </p>
         </div>
     }
-    else if (processedCount > 0 && !isSyncing)
+    else if (isSyncing)
     {
-        <div class="matte-card text-center py-4 border-clean">
-            <div class="matte-tag tag-clean">Sync Completed</div>
-            <h3 class="card-title text-clean">Sinkronisasi Selesai!</h3>
+        <div class="matte-card text-center py-4">
+            <div class="matte-tag">Database Sync Engine</div>
+            <h3 class="card-title">Menyimpan Metadata Ke Database...</h3>
             <p class="status-text text-muted">
-                Berhasil memproses <strong>@processedCount</strong> file audio lokal ke dalam database.
+                Menyimpan data file ditampung ke tabel master SSOT.
             </p>
         </div>
     }
 
+    <!-- TABEL PENAMPUNGAN (STAGING TABLE) -->
+    @if (stagedTracks.Any())
+    {
+        <div class="matte-card mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <div class="matte-tag">Preview Data Ditampung</div>
+                    <h3 class="card-title mt-1 mb-0">Daftar Hasil Ekstraksi (@stagedTracks.Count File)</h3>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-danger btn-sm" @onclick="ClearStagedTracks" disabled="@(isSyncing || isExtracting)">
+                        <i class="ti ti-trash"></i> Bersihkan Penampungan
+                    </button>
+                    <button class="btn btn-success btn-sm fw-bold" @onclick="SaveStagedTracksToDb" disabled="@(isSyncing || isExtracting)">
+                        <i class="ti ti-database-upload"></i> Simpan Ke Database (@stagedTracks.Count)
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th>Judul (Title)</th>
+                            <th>Artis (Artist)</th>
+                            <th>Nama File</th>
+                            <th>Ukuran</th>
+                            <th>Status Penampungan</th>
+                            <th style="width: 80px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var track in GetPagedTracks())
+                        {
+                            <tr>
+                                <td>@track.RowNumber</td>
+                                <td class="fw-bold">@track.Title</td>
+                                <td>@track.Artist</td>
+                                <td><small class="text-muted">@track.FileName</small></td>
+                                <td>@FormatBytes(track.FileSizeBytes)</td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="ti ti-clock"></i> Belum Disimpan
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-danger btn-sm py-0 px-2" 
+                                            @onclick="() => RemoveTrack(track)"
+                                            disabled="@(isSyncing || isExtracting)">
+                                        <i class="ti ti-x"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINATION CONTROLS -->
+            @if (totalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <button class="btn btn-outline-light btn-sm" 
+                            disabled="@(currentPage == 1)" 
+                            @onclick="PreviousPage">
+                        <i class="ti ti-chevron-left"></i> Sebelumnya
+                    </button>
+
+                    <div class="btn-group" role="group">
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            var pageNum = i;
+                            <button type="button" 
+                                    class="btn btn-sm @(pageNum == currentPage ? "btn-primary" : "btn-outline-secondary")" 
+                                    @onclick="() => GoToPage(pageNum)">
+                                @pageNum
+                            </button>
+                        }
+                    </div>
+
+                    <button class="btn btn-outline-light btn-sm" 
+                            disabled="@(currentPage == totalPages)" 
+                            @onclick="NextPage">
+                        Berikutnya <i class="ti ti-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
 </div>
+
+@code {
+    [Inject]
+    protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
+
+    [Inject]
+    protected AudioMetadataService MetadataService { get; set; } = default!;
+
+    protected bool isExtracting;
+    protected bool isSyncing;
+    protected int processedCount;
+    protected int totalFiles;
+    protected string? statusMessage;
+
+    // Staging / Penampungan list
+    protected List<StagedTrackDto> stagedTracks = new();
+    protected int currentPage = 1;
+    protected int pageSize = 50;
+    protected int totalPages => (int)Math.Ceiling((double)stagedTracks.Count / pageSize);
+
+    protected async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(2000);
+        totalFiles = files.Count;
+        processedCount = 0;
+
+        if (totalFiles == 0) return;
+
+        isExtracting = true;
+        statusMessage = $"Mengekstrak {totalFiles} file audio ke penampungan...";
+        StateHasChanged();
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var ext = Path.GetExtension(file.Name).ToLower();
+                if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".flac")
+                {
+                    continue;
+                }
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
+
+                string title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle;
+                string artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist;
+
+                // Tambahkan ke penampungan (belum disimpan ke db)
+                stagedTracks.Add(new StagedTrackDto
+                {
+                    FileName = file.Name,
+                    FileSizeBytes = file.Size,
+                    Title = title,
+                    Artist = artist
+                });
+
+                processedCount++;
+                StateHasChanged();
+            }
+
+            ReindexRowNumbers();
+            statusMessage = $"Berhasil mengekstrak {processedCount} file. Silakan periksa daftar di bawah sebelum menyimpan.";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal mengekstrak metadata: {ex.Message}";
+        }
+        finally
+        {
+            isExtracting = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task SaveStagedTracksToDb()
+    {
+        if (!stagedTracks.Any()) return;
+
+        isSyncing = true;
+        statusMessage = $"Menyimpan {stagedTracks.Count} data dari penampungan ke database...";
+        StateHasChanged();
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            foreach (var track in stagedTracks)
+            {
+                var existingSong = await dbContext.Songs
+                    .FirstOrDefaultAsync(s => s.Title.ToLower() == track.Title.ToLower() && 
+                                              s.Artist.ToLower() == track.Artist.ToLower());
+
+                long songId;
+
+                if (existingSong == null)
+                {
+                    var newSong = new SongsModel
+                    {
+                        Title = track.Title,
+                        Artist = track.Artist,
+                        Status = "LOCAL_SYNC",
+                        IsDownloaded = true
+                    };
+
+                    dbContext.Songs.Add(newSong);
+                    await dbContext.SaveChangesAsync();
+                    songId = newSong.Id;
+                }
+                else
+                {
+                    songId = existingSong.Id;
+                }
+
+                var fileNameLower = track.FileName.ToLower();
+                var existingLocalTrack = await dbContext.LocalTracks
+                    .FirstOrDefaultAsync(lt => lt.FileName.ToLower() == fileNameLower && lt.FileSizeBytes == track.FileSizeBytes);
+
+                if (existingLocalTrack == null)
+                {
+                    var localTrack = new LocalTrackModel
+                    {
+                        FilePath = track.FileName,
+                        FileName = track.FileName,
+                        FileSizeBytes = track.FileSizeBytes,
+                        Title = track.Title,
+                        Artist = track.Artist,
+                        IsSyncedToDb = true,
+                        SongId = songId,
+                        LastScannedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    dbContext.LocalTracks.Add(localTrack);
+                }
+                else
+                {
+                    existingLocalTrack.SongId = songId;
+                    existingLocalTrack.IsSyncedToDb = true;
+                    existingLocalTrack.LastScannedAt = DateTime.UtcNow;
+                    existingLocalTrack.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            statusMessage = $"Sukses menyimpan {stagedTracks.Count} file ke database!";
+            stagedTracks.Clear();
+            currentPage = 1;
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal menyimpan ke database: {ex.Message}";
+        }
+        finally
+        {
+            isSyncing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveTrack(StagedTrackDto track)
+    {
+        stagedTracks.Remove(track);
+        ReindexRowNumbers();
+        if (currentPage > totalPages && totalPages > 0)
+        {
+            currentPage = totalPages;
+        }
+    }
+
+    private void ClearStagedTracks()
+    {
+        stagedTracks.Clear();
+        currentPage = 1;
+        statusMessage = "Daftar penampungan dibersihkan.";
+    }
+
+    private void ReindexRowNumbers()
+    {
+        for (int i = 0; i < stagedTracks.Count; i++)
+        {
+            stagedTracks[i].RowNumber = i + 1;
+        }
+    }
+
+    private IEnumerable<StagedTrackDto> GetPagedTracks()
+    {
+        return stagedTracks
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
+
+    public class StagedTrackDto
+    {
+        public int RowNumber { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Artist { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public long FileSizeBytes { get; set; }
+    }
+}
