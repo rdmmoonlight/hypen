@@ -41,6 +41,14 @@
                 }
             </NavLink>
 
+            <NavLink href="youtubemanagement" class="nav-item-nebula" title="YouTube Auto-Detect Sync">
+                <i class="ti ti-brand-youtube"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">YouTube Auto Sync</span>
+                }
+            </NavLink>
+
             <!-- Vault Tools Dropdown Parent -->
             <div class="nav-dropdown-wrapper">
                 <NavLink href="tools" Match="NavLinkMatch.Prefix" class="nav-item-nebula d-flex align-items-center justify-content-between" @onclick="OnToolsParentClick" title="Vault Tools & Maintenance Center">
