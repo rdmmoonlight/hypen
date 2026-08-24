@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
@@ -7,11 +9,9 @@ namespace Hypen.Web.Components.Pages.Extraction;
 
 public partial class Index : ComponentBase
 {
-    [Inject]
-    protected IYouTubeSyncService SyncService { get; set; } = default!;
-
-    [Inject]
-    protected SyncService AppSyncService { get; set; } = default!;
+    [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
+    [Inject] protected SyncService AppSyncService { get; set; } = default!;
+    [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
     // UI State
     protected string statusMsg = "";
@@ -33,7 +33,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // 1. EXTRACTION STAGE (FETCH KE MEMORI & CEK DUPLIKAT DAHULU)
+    // 1. EXTRACTION STAGE (FETCH KE MEMORI)
     // =========================================================================
 
     protected async Task FetchYouTubeToPreview()
@@ -43,7 +43,6 @@ public partial class Index : ComponentBase
             isProcessing = true;
             UpdateStatus("Mengambil metadata playlist dari YouTube...");
 
-            // Fetch Metadata dari YouTube API
             var youtubeItems = await SyncService.FetchPlaylistItemsAsync(targetPlaylistId, int.MaxValue);
 
             if (youtubeItems.Count == 0)
@@ -58,21 +57,17 @@ public partial class Index : ComponentBase
             {
                 newItems.Add(new LocalMp3ExtractModel
                 {
-                    FileName = item.VideoId, // Menyimpan YouTube Video ID
+                    FileName = item.VideoId,
                     CleanTitle = item.Title,
                     CleanArtist = item.ChannelTitle,
                     IsSelected = true
                 });
             }
 
-            // Panggil verifikasi duplikasi terhadap Database Staging & Main Library
-            await AppSyncService.CheckDuplicatesInPreviewAsync(newItems);
             extractedList.AddRange(newItems);
-
-            isAllSelected = extractedList.Any(i => i.IsSelected && !i.IsDuplicateInDb);
+            isAllSelected = true;
             
-            int dupCount = newItems.Count(i => i.IsDuplicateInDb);
-            UpdateStatus($"Berhasil mengekstrak {newItems.Count:N0} lagu ({dupCount:N0} lagu terdeteksi duplikat di DB).");
+            UpdateStatus($"Berhasil mengekstrak {newItems.Count:N0} lagu dari YouTube ke preview.");
         }
         catch (Exception ex)
         {
@@ -103,17 +98,14 @@ public partial class Index : ComponentBase
 
                 await using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
                 var model = await AppSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
+                model.IsSelected = true;
                 newItems.Add(model);
             }
 
-            // Panggil verifikasi duplikasi terhadap Database Staging & Main Library
-            await AppSyncService.CheckDuplicatesInPreviewAsync(newItems);
             extractedList.AddRange(newItems);
+            isAllSelected = true;
 
-            isAllSelected = extractedList.Any(i => i.IsSelected && !i.IsDuplicateInDb);
-
-            int dupCount = newItems.Count(i => i.IsDuplicateInDb);
-            UpdateStatus($"{files.Count:N0} file MP3 diurai ({dupCount:N0} terdeteksi duplikat di DB).");
+            UpdateStatus($"{files.Count:N0} file MP3 berhasil diurai ke preview.");
         }
         catch (Exception ex)
         {
@@ -128,25 +120,47 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // 2. COMMIT STAGE (SIMPAN HANYA YANG DIPILIH & BUKAN DUPLIKAT)
+    // 2. COMMIT STAGE (SIMPAN LANGSUNG KE TABEL FISIK RAW_SONGS)
     // =========================================================================
 
     protected async Task SaveSelectedToRaw()
     {
-        var selected = extractedList.Where(i => i.IsSelected && !i.IsDuplicateInDb).ToList();
+        var selected = extractedList.Where(i => i.IsSelected).ToList();
         if (selected.Count == 0) return;
 
         try
         {
             isProcessing = true;
-            UpdateStatus($"Memasukkan {selected.Count:N0} lagu baru ke Staging Database...");
+            UpdateStatus($"Memasukkan {selected.Count:N0} lagu ke tabel raw_songs (Staging)...");
 
-            int savedCount = await AppSyncService.SaveToRawAsync(selected);
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            int savedCount = 0;
 
-            UpdateStatus($"Berhasil! {savedCount:N0} lagu tersimpan di Staging Buffer.");
+            foreach (var item in selected)
+            {
+                var rawEntity = new RawSongsModel
+                {
+                    Title = item.CleanTitle ?? string.Empty,
+                    Artist = item.CleanArtist ?? string.Empty,
+                    Album = item.Album,
+                    ReleaseYear = item.ReleaseYear,
+                    AlbumCoverUrl = item.AlbumCoverUrl,
+                    Country = item.Country ?? "ID",
+                    DurationSeconds = item.DurationSeconds,
+                    MusicBrainzId = item.MusicBrainzId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                context.RawSongs.Add(rawEntity);
+                savedCount++;
+            }
+
+            await context.SaveChangesAsync();
+
+            UpdateStatus($"Berhasil! {savedCount:N0} lagu masuk ke Staging Buffer. Silakan verifikasi di halaman Staging.");
             
             // Hapus item yang berhasil disimpan dari antrean preview
-            extractedList.RemoveAll(i => i.IsSelected && !i.IsDuplicateInDb);
+            extractedList.RemoveAll(i => i.IsSelected);
             await RefreshMetrics();
         }
         catch (Exception ex)
@@ -170,11 +184,7 @@ public partial class Index : ComponentBase
         isAllSelected = e.Value is bool val && val;
         foreach (var item in extractedList)
         {
-            // Jangan centang otomatis item yang terdeteksi duplikat
-            if (!item.IsDuplicateInDb)
-            {
-                item.IsSelected = isAllSelected;
-            }
+            item.IsSelected = isAllSelected;
         }
     }
 
@@ -188,7 +198,8 @@ public partial class Index : ComponentBase
     {
         try
         {
-            pendingRawCount = await SyncService.GetPendingRawCountAsync();
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            pendingRawCount = await context.RawSongs.CountAsync();
             completedSongsCount = await SyncService.GetCompletedCountAsync();
         }
         catch (Exception ex)
