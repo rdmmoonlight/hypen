@@ -41,7 +41,7 @@
 
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Status Database</h3>
+                <h3>Status Database & Timestamp</h3>
             </div>
             <div class="yt-card-body">
                 <div class="yt-metrics-container">
@@ -54,6 +54,13 @@
                         <span class="yt-metric-label">Completed Library</span>
                     </div>
                 </div>
+
+                <div class="yt-info-row" style="margin-top: 1rem; border-top: 1px dashed #e2e8f0; padding-top: 0.5rem;">
+                    <span class="yt-info-label"><i class="ti ti-clock"></i> Sync Terakhir:</span>
+                    <strong class="yt-info-value">
+                        @(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "Belum Pernah Sync")
+                    </strong>
+                </div>
             </div>
         </div>
     </div>
@@ -63,7 +70,10 @@
     {
         <div class="yt-card yt-preview-table-card">
             <div class="yt-card-header yt-table-header-flex">
-                <h3>Hasil Preview YouTube (@FetchedItems.Count Item)</h3>
+                <div>
+                    <h3>Hasil Preview YouTube (@FetchedItems.Count Item)</h3>
+                    <small class="text-muted">Rujukan Penarikan: @(LastSyncTime?.ToString("dd MMM yyyy HH:mm:ss"))</small>
+                </div>
                 <button class="yt-btn yt-btn-success" @onclick="SaveSelectedToStagingAsync" disabled="@(SelectedVideoIds.Count == 0 || IsSaving)">
                     @if (IsSaving)
                     {
