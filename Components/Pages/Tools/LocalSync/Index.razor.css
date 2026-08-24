@@ -1,1 +1,176 @@
+/* =========================================================================
+   MATTE BASE & CONTAINER (DARK SLATE / GRAPHITE PALETTE)
+   ========================================================================= */
+.matte-container {
+    padding: 20px 24px;
+    background: #121418;
+    color: #94a3b8;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-sizing: border-box;
+    width: 100%;
+}
 
+/* =========================================================================
+   HEADER SECTION & BACK BUTTON
+   ========================================================================= */
+.matte-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.matte-subtitle {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #64748b;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.matte-title {
+    font-size: 1.15rem;
+    color: #f1f5f9;
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+
+.matte-counter {
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: #38bdf8;
+    background: #0f172a;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid #1e293b;
+}
+
+/* =========================================================================
+   BUTTONS (MATTE FLAT)
+   ========================================================================= */
+.btn-matte {
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-matte:hover:not(:disabled) {
+    background: #334155;
+    border-color: #475569;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 0.68rem;
+}
+
+/* =========================================================================
+   CARDS & INPUT PANELS
+   ========================================================================= */
+.matte-card {
+    background: #181b20;
+    border: 1px solid #262c36;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.matte-card.border-clean {
+    border-color: #10b981;
+}
+
+.card-title {
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 4px 0;
+}
+
+.matte-tag {
+    font-size: 0.65rem;
+    font-family: monospace;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.tag-clean, .text-clean {
+    color: #10b981 !important;
+}
+
+.local-folder-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.matte-input {
+    background: #0f1115;
+    border: 1px solid #262c36;
+    color: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    outline: none;
+    transition: border-color 0.15s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.matte-input:focus {
+    border-color: #38bdf8;
+}
+
+.local-folder-note {
+    margin-top: 10px;
+    color: #64748b;
+}
+
+/* =========================================================================
+   STATUS ALERTS & TEXT HELPERS
+   ========================================================================= */
+.status-alert {
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+}
+
+.alert-info {
+    background: #0c1a24;
+    border-left: 3px solid #38bdf8;
+}
+
+.alert-info .status-text {
+    color: #38bdf8;
+}
+
+.status-text {
+    font-size: 0.75rem;
+    margin: 0;
+    font-family: monospace;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.text-muted {
+    color: #64748b !important;
+}
