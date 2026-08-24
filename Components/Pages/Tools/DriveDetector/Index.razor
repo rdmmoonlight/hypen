@@ -4,94 +4,94 @@
 
 <PageTitle>GDrive Storage Sync - Hypen Tools</PageTitle>
 
-<div>
+<div class="matte-container">
     <!-- ALERT STATUS -->
     @if (!string.IsNullOrEmpty(statusMsg))
     {
-        <div>
-            <p>@statusMsg</p>
+        <div class="status-alert alert-info">
+            <p class="status-text">@statusMsg</p>
         </div>
     }
 
     <!-- HEADER -->
-    <div>
+    <div class="matte-header">
         <div>
-            <div>System Maintenance</div>
-            <h1>Google Drive Track Sync Engine</h1>
+            <div class="matte-subtitle">System Maintenance</div>
+            <h1 class="matte-title">Google Drive Track Sync Engine</h1>
         </div>
-        <div>
+        <div class="matte-counter">
             @gdriveTracks.Count FILES TERDATA
         </div>
     </div>
 
     <!-- TOOLBAR -->
-    <div>
-        <div>
-            <button @onclick="LoadDriveTracks" disabled="@isProcessing">
+    <div class="matte-toolbar">
+        <div class="matte-action-group">
+            <button class="btn-matte btn-primary" @onclick="LoadDriveTracks" disabled="@isProcessing">
                 @(isProcessing ? "SYNCING STORAGE..." : "REFRESH GDRIVE INDEX")
             </button>
 
             @if (UnlinkedCount > 0)
             {
-                <button @onclick="AutoLinkTracks" disabled="@isProcessing">
+                <button class="btn-matte btn-success" @onclick="AutoLinkTracks" disabled="@isProcessing">
                     🔗 AUTO-LINK TO MASTER SONGS (@UnlinkedCount)
                 </button>
             }
         </div>
 
-        <div>
-            <span>LINKED: @LinkedCount</span>
-            <span>UNLINKED: @UnlinkedCount</span>
+        <div class="matte-search-group">
+            <span class="status-badge">LINKED: @LinkedCount</span>
+            <span class="status-badge">UNLINKED: @UnlinkedCount</span>
         </div>
     </div>
 
     <!-- CONTENT DISPLAY -->
     @if (isProcessing && gdriveTracks.Count == 0)
     {
-        <div>
-            <div>Storage Indexing</div>
-            <h3>Memuat Indeks Google Drive Tracks...</h3>
-            <p>Membaca rekaman file audio dari tabel gdrive_tracks.</p>
+        <div class="matte-card">
+            <div class="matte-tag">Storage Indexing</div>
+            <h3 class="card-title">Memuat Indeks Google Drive Tracks...</h3>
+            <p class="text-muted">Membaca rekaman file audio dari tabel gdrive_tracks.</p>
         </div>
     }
     else if (!isProcessing && gdriveTracks.Count == 0)
     {
-        <div>
-            <div>Indeks Kosong</div>
-            <h3>Belum Ada File MP3 Terindeks di Google Drive</h3>
-            <p>
+        <div class="matte-card">
+            <div class="matte-tag">Indeks Kosong</div>
+            <h3 class="card-title">Belum Ada File MP3 Terindeks di Google Drive</h3>
+            <p class="text-muted">
                 Klik <strong>REFRESH GDRIVE INDEX</strong> untuk memperbarui data indeks dari tabel storage.
             </p>
         </div>
     }
     else
     {
-        <div>
-            <div>
+        <div class="preview-container">
+            <div class="preview-header">
                 <span>DATABASE GDRIVE TRACKS (@gdriveTracks.Count:N0)</span>
-                <span>@UnlinkedCount FILE BELUM TERHUBUNG</span>
+                <span class="dup-summary-tag">@UnlinkedCount FILE BELUM TERHUBUNG</span>
             </div>
 
-            <div>
-                <div>
+            <div class="cluster-list">
+                <div class="song-compact-grid">
                     @foreach (var track in gdriveTracks)
                     {
-                        <div>
-                            <div>
-                                <span>
+                        <div class="song-compact-card @(track.IsLinkedToSong ? "card-keep" : "card-purge")">
+                            <div class="compact-card-header">
+                                <span class="badge-action @(track.IsLinkedToSong ? "badge-keep-btn" : "badge-purge-btn")">
                                     @(track.IsLinkedToSong ? "LINKED TO SONG" : "UNLINKED")
                                 </span>
-                                <span>ID: #@track.Id</span>
+                                <span class="song-id-tag">ID: #@track.Id</span>
                             </div>
 
                             <div>
-                                <div>@(string.IsNullOrEmpty(track.Title) ? track.FileName : track.Title)</div>
-                                <div>
+                                <div class="compact-song-title">@(string.IsNullOrEmpty(track.Title) ? track.FileName : track.Title)</div>
+                                <div class="compact-song-artist">
                                     Artis: @(track.Artist ?? "Unknown Artist") • ID Drive: @track.FileId
                                 </div>
                             </div>
 
-                            <div>
+                            <div class="compact-card-footer">
                                 <span>⏱️ @(TimeSpan.FromSeconds(track.DurationSeconds).ToString(@"mm\:ss"))</span>
                                 <span>💾 @((track.FileSizeBytes / (1024.0 * 1024.0)).ToString("0.0")) MB</span>
                                 @if (track.SongId.HasValue)
