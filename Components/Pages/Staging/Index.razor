@@ -34,15 +34,16 @@
                 {
                     <span class="selected-badge">[ @selectedRawIds.Count TERPILIH ]</span>
                 }
+                @if (duplicateRawIds.Count > 0)
+                {
+                    <span class="duplicate-badge">[ @duplicateRawIds.Count DUPLIKAT DETECTED ]</span>
+                }
             </div>
             <div class="toolbar-subtext">Review metadata & sinkronisasi data staging.</div>
         </div>
         <div class="toolbar-actions">
             @if (selectedRawIds.Count > 0)
             {
-                <button class="btn-action match-selected" @onclick="SmartMatchSelected" disabled="@isProcessing">
-                    🔍 MATCH SELECTED (@selectedRawIds.Count)
-                </button>
                 <button class="btn-action commit-selected" @onclick="UploadSelectedToComplete" disabled="@isProcessing">
                     🚀 COMMIT SELECTED (@selectedRawIds.Count)
                 </button>
@@ -51,9 +52,13 @@
                 </button>
             }
 
-            <button class="btn-action global-action" @onclick="SmartMatchAllPending" disabled="@isProcessing">
-                MATCH ALL
-            </button>
+            @if (duplicateRawIds.Count > 0)
+            {
+                <button class="btn-action clean-duplicates" @onclick="DeleteDuplicateStagingItems" disabled="@isProcessing">
+                    🧹 CLEAN DUPLICATES (@duplicateRawIds.Count)
+                </button>
+            }
+
             <button class="btn-action commit-all" @onclick="UploadAllToComplete" disabled="@isProcessing">
                 COMMIT ALL
             </button>
@@ -89,12 +94,20 @@
                     @foreach (var row in stagingList)
                     {
                         var isSelected = selectedRawIds.Contains(row.Id);
-                        <tr class="@(isSelected ? "selected-row" : "")">
+                        var isDuplicate = duplicateRawIds.Contains(row.Id);
+
+                        <tr class="@(isSelected ? "selected-row" : "") @(isDuplicate ? "duplicate-row" : "")">
                             <td class="col-checkbox">
                                 <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" class="custom-chk" />
                             </td>
                             <td>
-                                <input type="text" @bind="row.Title" class="input-cell" />
+                                <div class="cell-with-badge">
+                                    <input type="text" @bind="row.Title" class="input-cell" />
+                                    @if (isDuplicate)
+                                    {
+                                        <span class="badge-duplicate" title="Kombinasi Artis & Judul ganda di Staging">DUPLIKAT</span>
+                                    }
+                                </div>
                             </td>
                             <td>
                                 <input type="text" @bind="row.Artist" class="input-cell" />
@@ -115,7 +128,6 @@
                                 <input type="text" @bind="row.AlbumCoverUrl" placeholder="https://..." class="input-cell mono text-muted-url" />
                             </td>
                             <td class="col-actions">
-                                <button class="btn-icon match" title="Smart Match" @onclick="() => SmartMatchSingleRaw(row)" disabled="@isProcessing">🔍</button>
                                 <button class="btn-icon commit" title="Commit to Library" @onclick="() => UploadSingleRawToComplete(row)" disabled="@isProcessing">🚀</button>
                                 <button class="btn-icon delete" title="Hapus" @onclick="() => DeleteRawItem(row.Id)" disabled="@isProcessing">✕</button>
                             </td>
@@ -123,47 +135,6 @@
                     }
                 </tbody>
             </table>
-        </div>
-    }
-
-    <!-- MODAL SMART MATCH CANDIDATE SELECTION -->
-    @if (activeReviewItem != null)
-    {
-        <div class="modal-backdrop">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h3>Pilih Hasil Match Terbaik</h3>
-                    <button class="btn-close" @onclick="CloseReviewModal">✕</button>
-                </div>
-                <div class="modal-body">
-                    <p class="modal-subtext">
-                        Pilih atribut lagu yang paling sesuai dengan file MP3 Anda.
-                        <br />
-                        <span class="reason-badge">⚠️ @activeReviewItem.MatchConfidenceReason</span>
-                    </p>
-                    <div class="candidate-list">
-                        @foreach (var candidate in activeReviewItem.Candidates)
-                        {
-                            int diff = Math.Abs(candidate.DurationSeconds - (activeReviewItem.DurationSeconds ?? 0));
-                            <div class="candidate-card" @onclick="() => SelectCandidate(candidate)">
-                                <img src="@candidate.AlbumCoverUrl" alt="Cover" class="candidate-cover" />
-                                <div class="candidate-info">
-                                    <div class="candidate-title">@candidate.Title</div>
-                                    <div class="candidate-artist">@candidate.Artist — <em>@candidate.Album (@(candidate.ReleaseYear?.ToString() ?? "N/A"))</em></div>
-                                </div>
-                                <div class="candidate-meta">
-                                    <span class="diff-badge @(diff <= 3 ? "exact" : "warn")">
-                                        Δ @diff Detik
-                                    </span>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-nav" @onclick="CloseReviewModal">Batal</button>
-                </div>
-            </div>
         </div>
     }
 
