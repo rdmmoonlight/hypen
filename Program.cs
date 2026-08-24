@@ -77,6 +77,7 @@ builder.Services.AddScoped<MusicSmartMatchService>();
 builder.Services.AddScoped<SongDeduplicationEngine>(); 
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<GoogleDriveScannerEngine>();
+builder.Services.AddScoped<AudioMetadataService>(); // <-- DITAMBAHKAN DI SINI
 
 // =========================================================================
 // 2. BUILD PIPELINE & MIDDLEWARE
