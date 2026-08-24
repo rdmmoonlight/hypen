@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hypen.Web.Components.Pages.Extraction;
 
@@ -11,15 +11,19 @@ public partial class Index : ComponentBase
 {
     [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
     [Inject] protected SyncService AppSyncService { get; set; } = default!;
+    [Inject] protected AudioMetadataService MetadataService { get; set; } = default!;
     [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
-    // UI State
+    // UI & Status State
     protected string statusMsg = "";
     protected bool isError;
     protected bool isProcessing;
+    protected string uploadMode = "folder"; // "folder" atau "file" untuk Local Sync
 
-    // INGESTION STATE (Menampung semua hasil ekstrak di memori sebelum ke Staging)
+    // Extraction Inputs State
     protected string targetPlaylistId = "URL";
+
+    // INGESTION STATE (Menampung seluruh hasil ekstrak di memori sebelum ke Staging)
     protected List<LocalMp3ExtractModel> extractedList = [];
     protected bool isAllSelected = true;
 
@@ -32,10 +36,16 @@ public partial class Index : ComponentBase
         await RefreshMetrics();
     }
 
+    protected void SetUploadMode(string mode)
+    {
+        uploadMode = mode;
+    }
+
     // =========================================================================
-    // 1. EXTRACTION STAGE (FETCH KE MEMORI)
+    // 1. EXTRACTION CARDS LOGIC
     // =========================================================================
 
+    // CARD 1: YouTube Playlist Extractor
     protected async Task FetchYouTubeToPreview()
     {
         try
@@ -51,18 +61,13 @@ public partial class Index : ComponentBase
                 return;
             }
 
-            var newItems = new List<LocalMp3ExtractModel>();
-
-            foreach (var item in youtubeItems)
+            var newItems = youtubeItems.Select(item => new LocalMp3ExtractModel
             {
-                newItems.Add(new LocalMp3ExtractModel
-                {
-                    FileName = item.VideoId,
-                    CleanTitle = item.Title,
-                    CleanArtist = item.ChannelTitle,
-                    IsSelected = true
-                });
-            }
+                FileName = item.VideoId,
+                CleanTitle = item.Title,
+                CleanArtist = item.ChannelTitle,
+                IsSelected = true
+            }).ToList();
 
             extractedList.AddRange(newItems);
             isAllSelected = true;
@@ -71,7 +76,7 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            var detail = ex.InnerException?.Message ?? ex.Message;
             UpdateStatus($"Gagal mengekstrak dari YouTube: {detail}", true);
         }
         finally
@@ -81,6 +86,7 @@ public partial class Index : ComponentBase
         }
     }
 
+    // CARD 2: Manual File Upload Extractor
     protected async Task HandleFileSelection(InputFileChangeEventArgs e)
     {
         var files = e.GetMultipleFiles(int.MaxValue);
@@ -94,7 +100,7 @@ public partial class Index : ComponentBase
             foreach (var file in files)
             {
                 scanned++;
-                UpdateStatus($"[{scanned:N0}/{files.Count:N0}] Mengurai metadata: '{file.Name}'...");
+                UpdateStatus($"[{scanned:N0}/{files.Count:N0}] Mengurai metadata file: '{file.Name}'...");
 
                 await using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
                 var model = await AppSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
@@ -109,7 +115,7 @@ public partial class Index : ComponentBase
         }
         catch (Exception ex)
         {
-            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            var detail = ex.InnerException?.Message ?? ex.Message;
             UpdateStatus($"Error saat membaca file MP3: {detail}", true);
         }
         finally
@@ -119,8 +125,79 @@ public partial class Index : ComponentBase
         }
     }
 
+    // CARD 3: Local Sync Extractor (Folder / Audio Files Extractor)
+    protected async Task HandleLocalSyncSelection(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(5000);
+        if (files.Count == 0) return;
+
+        var validExtensions = new[] { ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac" };
+        var audioFiles = files
+            .Where(f => validExtensions.Contains(Path.GetExtension(f.Name).ToLowerInvariant()))
+            .ToList();
+
+        if (audioFiles.Count == 0)
+        {
+            UpdateStatus(uploadMode == "folder" 
+                ? "Tidak ditemukan file audio di dalam folder tersebut." 
+                : "File yang dipilih bukan format audio yang didukung.", true);
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            int scanned = 0;
+            var newItems = new List<LocalMp3ExtractModel>();
+
+            foreach (var file in audioFiles)
+            {
+                scanned++;
+                UpdateStatus($"[{scanned:N0}/{audioFiles.Count:N0}] Parsing Local Sync: '{file.Name}'...");
+
+                try
+                {
+                    await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
+                    using var memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream);
+                    memoryStream.Position = 0;
+
+                    var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
+
+                    newItems.Add(new LocalMp3ExtractModel
+                    {
+                        FileName = file.Name,
+                        CleanTitle = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
+                        CleanArtist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist,
+                        Album = "Local Sync",
+                        IsSelected = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Gagal ekstraksi {file.Name}: {ex.Message}");
+                }
+            }
+
+            extractedList.AddRange(newItems);
+            isAllSelected = true;
+
+            UpdateStatus($"Berhasil mengekstrak {newItems.Count:N0} file audio melalui Local Sync.");
+        }
+        catch (Exception ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            UpdateStatus($"Gagal mengekstrak Local Sync: {detail}", true);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
     // =========================================================================
-    // 2. COMMIT STAGE (SIMPAN LANGSUNG KE TABEL FISIK RAW_SONGS)
+    // 2. COMMIT STAGE (SIMPAN KE TABEL RAW_SONGS)
     // =========================================================================
 
     protected async Task SaveSelectedToRaw()
@@ -133,7 +210,7 @@ public partial class Index : ComponentBase
             isProcessing = true;
             UpdateStatus($"Memasukkan {selected.Count:N0} lagu ke tabel raw_songs (Staging)...");
 
-            using var context = await DbContextFactory.CreateDbContextAsync();
+            await using var context = await DbContextFactory.CreateDbContextAsync();
             int savedCount = 0;
 
             foreach (var item in selected)
@@ -142,9 +219,9 @@ public partial class Index : ComponentBase
                 {
                     Title = item.CleanTitle ?? string.Empty,
                     Artist = item.CleanArtist ?? string.Empty,
-                    Album = item.Album,
+                    Album = item.Album ?? "Extraction",
                     ReleaseYear = item.ReleaseYear,
-                    AlbumCoverUrl = item.AlbumCoverUrl,
+                    AlbumCoverUrl = item.AlbumCoverUrl ?? item.FileName,
                     Country = item.Country ?? "ID",
                     DurationSeconds = item.DurationSeconds,
                     MusicBrainzId = item.MusicBrainzId,
@@ -157,15 +234,13 @@ public partial class Index : ComponentBase
 
             await context.SaveChangesAsync();
 
-            UpdateStatus($"Berhasil! {savedCount:N0} lagu masuk ke Staging Buffer. Silakan verifikasi di halaman Staging.");
-            
-            // Hapus item yang berhasil disimpan dari antrean preview
+            UpdateStatus($"Berhasil! {savedCount:N0} lagu masuk ke Staging Buffer.");
             extractedList.RemoveAll(i => i.IsSelected);
             await RefreshMetrics();
         }
         catch (Exception ex)
         {
-            var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+            var detail = ex.InnerException?.Message ?? ex.Message;
             UpdateStatus($"Gagal Simpan ke Staging: {detail}", true);
         }
         finally
@@ -198,7 +273,7 @@ public partial class Index : ComponentBase
     {
         try
         {
-            using var context = await DbContextFactory.CreateDbContextAsync();
+            await using var context = await DbContextFactory.CreateDbContextAsync();
             pendingRawCount = await context.RawSongs.CountAsync();
             completedSongsCount = await SyncService.GetCompletedCountAsync();
         }
