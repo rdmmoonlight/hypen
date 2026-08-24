@@ -6,10 +6,9 @@
 <div class="yt-sync-container">
     <div class="yt-sync-header">
         <h2 class="yt-sync-title">YouTube Auto-Detect Sync</h2>
-        <p class="yt-sync-subtitle">Deteksi otomatis video yang disukai (Liked Videos) dan lagu baru dari playlist YouTube ke Staging</p>
+        <p class="yt-sync-subtitle">Tarik dan simpan lagu baru dari Playlist YouTube langsung ke Staging Buffer</p>
     </div>
 
-    <!-- Status Alert Bar -->
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
         <div class="yt-status-alert @(IsError ? "yt-status-error" : "yt-status-success")">
@@ -26,32 +25,23 @@
             </div>
             <div class="yt-card-body">
                 <div class="yt-form-group">
-                    <label class="yt-checkbox-label">
-                        <input type="checkbox" @bind="SyncLikedVideos" disabled="@IsSyncing" />
-                        <span>Deteksi Liked Videos (Video Disukai)</span>
-                    </label>
+                    <label for="playlistId">Target Playlist ID:</label>
+                    <input id="playlistId" 
+                           type="text" 
+                           class="yt-input" 
+                           placeholder="Masukkan ID Playlist (contoh: PLx0s3...)" 
+                           @bind="TargetPlaylistId" 
+                           disabled="@IsSyncing" />
                 </div>
 
                 <div class="yt-form-group">
-                    <label class="yt-checkbox-label">
-                        <input type="checkbox" @bind="SyncPlaylists" disabled="@IsSyncing" />
-                        <span>Deteksi Item Playlist YouTube</span>
-                    </label>
+                    <label for="maxResults">Batas Maksimal Video (Max Results):</label>
+                    <input id="maxResults" 
+                           type="number" 
+                           class="yt-input" 
+                           @bind="MaxResults" 
+                           disabled="@IsSyncing" />
                 </div>
-
-                @if (SyncPlaylists)
-                {
-                    <div class="yt-form-group yt-nested-input">
-                        <label for="playlistId">Target Playlist ID (Opsional):</label>
-                        <input id="playlistId" 
-                               type="text" 
-                               class="yt-input" 
-                               placeholder="Kosongkan untuk semua playlist" 
-                               @bind="TargetPlaylistId" 
-                               disabled="@IsSyncing" />
-                        <small class="yt-input-help">Jika diisi, hanya playlist ini yang akan diproses.</small>
-                    </div>
-                }
 
                 <div class="yt-form-actions">
                     <button class="yt-btn yt-btn-primary" @onclick="ExecuteAutoSyncAsync" disabled="@IsSyncing">
@@ -72,23 +62,27 @@
         <!-- Metrics & Summary Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Ringkasan Sinkronisasi</h3>
+                <h3>Ringkasan Staging</h3>
             </div>
             <div class="yt-card-body">
                 <div class="yt-metrics-container">
                     <div class="yt-metric-box">
-                        <span class="yt-metric-value">@TotalFetched</span>
-                        <span class="yt-metric-label">Item Terdeteksi</span>
+                        <span class="yt-metric-value">@PendingRawCount</span>
+                        <span class="yt-metric-label">Pending Staging</span>
                     </div>
 
                     <div class="yt-metric-box">
-                        <span class="yt-metric-value">@TotalAddedToStaging</span>
-                        <span class="yt-metric-label">Masuk Staging</span>
+                        <span class="yt-metric-value">@CompletedSongsCount</span>
+                        <span class="yt-metric-label">Completed Library</span>
                     </div>
                 </div>
 
                 <div class="yt-info-row">
-                    <span class="yt-info-label">Terakhir Dijalankan:</span>
+                    <span class="yt-info-label">Hasil Sync Terakhir:</span>
+                    <span class="yt-info-value">@TotalAddedToStaging item ditambahkan</span>
+                </div>
+                <div class="yt-info-row">
+                    <span class="yt-info-label">Waktu Sync Terakhir:</span>
                     <span class="yt-info-value">@(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "-")</span>
                 </div>
             </div>
