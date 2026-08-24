@@ -13,10 +13,6 @@ public partial class Index : ComponentBase
     protected bool IsError { get; set; }
     protected bool IsSyncing { get; set; }
 
-    // TARGET SYNC OPTIONS
-    protected string TargetPlaylistId { get; set; } = string.Empty;
-    protected int MaxResults { get; set; } = 50;
-
     // METRICS
     protected int TotalAddedToStaging { get; set; }
     protected int PendingRawCount { get; set; }
@@ -32,27 +28,22 @@ public partial class Index : ComponentBase
     {
         if (IsSyncing) return;
 
-        if (string.IsNullOrWhiteSpace(TargetPlaylistId))
-        {
-            UpdateStatus("Harap masukkan Playlist ID YouTube terlebih dahulu.", error: true);
-            return;
-        }
-
         try
         {
             IsSyncing = true;
-            UpdateStatus($"Memulai auto-detect & sinkronisasi playlist ID: {TargetPlaylistId}...");
+            UpdateStatus("Memeriksa dan menarik data lagu terbaru dari akun YouTube...");
 
-            TotalAddedToStaging = await SyncService.SyncPlaylistToRawAsync(TargetPlaylistId, MaxResults);
+            // Menggunakan parameter default atau playlist standar akun pengguna (misal: "LL" / Liked Videos)
+            TotalAddedToStaging = await SyncService.SyncPlaylistToRawAsync("LL", 50);
 
             LastSyncTime = DateTime.Now;
-            UpdateStatus($"Sinkronisasi selesai! Berhasil menambahkan {TotalAddedToStaging} lagu ke Staging.");
+            UpdateStatus($"Sinkronisasi akun berhasil! Berhasil memperbarui dan menambahkan {TotalAddedToStaging} lagu ke Staging.");
 
             await RefreshMetrics();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal menjalankan auto-detect YouTube: {ex.Message}", error: true);
+            UpdateStatus($"Gagal melakukan sinkronisasi akun YouTube: {ex.Message}", error: true);
         }
         finally
         {
