@@ -3,154 +3,162 @@
 
 <PageTitle>Pengaturan Akun - Hypen Vault</PageTitle>
 
-<div class="matte-settingss-container">
-    <!-- Header Section -->
-    <div class="matte-settingss-header">
-        <h2>Pengaturan Akun</h2>
-        <p>Kelola integrasi OAuth YouTube dan Google Drive untuk ekosistem Hypen Vault.</p>
-    </div>
+<div class="ju-settings-container">
+    <!-- Header Section -->
+    <div class="ju-settings-header mb-4">
+        <h2>Pengaturan Akun</h2>
+        <p class="text-muted">Kelola integrasi OAuth YouTube dan Google Drive untuk ekosistem Hypen Vault.</p>
+    </div>
 
-    @if (IsLoading)
-    {
-        <div class="status-alert alert-loading">
-            <div class="d-flex align-items-center gap-2">
-                <span class="spinner-border spinner-border-sm" role="status"></span>
-                <span>Memeriksa status otentikasi layanan Google...</span>
-            </div>
-        </div>
-    }
-    else
-    {
-        @if (!string.IsNullOrEmpty(ErrorMessage))
-        {
-            <div class="status-alert alert-error">
-                <span>@ErrorMessage</span>
-                <button type="button" class="btn-dismiss" @onclick="DismissError">&times;</button>
-            </div>
-        }
+    @if (IsLoading)
+    {
+        <JUAlert Type="JUAlertType.Info">
+            <div class="d-flex align-items-center gap-2">
+                <JUSpinner Size="JUSpinnerSize.Small" />
+                <span>Memeriksa status otentikasi layanan Google...</span>
+            </div>
+        </JUAlert>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <JUAlert Type="JUAlertType.Error" Dismissible="true" OnDismiss="DismissError">
+                @ErrorMessage
+            </JUAlert>
+        }
 
-        @if (!string.IsNullOrEmpty(SuccessMessage))
-        {
-            <div class="status-alert alert-success">
-                <span>@SuccessMessage</span>
-                <button type="button" class="btn-dismiss" @onclick="DismissSuccess">&times;</button>
-            </div>
-        }
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <JUAlert Type="JUAlertType.Success" Dismissible="true" OnDismiss="DismissSuccess">
+                @SuccessMessage
+            </JUAlert>
+        }
 
-        <div class="integration-grid">
-            <!-- 1. CARD INTEGRASI YOUTUBE -->
-            <div class="matte-card">
-                <div class="matte-card-header">
-                    <div class="card-title-group">
-                        <div class="icon-box icon-youtube">
-                            <i class="ti ti-brand-youtube"></i>
-                        </div>
-                        <div class="card-info">
-                            <h5>YouTube Integration</h5>
-                            <p>Sinkronisasi playlist, metadata, dan musik secara otomatis.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="status-badge @(IsYouTubeConnected ? "badge-connected" : "badge-disconnected")">
-                            @(IsYouTubeConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
-                        </span>
-                    </div>
-                </div>
+        <div class="integration-grid">
+            <!-- 1. CARD INTEGRASI YOUTUBE -->
+            <JUCard Class="mb-3">
+                <HeaderTemplate>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="card-title-group d-flex align-items-center gap-3">
+                            <div class="icon-box icon-youtube">
+                                <i class="ti ti-brand-youtube"></i>
+                            </div>
+                            <div class="card-info">
+                                <h5 class="mb-0">YouTube Integration</h5>
+                                <small class="text-muted">Sinkronisasi playlist, metadata, dan musik secara otomatis.</small>
+                            </div>
+                        </div>
+                        <div>
+                            <JUBadge Type="@(IsYouTubeConnected ? JUBadgeType.Success : JUBadgeType.Secondary)">
+                                @(IsYouTubeConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
+                            </JUBadge>
+                        </div>
+                    </div>
+                </HeaderTemplate>
+                <ChildContent>
+                    @if (IsYouTubeConnected)
+                    {
+                        <div class="details-list my-3">
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Account / Channel:</span>
+                                <span class="detail-value fw-bold">@YouTubeAccountIdentifier</span>
+                            </div>
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Terakhir Diperbarui:</span>
+                                <span class="detail-value">@(YouTubeLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
+                            </div>
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Status Token Refresh:</span>
+                                <span class="detail-value text-success fw-bold">Aktif</span>
+                            </div>
+                        </div>
 
-                <hr class="matte-divider" />
+                        <div class="card-actions d-flex gap-2 mt-3">
+                            <JUButton Variant="JUButtonVariant.Secondary" OnClick="ReauthenticateYouTube">
+                                Hubungkan Ulang
+                            </JUButton>
+                            <JUButton Variant="JUButtonVariant.Danger" OnClick="DisconnectYouTube">
+                                Putuskan Koneksi
+                            </JUButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-3" style="font-size: 0.85rem;">
+                            Login untuk memberikan otorisasi akses pustaka musik dan playlist YouTube Anda.
+                        </p>
+                        <div class="card-actions">
+                            <JUButton Variant="JUButtonVariant.Danger" OnClick="InitiateYouTubeLogin" Class="d-flex align-items-center gap-2">
+                                <i class="ti ti-brand-youtube"></i>
+                                <span>Login dengan YouTube</span>
+                            </JUButton>
+                        </div>
+                    }
+                </ChildContent>
+            </JUCard>
 
-                @if (IsYouTubeConnected)
-                {
-                    <div class="details-list">
-                        <div class="detail-item">
-                            <span class="detail-label">Account / Channel:</span>
-                            <span class="detail-value highlight">@YouTubeAccountIdentifier</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Terakhir Diperbarui:</span>
-                            <span class="detail-value">@(YouTubeLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Status Token Refresh:</span>
-                            <span class="detail-value success">Aktif</span>
-                        </div>
-                    </div>
+            <!-- 2. CARD INTEGRASI GOOGLE DRIVE -->
+            <JUCard Class="mb-3">
+                <HeaderTemplate>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="card-title-group d-flex align-items-center gap-3">
+                            <div class="icon-box icon-gdrive">
+                                <i class="ti ti-brand-google-drive"></i>
+                            </div>
+                            <div class="card-info">
+                                <h5 class="mb-0">Google Drive Sync</h5>
+                                <small class="text-muted">Sinkronisasi file cadangan, database, dan file audio ke Google Drive.</small>
+                            </div>
+                        </div>
+                        <div>
+                            <JUBadge Type="@(IsGDriveConnected ? JUBadgeType.Success : JUBadgeType.Secondary)">
+                                @(IsGDriveConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
+                            </JUBadge>
+                        </div>
+                    </div>
+                </HeaderTemplate>
+                <ChildContent>
+                    @if (IsGDriveConnected)
+                    {
+                        <div class="details-list my-3">
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Akun Google:</span>
+                                <span class="detail-value fw-bold">@GDriveAccountIdentifier</span>
+                            </div>
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Terakhir Diperbarui:</span>
+                                <span class="detail-value">@(GDriveLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
+                            </div>
+                            <div class="detail-item d-flex justify-content-between mb-2">
+                                <span class="detail-label text-muted">Akses Folder Sync:</span>
+                                <span class="detail-value text-success fw-bold">Siap</span>
+                            </div>
+                        </div>
 
-                    <div class="card-actions">
-                        <button class="btn-matte" @onclick="ReauthenticateYouTube">Hubungkan Ulang</button>
-                        <button class="btn-matte btn-danger" @onclick="DisconnectYouTube">Putuskan Koneksi</button>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted mb-3" style="font-size: 0.75rem;">
-                        Login untuk memberikan otorisasi akses pustaka musik dan playlist YouTube Anda.
-                    </p>
-                    <div class="card-actions">
-                        <button class="btn-matte btn-danger d-flex align-items-center gap-2" @onclick="InitiateYouTubeLogin">
-                            <i class="ti ti-brand-youtube"></i>
-                            <span>Login dengan YouTube</span>
-                        </button>
-                    </div>
-                }
-            </div>
-
-            <!-- 2. CARD INTEGRASI GOOGLE DRIVE -->
-            <div class="matte-card">
-                <div class="matte-card-header">
-                    <div class="card-title-group">
-                        <div class="icon-box icon-gdrive">
-                            <i class="ti ti-brand-google-drive"></i>
-                        </div>
-                        <div class="card-info">
-                            <h5>Google Drive Sync</h5>
-                            <p>Sinkronisasi file cadangan, database, dan file audio ke Google Drive.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="status-badge @(IsGDriveConnected ? "badge-connected" : "badge-disconnected")">
-                            @(IsGDriveConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
-                        </span>
-                    </div>
-                </div>
-
-                <hr class="matte-divider" />
-
-                @if (IsGDriveConnected)
-                {
-                    <div class="details-list">
-                        <div class="detail-item">
-                            <span class="detail-label">Akun Google:</span>
-                            <span class="detail-value highlight">@GDriveAccountIdentifier</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Terakhir Diperbarui:</span>
-                            <span class="detail-value">@(GDriveLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Akses Folder Sync:</span>
-                            <span class="detail-value success">Siap</span>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <button class="btn-matte" @onclick="ReauthenticateGDrive">Hubungkan Ulang</button>
-                        <button class="btn-matte btn-danger" @onclick="DisconnectGDrive">Putuskan Koneksi</button>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted mb-3" style="font-size: 0.75rem;">
-                        Hubungkan akun Google Drive Anda untuk pencadangan file dan sinkronisasi pustaka lokal secara otomatis.
-                    </p>
-                    <div class="card-actions">
-                        <button class="btn-matte btn-primary d-flex align-items-center gap-2" @onclick="InitiateGDriveLogin">
-                            <i class="ti ti-brand-google-drive"></i>
-                            <span>Login Google Drive</span>
-                        </button>
-                    </div>
-                }
-            </div>
-        </div>
-    }
+                        <div class="card-actions d-flex gap-2 mt-3">
+                            <JUButton Variant="JUButtonVariant.Secondary" OnClick="ReauthenticateGDrive">
+                                Hubungkan Ulang
+                            </JUButton>
+                            <JUButton Variant="JUButtonVariant.Danger" OnClick="DisconnectGDrive">
+                                Putuskan Koneksi
+                            </JUButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-3" style="font-size: 0.85rem;">
+                            Hubungkan akun Google Drive Anda untuk pencadangan file dan sinkronisasi pustaka lokal secara otomatis.
+                        </p>
+                        <div class="card-actions">
+                            <JUButton Variant="JUButtonVariant.Primary" OnClick="InitiateGDriveLogin" Class="d-flex align-items-center gap-2">
+                                <i class="ti ti-brand-google-drive"></i>
+                                <span>Login Google Drive</span>
+                            </JUButton>
+                        </div>
+                    }
+                </ChildContent>
+            </JUCard>
+        </div>
+    }
 </div>
