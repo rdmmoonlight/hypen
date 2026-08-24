@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
 using Hypen.Web.Models;
+using Hypen.Web.Services;
 
 namespace Hypen.Web.Components.Pages.Tools.DriveDetector;
 
@@ -10,7 +11,12 @@ public partial class DriveDetector : ComponentBase
     [Inject]
     protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
+    [Inject]
+    protected GoogleDriveScannerEngine DriveScanner { get; set; } = default!;
+
     protected List<GDriveTrackModel> gdriveTracks = new();
+    protected string gdriveFolderId = string.Empty;
+
     protected bool isProcessing;
     protected string statusMsg = string.Empty;
     protected bool isError;
@@ -52,6 +58,32 @@ public partial class DriveDetector : ComponentBase
         }
     }
 
+    protected async Task FetchDriveFiles()
+    {
+        try
+        {
+            isProcessing = true;
+            statusMsg = "Sedang mengambil data dari akun Google Drive Anda dan menyimpan ke database...";
+            isError = false;
+            StateHasChanged();
+
+            int addedCount = await DriveScanner.FetchAndMapDriveFolderAsync(gdriveFolderId);
+
+            statusMsg = $"Selesai! Berhasil mengimpor/memperbarui {addedCount} file audio dari akun Google Drive Anda.";
+            await LoadDriveTracks();
+        }
+        catch (Exception ex)
+        {
+            statusMsg = $"Gagal mengambil file dari Google Drive: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
     protected async Task AutoLinkTracks()
     {
         try
@@ -73,7 +105,6 @@ public partial class DriveDetector : ComponentBase
                 return;
             }
 
-            // Ambil lagu yang memiliki AudioUrl saja untuk efisiensi
             var songsWithAudio = await dbContext.Songs
                 .Where(s => !string.IsNullOrEmpty(s.AudioUrl))
                 .Select(s => new { s.Id, s.AudioUrl })
@@ -85,7 +116,6 @@ public partial class DriveDetector : ComponentBase
             {
                 if (string.IsNullOrEmpty(track.FileId)) continue;
 
-                // Cari lagu pertama yang AudioUrl-nya mengandung FileId dari Drive
                 var matchSong = songsWithAudio.FirstOrDefault(s => s.AudioUrl!.Contains(track.FileId));
 
                 if (matchSong != null)
