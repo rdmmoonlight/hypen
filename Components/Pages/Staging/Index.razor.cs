@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
-namespace Hypen.Web.Pages.Staging;
+namespace Hypen.Web.Components.Pages.Staging;
 
 public partial class Index : ComponentBase
 {
