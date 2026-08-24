@@ -177,49 +177,6 @@
     color: #fda4af;
 }
 
-.btn-success {
-    background: #064e3b;
-    border-color: #10b981;
-    color: #10b981;
-}
-
-.btn-success:hover:not(:disabled) {
-    background: #047857;
-    color: #a7f3d0;
-}
-
-/* =========================================================================
-   GDRIVE PANELS & INPUTS
-   ========================================================================= */
-.gdrive-fetch-card {
-    margin-bottom: 16px;
-}
-
-.gdrive-input-grid {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.matte-input {
-    background: #0f1115;
-    border: 1px solid #262c36;
-    color: #f1f5f9;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: monospace;
-    outline: none;
-    transition: border-color 0.15s ease;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.matte-input:focus {
-    border-color: #38bdf8;
-}
-
 /* =========================================================================
    STATUS ALERTS & TEXT HELPERS
    ========================================================================= */
@@ -250,14 +207,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-
-.text-warning {
-    color: #f59e0b !important;
-}
-
-.text-danger {
-    color: #f43f5e !important;
 }
 
 .text-muted {
@@ -497,11 +446,4 @@
     font-size: 0.6rem;
     font-family: monospace;
     font-weight: 600;
-}
-
-/* RESPONSIVE LAYOUT */
-@media (max-width: 768px) {
-    .gdrive-input-grid {
-        grid-template-columns: 1fr;
-    }
 }
