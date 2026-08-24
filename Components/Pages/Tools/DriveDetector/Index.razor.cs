@@ -67,13 +67,26 @@ public partial class DriveDetector : ComponentBase
                 .Where(t => !t.IsLinkedToSong)
                 .ToListAsync();
 
+            if (unlinkedTracks.Count == 0)
+            {
+                statusMsg = "Tidak ada file yang perlu dihubungkan.";
+                return;
+            }
+
+            // Ambil lagu yang memiliki AudioUrl saja untuk efisiensi
+            var songsWithAudio = await dbContext.Songs
+                .Where(s => !string.IsNullOrEmpty(s.AudioUrl))
+                .Select(s => new { s.Id, s.AudioUrl })
+                .ToListAsync();
+
             int linkedSuccess = 0;
 
             foreach (var track in unlinkedTracks)
             {
-                // Mencari lagu yang cocok di tabel songs berdasarkan AudioUrl atau Judul
-                var matchSong = await dbContext.Songs
-                    .FirstOrDefaultAsync(s => s.AudioUrl != null && s.AudioUrl.Contains(track.FileId));
+                if (string.IsNullOrEmpty(track.FileId)) continue;
+
+                // Cari lagu pertama yang AudioUrl-nya mengandung FileId dari Drive
+                var matchSong = songsWithAudio.FirstOrDefault(s => s.AudioUrl!.Contains(track.FileId));
 
                 if (matchSong != null)
                 {
