@@ -97,7 +97,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in stagingList)
+                    @foreach (var row in PagedStagingList)
                     {
                         var isSelected = selectedRawIds.Contains(row.Id);
                         var isDuplicate = duplicateRawIds.Contains(row.Id);
@@ -141,6 +141,39 @@
                     }
                 </tbody>
             </table>
+        </div>
+
+        <!-- PAGINATION BAR -->
+        <div class="pagination-bar">
+            <div class="pagination-info">
+                Menampilkan @StartItem - @EndItem dari @stagingList.Count data
+            </div>
+
+            <div class="pagination-controls">
+                <button class="btn-page" @onclick="GoToFirstPage" disabled="@(currentPage == 1)">«</button>
+                <button class="btn-page" @onclick="GoToPreviousPage" disabled="@(currentPage == 1)">‹</button>
+
+                @for (int i = StartPage; i <= EndPage; i++)
+                {
+                    var pageNum = i;
+                    <button class="btn-page @(currentPage == pageNum ? "active" : "")" @onclick="() => GoToPage(pageNum)">
+                        @pageNum
+                    </button>
+                }
+
+                <button class="btn-page" @onclick="GoToNextPage" disabled="@(currentPage == TotalPages)">›</button>
+                <button class="btn-page" @onclick="GoToLastPage" disabled="@(currentPage == TotalPages)">»</button>
+            </div>
+
+            <div class="pagination-size">
+                <label>Per halaman:</label>
+                <select value="@pageSize" @onchange="OnPageSizeChanged" class="select-page-size">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
         </div>
     }
 
