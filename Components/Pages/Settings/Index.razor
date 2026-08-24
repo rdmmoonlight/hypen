@@ -1,156 +1,102 @@
-@page "/settingss"
-@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
+@namespace Hypen.Web.Components
 
-<PageTitle>Pengaturan Akun - Hypen Vault</PageTitle>
+<aside class="hypen-sidebar @(isExpanded ? "expanded" : "collapsed")">
+    <div class="sidebar-top">
+        <div class="sidebar-header">
+            @if (isExpanded)
+            {
+                <div class="brand-info animate-fade">
+                    <h3 class="nebula-title">Hypen Vault</h3>
+                    <span class="portal-subtitle">Audio Portal</span>
+                </div>
+            }
+            
+            <button type="button" class="toggle-btn" @onclick="ToggleSidebar" title="@(isExpanded ? "Collapse Sidebar" : "Expand Sidebar")">
+                <i class="ti @(isExpanded ? "ti-chevron-left" : "ti-chevron-right")"></i>
+            </button>
+        </div>
 
-<div class="matte-settingss-container">
-    <!-- Header Section -->
-    <div class="matte-settingss-header">
-        <h2>Pengaturan Akun</h2>
-        <p>Kelola integrasi OAuth YouTube dan Google Drive untuk ekosistem Hypen Vault.</p>
+        <nav class="sidebar-nav">
+            <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" title="Pustaka Musik">
+                <i class="ti ti-music"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Pustaka Musik</span>
+                }
+            </NavLink>
+
+            <NavLink href="extraction" class="nav-item-nebula" title="Library Extraction Engine">
+                <i class="ti ti-refresh"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Extraction</span>
+                }
+            </NavLink>
+
+            <NavLink href="staging" class="nav-item-nebula" title="Staging Buffer Review">
+                <i class="ti ti-stack-2"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Staging Buffer</span>
+                }
+            </NavLink>
+
+            <!-- Vault Tools Dropdown Parent -->
+            <div class="nav-dropdown-wrapper">
+                <NavLink href="tools" Match="NavLinkMatch.Prefix" class="nav-item-nebula d-flex align-items-center justify-content-between" @onclick="OnToolsParentClick" title="Vault Tools & Maintenance Center">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ti ti-tools"></i>
+                        @if (isExpanded)
+                        {
+                            <span class="nav-text animate-fade ms-1">Vault Tools</span>
+                        }
+                    </div>
+                    @if (isExpanded)
+                    {
+                        <span class="dropdown-trigger" @onclick:stopPropagation="true" @onclick="ToggleToolsSubmenu">
+                            <i class="ti @(isToolsSubmenuOpen ? "ti-chevron-down" : "ti-chevron-right") dropdown-arrow"></i>
+                        </span>
+                    }
+                </NavLink>
+
+                <!-- Submenu / Dropdown Items -->
+                @if (isToolsSubmenuOpen && isExpanded)
+                {
+                    <div class="submenu-container animate-fade">
+                        <NavLink href="tools/dedup" class="nav-item-nebula submenu-item" title="Duplicate Detector">
+                            <i class="ti ti-copy"></i>
+                            <span class="nav-text">Duplicate Detector</span>
+                        </NavLink>
+
+                        <NavLink href="tools/localsync" class="nav-item-nebula submenu-item" title="Local Sync">
+                            <i class="ti ti-folder-symlink"></i>
+                            <span class="nav-text">Local Sync</span>
+                        </NavLink>
+
+                        <NavLink href="tools/drivedetector" class="nav-item-nebula submenu-item" title="GDrive Management">
+                            <i class="ti ti-brand-google-drive"></i>
+                            <span class="nav-text">GDrive Management</span>
+                        </NavLink>
+                    </div>
+                }
+            </div>
+
+            <NavLink href="settingss" class="nav-item-nebula" title="Pengaturan Akun">
+                <i class="ti ti-settings"></i>
+                @if (isExpanded)
+                {
+                    <span class="nav-text animate-fade">Pengaturan</span>
+                }
+            </NavLink>
+        </nav>
     </div>
 
-    @if (IsLoading)
+    @if (isExpanded)
     {
-        <div class="status-alert alert-loading">
-            <div class="d-flex align-items-center gap-2">
-                <span class="spinner-border spinner-border-sm" role="status"></span>
-                <span>Memeriksa status otentikasi layanan Google...</span>
-            </div>
+        <div class="sidebar-footer animate-fade">
+            <p class="footer-text">
+                💡 Enjoy your music via <strong class="text-accent">Hypen Music</strong>.
+            </p>
         </div>
     }
-    else
-    {
-        @if (!string.IsNullOrEmpty(ErrorMessage))
-        {
-            <div class="status-alert alert-error">
-                <span>@ErrorMessage</span>
-                <button type="button" class="btn-dismiss" @onclick="DismissError">&times;</button>
-            </div>
-        }
-
-        @if (!string.IsNullOrEmpty(SuccessMessage))
-        {
-            <div class="status-alert alert-success">
-                <span>@SuccessMessage</span>
-                <button type="button" class="btn-dismiss" @onclick="DismissSuccess">&times;</button>
-            </div>
-        }
-
-        <div class="integration-grid">
-            <!-- 1. CARD INTEGRASI YOUTUBE -->
-            <div class="matte-card">
-                <div class="matte-card-header">
-                    <div class="card-title-group">
-                        <div class="icon-box icon-youtube">
-                            <i class="ti ti-brand-youtube"></i>
-                        </div>
-                        <div class="card-info">
-                            <h5>YouTube Integration</h5>
-                            <p>Sinkronisasi playlist, metadata, dan musik secara otomatis.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="status-badge @(IsYouTubeConnected ? "badge-connected" : "badge-disconnected")">
-                            @(IsYouTubeConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
-                        </span>
-                    </div>
-                </div>
-
-                <hr class="matte-divider" />
-
-                @if (IsYouTubeConnected)
-                {
-                    <div class="details-list">
-                        <div class="detail-item">
-                            <span class="detail-label">Account / Channel:</span>
-                            <span class="detail-value highlight">@YouTubeAccountIdentifier</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Terakhir Diperbarui:</span>
-                            <span class="detail-value">@(YouTubeLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Status Token Refresh:</span>
-                            <span class="detail-value success">Aktif</span>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <button class="btn-matte" @onclick="ReauthenticateYouTube">Hubungkan Ulang</button>
-                        <button class="btn-matte btn-danger" @onclick="DisconnectYouTube">Putuskan Koneksi</button>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted mb-3" style="font-size: 0.75rem;">
-                        Login untuk memberikan otorisasi akses pustaka musik dan playlist YouTube Anda.
-                    </p>
-                    <div class="card-actions">
-                        <button class="btn-matte btn-danger d-flex align-items-center gap-2" @onclick="InitiateYouTubeLogin">
-                            <i class="ti ti-brand-youtube"></i>
-                            <span>Login dengan YouTube</span>
-                        </button>
-                    </div>
-                }
-            </div>
-
-            <!-- 2. CARD INTEGRASI GOOGLE DRIVE -->
-            <div class="matte-card">
-                <div class="matte-card-header">
-                    <div class="card-title-group">
-                        <div class="icon-box icon-gdrive">
-                            <i class="ti ti-brand-google-drive"></i>
-                        </div>
-                        <div class="card-info">
-                            <h5>Google Drive Sync</h5>
-                            <p>Sinkronisasi file cadangan, database, dan file audio ke Google Drive.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="status-badge @(IsGDriveConnected ? "badge-connected" : "badge-disconnected")">
-                            @(IsGDriveConnected ? "TERHUBUNG" : "BELUM TERHUBUNG")
-                        </span>
-                    </div>
-                </div>
-
-                <hr class="matte-divider" />
-
-                @if (IsGDriveConnected)
-                {
-                    <div class="details-list">
-                        <div class="detail-item">
-                            <span class="detail-label">Akun Google:</span>
-                            <span class="detail-value highlight">@GDriveAccountIdentifier</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Terakhir Diperbarui:</span>
-                            <span class="detail-value">@(GDriveLastUpdated?.ToString("dd MMM yyyy, HH:mm WIB") ?? "-")</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Akses Folder Sync:</span>
-                            <span class="detail-value success">Siap</span>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <button class="btn-matte" @onclick="ReauthenticateGDrive">Hubungkan Ulang</button>
-                        <button class="btn-matte btn-danger" @onclick="DisconnectGDrive">Putuskan Koneksi</button>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted mb-3" style="font-size: 0.75rem;">
-                        Hubungkan akun Google Drive Anda untuk pencadangan file dan sinkronisasi pustaka lokal secara otomatis.
-                    </p>
-                    <div class="card-actions">
-                        <button class="btn-matte btn-primary d-flex align-items-center gap-2" @onclick="InitiateGDriveLogin">
-                            <i class="ti ti-brand-google-drive"></i>
-                            <span>Login Google Drive</span>
-                        </button>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-</div>
+</aside>
