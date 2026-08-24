@@ -1,7 +1,11 @@
+/* =========================================================================
+   HYPEN SIDEBAR - MATTE DARK SLATE WITH TABLER ICONS
+   ========================================================================= */
+
 .hypen-sidebar {
-    background: rgba(18, 16, 28, 0.85);
+    background: #121418;
     backdrop-filter: blur(12px);
-    border-right: 2px solid #ffffff;
+    border-right: 1px solid #262c36;
     padding: 18px 12px;
     flex-shrink: 0;
     display: flex;
@@ -14,11 +18,11 @@
     max-height: 100vh !important;
     box-sizing: border-box;
     z-index: 1000;
-    box-shadow: 
-        0 0 8px rgba(255, 255, 255, 0.8),
-        0 0 20px rgba(255, 255, 255, 0.3);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #94a3b8;
 }
 
 .hypen-sidebar.expanded {
@@ -41,7 +45,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
     min-height: 38px;
     flex-shrink: 0;
 }
@@ -50,115 +56,129 @@
     flex-direction: column;
     gap: 12px;
     justify-content: center;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .nebula-title {
-    font-size: 1.2rem;
-    color: #4cc9f0;
-    margin-bottom: 0px;
-    font-weight: 700;
+    font-size: 1.1rem;
+    color: #f1f5f9;
+    margin-bottom: 2px;
+    font-weight: 600;
     white-space: nowrap;
 }
 
 .portal-subtitle {
-    font-size: 0.7rem;
-    color: #66fcf1;
+    font-size: 0.68rem;
+    color: #38bdf8;
     text-transform: uppercase;
     letter-spacing: 1px;
+    font-family: monospace;
     white-space: nowrap;
 }
 
 .toggle-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    background: #181b20;
+    border: 1px solid #262c36;
+    color: #94a3b8;
     width: 32px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     flex-shrink: 0;
 }
 
 .toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
 }
 
 .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 2px;
 }
 
-/* Custom Scrollbar tipis untuk Sidebar Nav */
 .sidebar-nav::-webkit-scrollbar {
     width: 4px;
 }
+
 .sidebar-nav::-webkit-scrollbar-thumb {
-    background: rgba(76, 201, 240, 0.3);
+    background: #262c36;
     border-radius: 4px;
 }
 
 /* ----------------------------------------------------------------- */
-/* FIX SIMETRIS, WARNA, DAN UKURAN IKON                             */
+/* NAVIGATION ITEMS & TABLER ICONS BOX                               */
 /* ----------------------------------------------------------------- */
 
 .nav-item-nebula {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     text-decoration: none;
-    color: #c5c6c7;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    transition: all 0.2s ease-in-out;
+    color: #94a3b8;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
     white-space: nowrap;
     cursor: pointer;
+    border: 1px solid transparent;
 }
 
-/* Pengaturan khusus wadah Ikon agar selalu Simetris Presisi di Tengah */
+/* Penyelarasan Kotak Ikon khas Tabler / Matte */
 .nav-item-nebula i {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;              /* Ukuran area simetris */
-    height: 24px;
-    font-size: 1.25rem !important; /* Ukuran proporsional jelas */
-    color: #4cc9f0 !important;  /* Paksa warna cyan mengkilap */
+    width: 32px;
+    height: 32px;
+    font-size: 1.15rem;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    border-radius: 6px;
     flex-shrink: 0;
-    transition: color 0.2s ease, transform 0.2s ease;
+    transition: all 0.15s ease;
 }
 
-/* Saat Sidebar Menu di-Collapse/Disembunyikan */
 .hypen-sidebar.collapsed .nav-item-nebula {
     justify-content: center;
-    padding: 12px 0;
+    padding: 8px 0;
 }
 
-/* Efek Hover dan State Aktif Menu */
-.nav-item-nebula:hover, 
+/* Hover & Active States */
+.nav-item-nebula:hover {
+    color: #f1f5f9 !important;
+    background: #181b20;
+    border-color: #262c36;
+}
+
 .nav-item-nebula.active {
-    color: #ffffff !important;
-    background: rgba(76, 201, 240, 0.15);
-    box-shadow: 0 0 12px rgba(76, 201, 240, 0.3);
+    color: #f1f5f9 !important;
+    background: #181b20;
+    border-color: rgba(56, 189, 248, 0.4);
 }
 
-.nav-item-nebula:hover i, 
+.nav-item-nebula:hover i,
 .nav-item-nebula.active i {
-    color: #66fcf1 !important;  /* Mengkilap terang saat aktif/hover */
-    transform: scale(1.1);       /* Efek animasi membesar halus */
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
 /* ----------------------------------------------------------------- */
-/* SUBMENU / DROPDOWN TOOLS STYLES                                   */
+/* SUBMENU DROPDOWN STYLES                                           */
 /* ----------------------------------------------------------------- */
 
 .nav-dropdown-wrapper {
@@ -167,86 +187,86 @@
     width: 100%;
 }
 
-/* Tombol Pemicu Toggle Chevron Panah */
 .dropdown-trigger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
+    padding: 2px;
+    transition: background 0.15s ease;
 }
 
 .dropdown-trigger:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: #262c36;
 }
 
-/* Indikator Panah Dropdown */
 .dropdown-arrow {
-    width: 16px !important;
-    height: 16px !important;
-    font-size: 0.85rem !important;
-    color: #c5c6c7 !important;
-    transition: transform 0.2s ease, color 0.2s ease;
+    width: auto !important;
+    height: auto !important;
+    font-size: 0.9rem !important;
+    color: #64748b !important;
+    background: transparent !important;
+    border: none !important;
+    transition: color 0.15s ease;
 }
 
 .nav-item-nebula:hover .dropdown-arrow,
 .dropdown-trigger:hover .dropdown-arrow {
-    color: #66fcf1 !important;
+    color: #38bdf8 !important;
 }
 
-/* Kontainer Submenu Anak */
 .submenu-container {
     display: flex;
     flex-direction: column;
     gap: 4px;
     margin-top: 4px;
-    padding-left: 12px;
-    border-left: 2px solid rgba(76, 201, 240, 0.3);
-    margin-left: 24px;
+    padding-left: 10px;
+    border-left: 1px solid #262c36;
+    margin-left: 18px;
 }
 
-/* Item Submenu Anak */
 .submenu-item {
-    padding: 8px 12px;
-    font-size: 0.82rem;
-    border-radius: 6px;
-    gap: 10px;
+    padding: 6px 8px;
+    font-size: 0.78rem;
 }
 
 .submenu-item i {
-    width: 18px;
-    height: 18px;
-    font-size: 1rem !important;
+    width: 26px;
+    height: 26px;
+    font-size: 0.95rem;
 }
 
+/* ----------------------------------------------------------------- */
+/* FOOTER                                                            */
 /* ----------------------------------------------------------------- */
 
 .sidebar-footer {
     padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #1e293b;
     flex-shrink: 0;
     margin-top: auto;
 }
 
 .footer-text {
     font-size: 0.72rem;
-    color: #c5c6c7;
+    color: #64748b;
     line-height: 1.35;
     margin: 0;
 }
 
 .text-accent {
-    color: #4cc9f0;
+    color: #38bdf8;
+    font-weight: 600;
 }
 
 .animate-fade {
-    animation: fadeIn 0.25s ease-in-out forwards;
+    animation: fadeIn 0.2s ease-in-out forwards;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateX(-5px);
+        transform: translateX(-4px);
     }
     to {
         opacity: 1;
