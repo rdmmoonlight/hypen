@@ -69,7 +69,7 @@ public partial class Sidebar
 
     protected void NavigateToLocalSync()
     {
-        Navigation.NavigateTo("/tools/synclocal");
+        Navigation.NavigateTo("/tools/localsync");
     }
 
     protected void NavigateToGDriveManagement()
