@@ -41,13 +41,45 @@
                 }
             </NavLink>
 
-            <NavLink href="tools" class="nav-item-nebula" title="Vault Tools & Maintenance Center">
-                <i class="bi bi-tools fs-5"></i>
-                @if (isExpanded)
+            <!-- Vault Tools Dropdown Parent -->
+            <div class="nav-dropdown-wrapper">
+                <button type="button" class="nav-item-nebula btn-dropdown-toggle w-100 border-0 bg-transparent text-start" @onclick="ToggleToolsSubmenu" title="Vault Tools & Maintenance Center">
+                    <div class="d-flex align-items-center justify-content-between w-100">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-tools fs-5"></i>
+                            @if (isExpanded)
+                            {
+                                <span class="nav-text animate-fade ms-2">Vault Tools</span>
+                            }
+                        </div>
+                        @if (isExpanded)
+                        {
+                            <i class="bi @(isToolsSubmenuOpen ? "bi-chevron-down" : "bi-chevron-right") dropdown-arrow ms-auto"></i>
+                        }
+                    </div>
+                </button>
+
+                <!-- Submenu / Dropdown Items -->
+                @if (isToolsSubmenuOpen && isExpanded)
                 {
-                    <span class="nav-text animate-fade">Vault Tools</span>
+                    <div class="submenu-container ps-4 animate-fade">
+                        <NavLink href="tools/duplicate-detector" class="nav-item-nebula submenu-item" title="Duplicate Detector">
+                            <i class="bi bi-files fs-6"></i>
+                            <span class="nav-text fs-7">Duplicate Detector</span>
+                        </NavLink>
+
+                        <NavLink href="tools/local-sync" class="nav-item-nebula submenu-item" title="Local Sync">
+                            <i class="bi bi-folder-symlink fs-6"></i>
+                            <span class="nav-text fs-7">Local Sync</span>
+                        </NavLink>
+
+                        <NavLink href="tools/gdrive-management" class="nav-item-nebula submenu-item" title="GDrive Management">
+                            <i class="bi bi-cloud-arrow-up fs-6"></i>
+                            <span class="nav-text fs-7">GDrive Management</span>
+                        </NavLink>
+                    </div>
                 }
-            </NavLink>
+            </div>
 
             <NavLink href="setting" class="nav-item-nebula" title="Pengaturan Akun">
                 <i class="bi bi-gear-fill fs-5"></i>
