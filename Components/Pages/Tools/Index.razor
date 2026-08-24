@@ -1,157 +1,58 @@
 @page "/tools"
-@using Hypen.Web.Models
-@using Hypen.Web.Services
 
 <PageTitle>Database Tools Center - Hypen Music</PageTitle>
 
 <div class="matte-container">
-
-    <!-- TAB NAVIGATION BAR -->
-    <div class="matte-tabs">
-        <button class="tab-item @(activeTab == "dedup" ? "active" : "")" @onclick='() => SwitchTab("dedup")'>
-            <i class="ti ti-search"></i> DUPLICATE DETECTOR
-        </button>
-        <a href="/tools/synclocal" class="tab-item">
-            <i class="ti ti-folder-sync"></i> LOCAL SYNC
-        </a>
-        <a href="/tools/driveDetector" class="tab-item">
-            <i class="ti ti-brand-google-drive"></i> GDRIVE MANAGEMENT
-        </a>
+    <!-- HEADER -->
+    <div class="matte-header">
+        <div>
+            <div class="matte-subtitle">System Maintenance</div>
+            <h1 class="matte-title">Database Tools Center</h1>
+        </div>
     </div>
 
-    <!-- ALERT STATUS -->
-    @if (!string.IsNullOrEmpty(statusMsg))
-    {
-        <div class="status-alert @(isError ? "alert-error" : "alert-info")">
-            <p class="status-text">@statusMsg</p>
-        </div>
-    }
-
-    <!-- ========================================================================= -->
-    <!-- TAB 1: DUPLICATE DETECTOR -->
-    <!-- ========================================================================= -->
-    @if (activeTab == "dedup")
-    {
-        <!-- HEADER -->
-        <div class="matte-header">
-            <div>
-                <div class="matte-subtitle">System Maintenance</div>
-                <h1 class="matte-title">Database Duplicate Detector</h1>
+    <!-- GRID 3 KARTU NAVIGASI TOOLS -->
+    <div class="tools-grid">
+        <!-- CARD 1: DUPLICATE DETECTOR -->
+        <a href="/tools/dedup" class="matte-card tool-card">
+            <div class="tool-icon">
+                <i class="ti ti-search"></i>
             </div>
-            <div class="matte-counter">
-                @duplicateGroups.Count CLUSTERS
-            </div>
-        </div>
-
-        <!-- TOOLBAR -->
-        <div class="matte-toolbar">
-            <div class="matte-action-group">
-                <button class="btn-matte btn-primary" @onclick="ScanDuplicates" disabled="@isProcessing">
-                    <i class="ti ti-scan"></i> @(isProcessing ? "MEMINDAI DATABASE..." : "SCAN DATABASE FOR DUPLICATES")
-                </button>
-
-                @if (duplicateGroups.Count > 0)
-                {
-                    <button class="btn-matte btn-danger" @onclick="PurgeSelected" disabled="@(isProcessing || TotalToDeleteCount == 0)">
-                        <i class="ti ti-trash"></i> PURGE TERPILIH (@TotalToDeleteCount)
-                    </button>
-                }
-            </div>
-
-            <div class="matte-search-group">
-                <span class="status-badge"><i class="ti ti-database-check"></i> STATUS DB: OK</span>
-            </div>
-        </div>
-
-        <!-- CONTENT DISPLAY -->
-        @if (!hasScanned && !isProcessing)
-        {
-            <div class="matte-card text-center py-4">
-                <div class="matte-tag">Maintenance Engine</div>
-                <h3 class="card-title">Mulai Pemindaian Database</h3>
+            <div class="tool-info">
+                <div class="matte-tag">Database Maintenance</div>
+                <h3 class="card-title">Duplicate Detector</h3>
                 <p class="status-text text-muted">
-                    Klik <strong>SCAN DATABASE FOR DUPLICATES</strong> di atas untuk mendeteksi klaster lagu yang mirip secara otomatis.
+                    Memindai dan membersihkan lagu duplikat di database master secara otomatis.
                 </p>
             </div>
-        }
-        else if (isProcessing)
-        {
-            <div class="matte-card text-center py-4">
-                <div class="matte-tag">Analyzing Audio Metadata</div>
-                <h3 class="card-title">Memindai Seluruh Isi Database...</h3>
+        </a>
+
+        <!-- CARD 2: LOCAL SYNC -->
+        <a href="/tools/synclocal" class="matte-card tool-card">
+            <div class="tool-icon">
+                <i class="ti ti-folder-sync"></i>
+            </div>
+            <div class="tool-info">
+                <div class="matte-tag">Local Storage</div>
+                <h3 class="card-title">Local Sync Engine</h3>
                 <p class="status-text text-muted">
-                    Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
+                    Sinkronisasi indeks direktori lokal dan pemindaian file audio fisik.
                 </p>
             </div>
-        }
-        else if (hasScanned && duplicateGroups.Count == 0)
-        {
-            <div class="matte-card text-center py-4 border-clean">
-                <div class="matte-tag tag-clean">Database Status // Clean</div>
-                <h3 class="card-title text-clean">Database Clean &amp; Pristine!</h3>
+        </a>
+
+        <!-- CARD 3: GDRIVE MANAGEMENT -->
+        <a href="/tools/driveDetector" class="matte-card tool-card">
+            <div class="tool-icon">
+                <i class="ti ti-brand-google-drive"></i>
+            </div>
+            <div class="tool-info">
+                <div class="matte-tag">Cloud Integration</div>
+                <h3 class="card-title">GDrive Management</h3>
                 <p class="status-text text-muted">
-                    Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.
+                    Pengelolaan dan auto-link file audio terindeks dari Google Drive.
                 </p>
             </div>
-        }
-        else if (duplicateGroups.Count > 0)
-        {
-            <div class="preview-container">
-                <div class="preview-header">
-                    <span>TERDETEKSI (@duplicateGroups.Count:N0) KELOMPOK DUPLIKAT</span>
-                    <span class="dup-summary-tag">@TotalToDeleteCount:N0 SONGS WILL BE REMOVED FROM DATABASE</span>
-                </div>
-
-                <div class="cluster-list">
-                    @foreach (var group in duplicateGroups)
-                    {
-                        <div class="matte-card cluster-card">
-                            <div class="cluster-sub-header">
-                                <div class="cluster-title-info">
-                                    <span class="badge-dup">@group.MatchReason</span>
-                                    <span class="cluster-key">Grup: @group.GroupKey</span>
-                                </div>
-                                <span class="score-tag">Score: @group.SimilarityScore%</span>
-                            </div>
-
-                            <div class="song-compact-grid">
-                                @foreach (var song in group.Items)
-                                {
-                                    bool isMaster = group.KeepSongId == song.Id;
-                                    <div class="song-compact-card @(isMaster ? "card-keep" : "card-purge")"
-                                         @onclick="() => OnMasterSelected(group, song.Id)">
-
-                                        <div class="compact-card-header">
-                                            <button type="button"
-                                                    class="badge-action @(isMaster ? "badge-keep-btn" : "badge-purge-btn")"
-                                                    @onclick:stopPropagation="true"
-                                                    @onclick="() => OnMasterSelected(group, song.Id)">
-                                                <i class="ti @(isMaster ? "ti-bookmark-check" : "ti-trash")"></i>
-                                                @(isMaster ? "SIMPAN (MASTER)" : "HAPUS")
-                                            </button>
-                                            <span class="song-id-tag">#@song.Id</span>
-                                        </div>
-
-                                        <div class="compact-card-body">
-                                            <div class="compact-song-title">@song.Title</div>
-                                            <div class="compact-song-artist">
-                                                @(song.Artist ?? "Unknown Artist") • @(song.Album ?? "Single")
-                                            </div>
-                                        </div>
-
-                                        <div class="compact-card-footer">
-                                            <span><i class="ti ti-clock"></i> @(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</span>
-                                            <span><i class="ti ti-photo"></i> @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "Ada" : "Absen")</span>
-                                            <span><i class="ti ti-id"></i> @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-    }
-
+        </a>
+    </div>
 </div>
