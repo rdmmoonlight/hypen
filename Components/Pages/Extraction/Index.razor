@@ -1,4 +1,7 @@
 @page "/extraction"
+@using Hypen.Web.Models
+@using Hypen.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>Extraction Engine - Hypen Music Vault</PageTitle>
 
@@ -121,3 +124,101 @@
         </div>
     }
 </div>
+
+@code {
+    // ==========================================
+    // COUNTERS & STATES
+    // ==========================================
+    private int pendingRawCount = 0;
+    private int completedSongsCount = 0;
+
+    private string targetPlaylistId = string.Empty;
+    private string statusMsg = string.Empty;
+    private bool isError = false;
+    private bool isProcessing = false;
+    private bool isAllSelected = true;
+
+    // ==========================================
+    // QUEUE DATA
+    // ==========================================
+    private List<ParsedQueueItemModel> extractedList = new();
+
+    // ==========================================
+    // ACTION HANDLERS
+    // ==========================================
+    private async Task FetchYouTubeToPreview()
+    {
+        if (string.IsNullOrWhiteSpace(targetPlaylistId))
+        {
+            statusMsg = "Masukkan URL atau ID Playlist YouTube terlebih dahulu.";
+            isError = true;
+            return;
+        }
+
+        isProcessing = true;
+        isError = false;
+        statusMsg = "Memproses stream ingest YouTube...";
+
+        // TODO: Panggil Service Ingest YouTube Anda di sini
+        await Task.Delay(500);
+
+        isProcessing = false;
+        statusMsg = "Stream YouTube berhasil ditambahkan ke antrean preview.";
+    }
+
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        isProcessing = true;
+        statusMsg = "Membaca file MP3 lokal...";
+        isError = false;
+
+        // TODO: Panggil Service Pemroses MP3 Lokal
+        await Task.Delay(500);
+
+        isProcessing = false;
+        statusMsg = "File MP3 lokal berhasil dibaca.";
+    }
+
+    private void ClearPreview()
+    {
+        extractedList.Clear();
+        statusMsg = "Antrean preview dibersihkan.";
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        isAllSelected = e.Value is bool b && b;
+        foreach (var item in extractedList.Where(i => !i.IsDuplicateInDb))
+        {
+            item.IsSelected = isAllSelected;
+        }
+    }
+
+    private async Task SaveSelectedToRaw()
+    {
+        var itemsToCommit = extractedList.Where(i => i.IsSelected && !i.IsDuplicateInDb).ToList();
+        if (!itemsToCommit.Any()) return;
+
+        isProcessing = true;
+        statusMsg = $"Menyimpan {itemsToCommit.Count} lagu baru ke Staging Buffer...";
+
+        // TODO: Simpan data ke database / staging
+        await Task.Delay(500);
+
+        isProcessing = false;
+        statusMsg = "Berhasil commit lagu baru ke Staging!";
+    }
+
+    // ==========================================
+    // MODEL HELPER
+    // ==========================================
+    public class ParsedQueueItemModel
+    {
+        public bool IsSelected { get; set; } = true;
+        public bool IsDuplicateInDb { get; set; } = false;
+        public string? DuplicateReason { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string CleanArtist { get; set; } = string.Empty;
+        public string CleanTitle { get; set; } = string.Empty;
+    }
+}
