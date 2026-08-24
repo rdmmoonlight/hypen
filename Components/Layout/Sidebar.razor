@@ -12,13 +12,13 @@
             }
             
             <button type="button" class="toggle-btn" @onclick="ToggleSidebar" title="@(isExpanded ? "Collapse Sidebar" : "Expand Sidebar")">
-                <i class="bi @(isExpanded ? "bi-chevron-left" : "bi-chevron-right")"></i>
+                <i class="ti @(isExpanded ? "ti-chevron-left" : "ti-chevron-right")"></i>
             </button>
         </div>
 
         <nav class="sidebar-nav">
             <NavLink href="library" Match="NavLinkMatch.All" class="nav-item-nebula" title="Pustaka Musik">
-                <i class="bi bi-music-note-list fs-5"></i>
+                <i class="ti ti-music"></i>
                 @if (isExpanded)
                 {
                     <span class="nav-text animate-fade">Pustaka Musik</span>
@@ -26,7 +26,7 @@
             </NavLink>
 
             <NavLink href="extraction" class="nav-item-nebula" title="Library Extraction Engine">
-                <i class="bi bi-arrow-repeat fs-5"></i>
+                <i class="ti ti-refresh"></i>
                 @if (isExpanded)
                 {
                     <span class="nav-text animate-fade">Extraction</span>
@@ -34,7 +34,7 @@
             </NavLink>
 
             <NavLink href="staging" class="nav-item-nebula" title="Staging Buffer Review">
-                <i class="bi bi-stack fs-5"></i>
+                <i class="ti ti-stack-2"></i>
                 @if (isExpanded)
                 {
                     <span class="nav-text animate-fade">Staging Buffer</span>
@@ -44,17 +44,17 @@
             <!-- Vault Tools Dropdown Parent -->
             <div class="nav-dropdown-wrapper">
                 <NavLink href="tools" Match="NavLinkMatch.Prefix" class="nav-item-nebula d-flex align-items-center justify-content-between" @onclick="OnToolsParentClick" title="Vault Tools & Maintenance Center">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-tools fs-5"></i>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ti ti-tools"></i>
                         @if (isExpanded)
                         {
-                            <span class="nav-text animate-fade ms-2">Vault Tools</span>
+                            <span class="nav-text animate-fade ms-1">Vault Tools</span>
                         }
                     </div>
                     @if (isExpanded)
                     {
-                        <span class="dropdown-trigger p-1" @onclick:stopPropagation="true" @onclick="ToggleToolsSubmenu">
-                            <i class="bi @(isToolsSubmenuOpen ? "bi-chevron-down" : "bi-chevron-right") dropdown-arrow ms-auto"></i>
+                        <span class="dropdown-trigger" @onclick:stopPropagation="true" @onclick="ToggleToolsSubmenu">
+                            <i class="ti @(isToolsSubmenuOpen ? "ti-chevron-down" : "ti-chevron-right") dropdown-arrow"></i>
                         </span>
                     }
                 </NavLink>
@@ -62,27 +62,27 @@
                 <!-- Submenu / Dropdown Items -->
                 @if (isToolsSubmenuOpen && isExpanded)
                 {
-                    <div class="submenu-container ps-4 animate-fade">
+                    <div class="submenu-container animate-fade">
                         <NavLink href="tools/dedup" class="nav-item-nebula submenu-item" title="Duplicate Detector">
-                            <i class="bi bi-files fs-6"></i>
-                            <span class="nav-text fs-7">Duplicate Detector</span>
+                            <i class="ti ti-copy"></i>
+                            <span class="nav-text">Duplicate Detector</span>
                         </NavLink>
 
                         <NavLink href="tools/localsync" class="nav-item-nebula submenu-item" title="Local Sync">
-                            <i class="bi bi-folder-symlink fs-6"></i>
-                            <span class="nav-text fs-7">Local Sync</span>
+                            <i class="ti ti-folder-symlink"></i>
+                            <span class="nav-text">Local Sync</span>
                         </NavLink>
 
                         <NavLink href="tools/drivedetector" class="nav-item-nebula submenu-item" title="GDrive Management">
-                            <i class="bi bi-cloud-arrow-up fs-6"></i>
-                            <span class="nav-text fs-7">GDrive Management</span>
+                            <i class="ti ti-brand-google-drive"></i>
+                            <span class="nav-text">GDrive Management</span>
                         </NavLink>
                     </div>
                 }
             </div>
 
             <NavLink href="settingss" class="nav-item-nebula" title="Pengaturan Akun">
-                <i class="bi bi-gear-fill fs-5"></i>
+                <i class="ti ti-settings"></i>
                 @if (isExpanded)
                 {
                     <span class="nav-text animate-fade">Pengaturan</span>
