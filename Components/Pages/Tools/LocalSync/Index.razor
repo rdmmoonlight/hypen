@@ -34,29 +34,31 @@
 
     <!-- FILE / FOLDER UPLOAD CARD -->
     <div class="matte-card local-folder-card">
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="matte-tag">Audio Directory &amp; File Scanner</div>
             
             <!-- MODE SWITCHER BUTTONS -->
             <div class="btn-group">
-                <button class="btn btn-sm @(uploadMode == "folder" ? "btn-primary" : "btn-outline-secondary")" 
+                <button type="button" 
+                        class="btn btn-sm @(uploadMode == "folder" ? "btn-primary" : "btn-outline-secondary")" 
                         @onclick='() => SetUploadMode("folder")' 
                         disabled="@(isExtracting || isSyncing)">
-                    <i class="ti ti-folder"></i> Pilih Folder
+                    <i class="ti ti-folder"></i> Mode Folder
                 </button>
-                <button class="btn btn-sm @(uploadMode == "file" ? "btn-primary" : "btn-outline-secondary")" 
+                <button type="button" 
+                        class="btn btn-sm @(uploadMode == "file" ? "btn-primary" : "btn-outline-secondary")" 
                         @onclick='() => SetUploadMode("file")' 
                         disabled="@(isExtracting || isSyncing)">
-                    <i class="ti ti-file-music"></i> Pilih File MP3
+                    <i class="ti ti-file-music"></i> Mode File MP3
                 </button>
             </div>
         </div>
 
         @if (uploadMode == "folder")
         {
-            <div class="card-title mt-2">Pilih Folder Musik dari Komputer</div>
+            <div class="card-title mt-2">Pilih Folder Musik</div>
             <p class="status-text text-muted mb-3">
-                Klik tombol di bawah dan <strong>pilih folder</strong> (seluruh file .mp3 / audio di dalam folder &amp; subfolder akan di-scan).
+                Pilih satu folder dari komputer (seluruh file audio di dalam folder &amp; subfolder akan di-scan).
             </p>
 
             <div class="local-folder-grid">
@@ -69,9 +71,9 @@
         }
         else
         {
-            <div class="card-title mt-2">Pilih Satu / Beberapa File Audio</div>
+            <div class="card-title mt-2">Pilih File Audio (.mp3, .wav, .m4a, .flac)</div>
             <p class="status-text text-muted mb-3">
-                Klik tombol di bawah untuk memilih file audio spesifik (.mp3, .wav, .m4a, .flac).
+                Pilih satu atau beberapa file audio langsung dari komputer Anda.
             </p>
 
             <div class="local-folder-grid">
