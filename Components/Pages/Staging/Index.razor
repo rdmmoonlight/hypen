@@ -52,6 +52,12 @@
                 </button>
             }
 
+            <!-- TOMBOL MANUAL CEK DUPLIKAT (SELALU MUNCUL) -->
+            <button class="btn-action check-duplicates" @onclick="RunDuplicateCheck" disabled="@isProcessing">
+                🔍 CHECK DUPLICATES
+            </button>
+
+            <!-- TOMBOL PEMBERSIHAN (AKTIF KETIKA DUPLIKAT TERDETEKSI) -->
             @if (duplicateRawIds.Count > 0)
             {
                 <button class="btn-action clean-duplicates" @onclick="DeleteDuplicateStagingItems" disabled="@isProcessing">
