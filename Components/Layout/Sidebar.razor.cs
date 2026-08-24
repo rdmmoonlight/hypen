@@ -89,6 +89,6 @@ public partial class Sidebar
 
     protected void NavigateToSetting()
     {
-        Navigation.NavigateTo("/settingss");
+        Navigation.NavigateTo("/settings");
     }
 }

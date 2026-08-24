@@ -2,7 +2,7 @@
    SETTINGS PAGE - MATTE DARK SLATE STYLE
    ========================================================================= */
 
-.matte-settingss-container {
+.matte-settings-container {
     padding: 24px;
     background: #121418;
     color: #94a3b8;
@@ -15,20 +15,20 @@
 }
 
 /* Header Section */
-.matte-settingss-header {
+.matte-settings-header {
     margin-bottom: 24px;
     padding-bottom: 12px;
     border-bottom: 1px solid #1e293b;
 }
 
-.matte-settingss-header h2 {
+.matte-settings-header h2 {
     font-size: 1.25rem;
     color: #f1f5f9;
     margin: 0 0 4px 0;
     font-weight: 600;
 }
 
-.matte-settingss-header p {
+.matte-settings-header p {
     font-size: 0.75rem;
     color: #64748b;
     margin: 0;

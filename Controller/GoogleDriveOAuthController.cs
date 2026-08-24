@@ -28,7 +28,7 @@ namespace Hypen.Web.Controllers
             try
             {
                 // Opsional: simpan returnUrl pada state jika ingin mengarahkan kembali ke halaman spesifik setelah login
-                string state = string.IsNullOrEmpty(returnUrl) ? "/settingss" : returnUrl;
+                string state = string.IsNullOrEmpty(returnUrl) ? "/settings" : returnUrl;
                 string authorizationUrl = _oauthService.GetAuthorizationUrl(state);
 
                 return Redirect(authorizationUrl);
@@ -36,7 +36,7 @@ namespace Hypen.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Gagal menggenerasi URL Otentikasi Google Drive.");
-                return Redirect("/settingss?error=gdrive_auth_failed");
+                return Redirect("/settings?error=gdrive_auth_failed");
             }
         }
 
@@ -55,14 +55,14 @@ namespace Hypen.Web.Controllers
             if (!string.IsNullOrEmpty(error))
             {
                 _logger.LogWarning("Otentikasi Google Drive dibatalkan atau ditolak: {Error}", error);
-                return Redirect("/settingss?error=access_denied");
+                return Redirect("/settings?error=access_denied");
             }
 
             // 2. Cek ketersediaan Authorization Code
             if (string.IsNullOrEmpty(code))
             {
                 _logger.LogWarning("Callback Google Drive diterima tanpa authorization code.");
-                return Redirect("/settingss?error=missing_code");
+                return Redirect("/settings?error=missing_code");
             }
 
             // 3. Memproses code untuk ditukar dengan Refresh/Access Token dan disimpannya ke Database
@@ -71,12 +71,12 @@ namespace Hypen.Web.Controllers
             if (isSuccess)
             {
                 _logger.LogInformation("Otentikasi Google Drive berhasil diproses.");
-                string redirectTarget = !string.IsNullOrEmpty(state) && state.StartsWith("/") ? state : "/settingss";
+                string redirectTarget = !string.IsNullOrEmpty(state) && state.StartsWith("/") ? state : "/settings";
                 return Redirect($"{redirectTarget}?success=gdrive_connected");
             }
 
             _logger.LogError("Gagal memproses callback token Google Drive.");
-                return Redirect("/settingss?error=token_exchange_failed");
+                return Redirect("/settings?error=token_exchange_failed");
         }
     }
 }
