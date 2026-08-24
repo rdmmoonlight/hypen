@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.EntityFrameworkCore;
+using Hypen.Web.Data;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
@@ -6,7 +8,7 @@ namespace Hypen.Web.Components.Pages.Staging;
 
 public partial class Index : ComponentBase
 {
-    [Inject] protected ISongProcessorService ProcessorService { get; set; } = default!;
+    [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
     [Inject] protected SyncService AppSyncService { get; set; } = default!;
     [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
 
@@ -53,15 +55,15 @@ public partial class Index : ComponentBase
     {
         try
         {
-            var data = await ProcessorService.GetPendingRawAsync();
-            stagingList = data ?? [];
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            stagingList = await context.RawSongs.OrderByDescending(x => x.Id).ToListAsync();
             selectedRawIds.IntersectWith(stagingList.Select(x => x.Id));
             
             CheckLocalDuplicates();
         }
         catch (Exception ex)
         {
-            UpdateStatus($"Gagal memuat data Staging: {ex.Message}", true);
+            UpdateStatus($"Gagal memuat data Staging dari tabel raw_songs: {ex.Message}", true);
         }
         finally
         {
@@ -149,18 +151,23 @@ public partial class Index : ComponentBase
             isProcessing = true;
             int deletedCount = 0;
 
-            // Menyimpan item pertama dari grup, menghapus sisanya
             var idsToDelete = duplicateGroups
                 .SelectMany(g => g.Skip(1).Select(x => x.Id))
                 .ToList();
 
-            UpdateStatus($"Menghapus {idsToDelete.Count} item duplikat...");
+            UpdateStatus($"Menghapus {idsToDelete.Count} item duplikat langsung dari raw_songs...");
 
+            using var context = await DbContextFactory.CreateDbContextAsync();
             foreach (var id in idsToDelete)
             {
-                await ProcessorService.DeleteRawAsync(id);
-                deletedCount++;
+                var itemToDelete = await context.RawSongs.FindAsync(id);
+                if (itemToDelete != null)
+                {
+                    context.RawSongs.Remove(itemToDelete);
+                    deletedCount++;
+                }
             }
+            await context.SaveChangesAsync();
 
             UpdateStatus($"Berhasil menghapus {deletedCount} data duplikat.");
             await RefreshMetrics();
@@ -185,18 +192,27 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // UPLOAD / PROMOTION OPERATIONS
+    // UPLOAD / PROMOTION OPERATIONS (MENGGUNAKAN TABEL RAW_SONGS)
     // =========================================================================
     protected async Task UploadSingleRawToComplete(RawSongsModel raw)
     {
         try
         {
             isProcessing = true;
-            UpdateStatus($"Mengunggah '{raw.Title}' ke Complete Table...");
+            UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
             bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToExtractModel(raw));
             if (success)
             {
+                // Hapus dari tabel raw_songs setelah sukses dipromosikan
+                using var context = await DbContextFactory.CreateDbContextAsync();
+                var rawEntity = await context.RawSongs.FindAsync(raw.Id);
+                if (rawEntity != null)
+                {
+                    context.RawSongs.Remove(rawEntity);
+                    await context.SaveChangesAsync();
+                }
+
                 UpdateStatus($"Berhasil Upload #{raw.Id} ke Complete Library.");
                 await RefreshMetrics();
                 await LoadStagingData();
@@ -245,6 +261,14 @@ public partial class Index : ComponentBase
                 {
                     if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToExtractModel(item)))
                     {
+                        using var context = await DbContextFactory.CreateDbContextAsync();
+                        var rawEntity = await context.RawSongs.FindAsync(item.Id);
+                        if (rawEntity != null)
+                        {
+                            context.RawSongs.Remove(rawEntity);
+                            await context.SaveChangesAsync();
+                        }
+
                         selectedRawIds.Remove(item.Id);
                         successCount++;
                     }
@@ -268,7 +292,7 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // DELETE OPERATIONS
+    // DELETE OPERATIONS (LANGSUNG KE TABEL RAW_SONGS)
     // =========================================================================
     protected async Task DeleteRawItem(long rawId)
     {
@@ -276,8 +300,16 @@ public partial class Index : ComponentBase
         {
             isProcessing = true;
             UpdateStatus($"Menghapus Staging #{rawId}...");
-            await ProcessorService.DeleteRawAsync(rawId);
-            UpdateStatus($"Data #{rawId} berhasil dihapus.");
+
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            var rawEntity = await context.RawSongs.FindAsync(rawId);
+            if (rawEntity != null)
+            {
+                context.RawSongs.Remove(rawEntity);
+                await context.SaveChangesAsync();
+            }
+
+            UpdateStatus($"Data #{rawId} berhasil dihapus dari raw_songs.");
             await RefreshMetrics();
             await LoadStagingData();
         }
@@ -300,8 +332,16 @@ public partial class Index : ComponentBase
             isProcessing = true;
             UpdateStatus($"Menghapus {selectedRawIds.Count} data terpilih...");
 
+            using var context = await DbContextFactory.CreateDbContextAsync();
             foreach (var id in selectedRawIds.ToList())
-                await ProcessorService.DeleteRawAsync(id);
+            {
+                var rawEntity = await context.RawSongs.FindAsync(id);
+                if (rawEntity != null)
+                {
+                    context.RawSongs.Remove(rawEntity);
+                }
+            }
+            await context.SaveChangesAsync();
 
             UpdateStatus($"{selectedRawIds.Count} data berhasil dihapus.");
             selectedRawIds.Clear();
