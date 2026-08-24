@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/" # Lokasi file .csproj atau .sln (ubah jika berada di dalam sub-folder)
+    schedule:
+      interval: "monthly" # Pilihan: daily, weekly, monthly
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
