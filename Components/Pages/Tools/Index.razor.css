@@ -12,49 +12,6 @@
 }
 
 /* =========================================================================
-   TAB NAVIGATION BUTTONS & ICONS
-   ========================================================================= */
-.matte-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #1e293b;
-    padding-bottom: 10px;
-}
-
-.tab-item {
-    background: #181b20;
-    color: #64748b;
-    border: 1px solid #262c36;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: monospace;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    text-decoration: none;
-}
-
-.tab-item i {
-    font-size: 0.9rem;
-}
-
-.tab-item:hover {
-    background: #1e242d;
-    color: #94a3b8;
-}
-
-.tab-item.active {
-    background: #0f172a;
-    color: #38bdf8;
-    border-color: #38bdf8;
-}
-
-/* =========================================================================
    HEADER SECTION
    ========================================================================= */
 .matte-header {
@@ -85,146 +42,54 @@
     letter-spacing: -0.2px;
 }
 
-.matte-counter {
-    font-size: 0.75rem;
-    font-family: monospace;
-    color: #38bdf8;
-    background: #0f172a;
-    padding: 4px 10px;
-    border-radius: 4px;
-    border: 1px solid #1e293b;
-}
-
 /* =========================================================================
-   TOOLBAR & STATUS BADGES
+   TOOLS HUB DASHBOARD GRID & CARDS
    ========================================================================= */
-.matte-toolbar {
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.tool-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    gap: 12px;
-    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    text-decoration: none;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.matte-action-group, .matte-search-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.status-badge {
-    font-size: 0.7rem;
-    font-family: monospace;
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
-    padding: 6px 12px;
-    border-radius: 4px;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-/* =========================================================================
-   BUTTONS (MATTE FLAT)
-   ========================================================================= */
-.btn-matte {
-    background: #1e293b;
-    color: #e2e8f0;
-    border: 1px solid #334155;
-    padding: 6px 14px;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-matte:hover:not(:disabled) {
-    background: #334155;
-    border-color: #475569;
-}
-
-.btn-matte:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-primary {
-    background: #0f172a;
+.tool-card:hover {
     border-color: #38bdf8;
+    background: #1e242d;
+    transform: translateY(-2px);
+}
+
+.tool-icon {
+    background: #0f172a;
+    border: 1px solid #1e293b;
     color: #38bdf8;
-}
-
-.btn-primary:hover:not(:disabled) {
-    background: #1e293b;
-    color: #7dd3fc;
-}
-
-.btn-danger {
-    background: #181113;
-    border-color: #f43f5e;
-    color: #f43f5e;
-}
-
-.btn-danger:hover:not(:disabled) {
-    background: #2c1218;
-    color: #fda4af;
-}
-
-/* =========================================================================
-   STATUS ALERTS & TEXT HELPERS
-   ========================================================================= */
-.status-alert {
-    padding: 8px 12px;
-    margin-bottom: 16px;
-    border-radius: 4px;
-}
-
-.alert-error {
-    background: #1c1012;
-    border-left: 3px solid #f43f5e;
-}
-
-.alert-error .status-text { color: #f43f5e; }
-
-.alert-info {
-    background: #0c1a24;
-    border-left: 3px solid #38bdf8;
-}
-
-.alert-info .status-text { color: #38bdf8; }
-
-.status-text {
-    font-size: 0.75rem;
-    margin: 0;
-    font-family: monospace;
-    display: inline-flex;
+    font-size: 1.5rem;
+    padding: 12px;
+    border-radius: 6px;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
 }
 
-.text-muted {
-    color: #64748b !important;
+.tool-info {
+    flex: 1;
 }
 
 /* =========================================================================
-   MATTE CARDS & STATES
+   MATTE CARDS & TEXT HELPERS
    ========================================================================= */
 .matte-card {
     background: #181b20;
     border: 1px solid #262c36;
     border-radius: 6px;
     padding: 16px;
-}
-
-.matte-card.border-clean {
-    border-color: #10b981;
 }
 
 .card-title {
@@ -241,209 +106,12 @@
     text-transform: uppercase;
 }
 
-.tag-clean, .text-clean {
-    color: #10b981 !important;
-}
-
-/* =========================================================================
-   PREVIEW & CLUSTER CONTAINERS
-   ========================================================================= */
-.preview-container {
-    background: #181b20;
-    border-radius: 6px;
-    border: 1px solid #262c36;
-    overflow: hidden;
-    margin-bottom: 24px;
-}
-
-.preview-header {
-    padding: 10px 14px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    border-bottom: 1px solid #262c36;
-    color: #94a3b8;
-    background: #121418;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.dup-summary-tag {
-    color: #f43f5e;
-    font-size: 0.68rem;
-    font-family: monospace;
-    background: rgba(244, 63, 94, 0.1);
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid rgba(244, 63, 94, 0.2);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.cluster-list {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.cluster-card {
-    background: #14171c;
-    border: 1px solid #222730;
-    border-radius: 4px;
-    padding: 10px;
-}
-
-.cluster-sub-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #1e242d;
-}
-
-.cluster-title-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.cluster-key {
-    color: #cbd5e1;
+.status-text {
     font-size: 0.75rem;
+    margin: 0;
     font-family: monospace;
 }
 
-.score-tag {
-    font-size: 0.68rem;
-    font-family: monospace;
-    color: #64748b;
-}
-
-/* =========================================================================
-   COMPACT SONG CARDS (MATTE SLATE)
-   ========================================================================= */
-.song-compact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px;
-}
-
-.song-compact-card {
-    border-radius: 4px;
-    padding: 8px 10px;
-    cursor: pointer;
-    transition: background 0.12s ease, border-color 0.12s ease;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 85px;
-}
-
-/* STATE CARD KEEP vs PURGE */
-.card-keep {
-    background: #0d1f2d;
-    border: 1px solid #0284c7;
-}
-
-.card-keep:hover {
-    background: #112738;
-}
-
-.card-purge {
-    background: #0f1115;
-    border: 1px solid #1e242d;
-    opacity: 0.6;
-}
-
-.card-purge:hover {
-    opacity: 0.85;
-    background: #161920;
-    border-color: #334155;
-}
-
-.compact-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.badge-action {
-    border: none;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-family: monospace;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.badge-keep-btn {
-    background: #0369a1;
-    color: #f0f9ff;
-}
-
-.badge-purge-btn {
-    background: #27141a;
-    color: #f43f5e;
-    border: 1px solid #4c1d24;
-}
-
-.song-id-tag {
-    font-size: 0.62rem;
-    font-family: monospace;
-    color: #64748b;
-}
-
-.compact-song-title {
-    color: #f1f5f9;
-    font-size: 0.78rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.compact-song-artist {
-    color: #64748b;
-    font-size: 0.7rem;
-    margin-top: 1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.compact-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 6px;
-    padding-top: 4px;
-    border-top: 1px solid #1a1f28;
-    font-size: 0.62rem;
-    font-family: monospace;
-    color: #475569;
-}
-
-.compact-card-footer span {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.badge-dup {
-    background: #27141a;
-    border: 1px solid #4c1d24;
-    color: #f43f5e;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-family: monospace;
-    font-weight: 600;
+.text-muted {
+    color: #64748b !important;
 }
