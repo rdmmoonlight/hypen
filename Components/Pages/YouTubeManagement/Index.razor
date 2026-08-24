@@ -6,48 +6,42 @@
 <div class="yt-sync-container">
     <div class="yt-sync-header">
         <h2 class="yt-sync-title">YouTube Auto-Detect Sync</h2>
-        <p class="yt-sync-subtitle">Sinkronisasi otomatis untuk mendeteksi lagu dan playlist terbaru langsung dari akun YouTube & YouTube Music Anda</p>
+        <p class="yt-sync-subtitle">Tarik item terbaru dari akun YouTube Anda, pilih video lagu yang valid, dan masukkan ke Staging.</p>
     </div>
 
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
         <div class="yt-status-alert @(IsError ? "yt-status-error" : "yt-status-success")">
-            <span class="yt-status-icon">@(IsError ? "⚠️" : "ℹ️")</span>
+            <i class="yt-status-icon ti @(IsError ? "ti-alert-triangle" : "ti-info-circle")"></i>
             <span class="yt-status-text">@StatusMessage</span>
         </div>
     }
 
+    <!-- Action & Metrics Bar -->
     <div class="yt-sync-grid">
-        <!-- Action Trigger Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Sinkronisasi Akun</h3>
+                <h3>Tarik Data Akun</h3>
             </div>
             <div class="yt-card-body">
-                <p class="yt-card-desc">
-                    Klik tombol di bawah untuk memeriksa pembaruan library, playlist, dan menyinkronkan data lagu terbaru ke Staging Buffer.
-                </p>
-
-                <div class="yt-form-actions">
-                    <button class="yt-btn yt-btn-primary" @onclick="ExecuteAutoSyncAsync" disabled="@IsSyncing">
-                        @if (IsSyncing)
-                        {
-                            <span class="yt-spinner"></span>
-                            <span>Menyinkronkan Akun...</span>
-                        }
-                        else
-                        {
-                            <span>🔄 Sync Data Terbaru dari Akun</span>
-                        }
-                    </button>
-                </div>
+                <button class="yt-btn yt-btn-primary" @onclick="FetchLatestFromYouTubeAsync" disabled="@(IsSyncing || IsSaving)">
+                    @if (IsSyncing)
+                    {
+                        <span class="yt-spinner"></span>
+                        <span>Menarik 50 Data Terbaru...</span>
+                    }
+                    else
+                    {
+                        <i class="ti ti-refresh"></i>
+                        <span>Sync Data Akun YouTube (Maks 50)</span>
+                    }
+                </button>
             </div>
         </div>
 
-        <!-- Summary & Status Card -->
         <div class="yt-card">
             <div class="yt-card-header">
-                <h3>Status Library & Staging</h3>
+                <h3>Status Database</h3>
             </div>
             <div class="yt-card-body">
                 <div class="yt-metrics-container">
@@ -55,22 +49,88 @@
                         <span class="yt-metric-value">@PendingRawCount</span>
                         <span class="yt-metric-label">Pending Staging</span>
                     </div>
-
                     <div class="yt-metric-box">
                         <span class="yt-metric-value">@CompletedSongsCount</span>
                         <span class="yt-metric-label">Completed Library</span>
                     </div>
                 </div>
-
-                <div class="yt-info-row">
-                    <span class="yt-info-label">Item Baru Ditemukan:</span>
-                    <span class="yt-info-value">@TotalAddedToStaging lagu</span>
-                </div>
-                <div class="yt-info-row">
-                    <span class="yt-info-label">Terakhir Disinkronkan:</span>
-                    <span class="yt-info-value">@(LastSyncTime.HasValue ? LastSyncTime.Value.ToString("dd MMM yyyy HH:mm:ss") : "-")</span>
-                </div>
             </div>
         </div>
     </div>
+
+    <!-- Preview & Selection Table -->
+    @if (FetchedItems.Count > 0)
+    {
+        <div class="yt-card yt-preview-table-card">
+            <div class="yt-card-header yt-table-header-flex">
+                <h3>Hasil Preview YouTube (@FetchedItems.Count Item)</h3>
+                <button class="yt-btn yt-btn-success" @onclick="SaveSelectedToStagingAsync" disabled="@(SelectedVideoIds.Count == 0 || IsSaving)">
+                    @if (IsSaving)
+                    {
+                        <span class="yt-spinner"></span>
+                        <span>Menyimpan...</span>
+                    }
+                    else
+                    {
+                        <i class="ti ti-download"></i>
+                        <span>Simpan (@SelectedVideoIds.Count) ke Staging</span>
+                    }
+                </button>
+            </div>
+            <div class="yt-card-body p-0">
+                <table class="yt-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input type="checkbox" checked="@IsAllPageSelected" @onchange="ToggleSelectAllPage" />
+                            </th>
+                            <th style="width: 120px;">Thumbnail</th>
+                            <th>Judul Video</th>
+                            <th>Channel</th>
+                            <th style="width: 100px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in PagedItems)
+                        {
+                            bool isSelected = SelectedVideoIds.Contains(item.VideoId);
+                            <tr class="@(isSelected ? "yt-row-selected" : "")">
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@isSelected" @onchange="@((e) => ToggleSelect(item.VideoId, e))" />
+                                </td>
+                                <td>
+                                    <img src="https://img.youtube.com/vi/@item.VideoId/default.jpg" alt="thumbnail" class="yt-thumb" />
+                                </td>
+                                <td>
+                                    <strong class="yt-video-title">@item.Title</strong>
+                                </td>
+                                <td>
+                                    <span class="yt-channel-name">@item.ChannelTitle</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <a href="https://www.youtube.com/watch?v=@item.VideoId" target="_blank" class="yt-link-btn" title="Tonton di YouTube">
+                                        <i class="ti ti-player-play"></i> Play
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            @if (TotalPages > 1)
+            {
+                <div class="yt-pagination">
+                    <button class="yt-page-btn" disabled="@(CurrentPage == 1)" @onclick="() => GoToPage(CurrentPage - 1)">
+                        <i class="ti ti-chevron-left"></i> Prev
+                    </button>
+                    <span class="yt-page-info">Halaman @CurrentPage dari @TotalPages</span>
+                    <button class="yt-page-btn" disabled="@(CurrentPage == TotalPages)" @onclick="() => GoToPage(CurrentPage + 1)">
+                        Next <i class="ti ti-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        </div>
+    }
 </div>
