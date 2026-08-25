@@ -7,7 +7,7 @@ public interface ISongsService
     /// <summary>
     /// Mengambil seluruh daftar lagu dari basis data Vault.
     /// </summary>
-    Task<List<CloudSongsModel>> GetSongsAsync();
+    Task<List<SongsModel>> GetSongsAsync();
 
     /// <summary>
     /// Menghapus lagu dari basis data berdasarkan BIGINT ID.
