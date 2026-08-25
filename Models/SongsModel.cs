@@ -1,6 +1,4 @@
-// Global using wajib diletakkan di luar namespace agar berlaku untuk seluruh project
-global using RawSongsModel = Hypen.Web.Models.SongsModel;
-global using CloudSongsModel = Hypen.Web.Models.SongsModel;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Hypen.Web.Models;
 
@@ -19,6 +17,7 @@ public record BatchDeleteRequest(long[] Ids);
 /// <summary>
 /// Model Master Global SSOT (Tabel: songs)
 /// </summary>
+[Table("songs")] // Force EF Core untuk HANYA menembak tabel 'songs'
 public class SongsModel
 {
     // =========================================================================
@@ -56,18 +55,21 @@ public class SongsModel
     // =========================================================================
     // 5. HELPER PROPERTIES / ALIAS (Diabaikan oleh EF Core)
     // =========================================================================
+    [NotMapped]
     public string? YoutubeId
     {
         get => YoutubeVideoId;
         set => YoutubeVideoId = value;
     }
 
+    [NotMapped]
     public string? Mbid
     {
         get => MusicBrainzId;
         set => MusicBrainzId = value;
     }
 
+    [NotMapped]
     public string? Cover
     {
         get => AlbumCoverUrl;
@@ -75,12 +77,16 @@ public class SongsModel
     }
 
     private string? _streamUrl;
+    [NotMapped]
     public string? StreamUrl
     {
         get => string.IsNullOrEmpty(_streamUrl) ? AudioUrl : _streamUrl;
         set => _streamUrl = value;
     }
 
+    [NotMapped]
     public CloudProvider Provider { get; set; } = CloudProvider.YouTube;
+
+    [NotMapped]
     public bool IsSelected { get; set; }
 }
