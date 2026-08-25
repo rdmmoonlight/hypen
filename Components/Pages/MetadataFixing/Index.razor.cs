@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Hypen.Web.Data;
+using Hypen.Web.Endpoints;
 using Hypen.Web.Models;
 using Hypen.Web.Services;
 
@@ -9,8 +11,8 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
     public partial class Index : ComponentBase
     {
         [Inject] protected MusicSmartMatchService SmartMatchService { get; set; } = default!;
-        [Inject] protected TagLibService TagEditorService { get; set; } = default!;
         [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
+        [Inject] protected HttpClient Http { get; set; } = default!;
 
         protected List<LocalTrackModel> Items { get; set; } = new();
         protected List<LocalTrackModel> filteredItems { get; set; } = new();
@@ -328,12 +330,12 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
                 try
                 {
-                    await SaveItemInternalAsync(target);
+                    await SaveItemViaApiAsync(target);
                     successCount++;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Error SaveItemInternalAsync ID={target.Id}]: {ex.Message} | {ex.StackTrace}");
+                    Console.WriteLine($"[Error SaveItemViaApiAsync ID={target.Id}]: {ex.Message}");
                     failCount++;
                 }
             }
@@ -361,139 +363,33 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        private async Task SaveItemInternalAsync(LocalTrackModel item)
+        // Dikirim via HTTP POST murni ke /api/metadata/save, tidak bergantung circuit Blazor.
+        // Kalau circuit sempat putus-sambung, request ini tetap sampai selama browser bisa
+        // melakukan HTTP request biasa (tidak butuh SignalR).
+        private async Task SaveItemViaApiAsync(LocalTrackModel item)
         {
-            // Update tag file fisik
-            try
+            var payload = new SaveMetadataRequest(
+                Id: item.Id,
+                IsFromRawSongs: item.IsFromRawSongs,
+                FilePath: item.FilePath,
+                FileName: item.FileName,
+                Title: item.CleanTitle,
+                Artist: item.CleanArtist,
+                Album: item.Album,
+                ReleaseYear: item.ReleaseYear,
+                AlbumCoverUrl: item.AlbumCoverUrl,
+                DurationSeconds: item.DurationSeconds,
+                MusicBrainzId: item.MusicBrainzId,
+                Country: batchModel.Country
+            );
+
+            var response = await Http.PostAsJsonAsync("/api/metadata/save", payload);
+
+            if (!response.IsSuccessStatusCode)
             {
-                if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
-                {
-                    await TagEditorService.ApplyTagsToFileAsync(
-                        item.FilePath,
-                        item.CleanArtist,
-                        item.CleanTitle,
-                        item.Album ?? string.Empty,
-                        item.ReleaseYear,
-                        item.AlbumCoverUrl
-                    );
-                }
+                var body = await response.Content.ReadAsStringAsync();
+                throw new Exception($"HTTP {(int)response.StatusCode} - {body}");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Warning TagLib] Gagal update tag file fisik: {ex.Message}");
-            }
-
-            using var context = await DbContextFactory.CreateDbContextAsync();
-
-            // ROUTING EKSPLISIT BERDASARKAN IsFromRawSongs
-
-            // A. RUTE UNTUK TABEL SONGS (PRODUCTION)
-            if (!item.IsFromRawSongs)
-            {
-                var song = await context.Songs.FindAsync((long)item.Id);
-                if (song == null) return;
-
-                song.Title = item.CleanTitle;
-                song.Artist = item.CleanArtist;
-                song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-                song.ReleaseYear = item.ReleaseYear;
-                song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                song.DurationSeconds = item.DurationSeconds;
-                song.MusicBrainzId = item.MusicBrainzId;
-
-                song.IsComplete = IsTrackDataComplete(item);
-                song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
-
-                context.Songs.Update(song);
-                await context.SaveChangesAsync();
-                return;
-            }
-
-            // B. RUTE UNTUK TABEL RAW_SONGS (STAGING)
-            var raw = await context.RawSongs.FindAsync((long)item.Id);
-            if (raw == null) return;
-
-            raw.Title = item.CleanTitle;
-            raw.Artist = item.CleanArtist;
-            raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-            raw.ReleaseYear = item.ReleaseYear;
-            raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-            raw.DurationSeconds = item.DurationSeconds;
-            raw.MusicBrainzId = item.MusicBrainzId;
-
-            bool isFullyComplete = IsTrackDataComplete(item);
-
-            if (isFullyComplete)
-            {
-                // PROMOSI OTOMATIS KE TABEL SONGS
-                raw.Status = "COMPLETED";
-                raw.IsComplete = true;
-
-                string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
-                var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
-
-                if (existingSong != null)
-                {
-                    existingSong.Title = raw.Title;
-                    existingSong.Artist = raw.Artist;
-                    existingSong.Album = raw.Album;
-                    existingSong.ReleaseYear = raw.ReleaseYear;
-                    existingSong.Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country;
-                    existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
-                    existingSong.DurationSeconds = raw.DurationSeconds;
-                    existingSong.MusicBrainzId = raw.MusicBrainzId;
-                    existingSong.Status = "COMPLETED";
-                    existingSong.IsComplete = true;
-
-                    context.Songs.Update(existingSong);
-                }
-                else
-                {
-                    var newSong = new SongsModel
-                    {
-                        RawId = raw.Id,
-                        YoutubeVideoId = ytId,
-                        MusicBrainzId = raw.MusicBrainzId,
-                        Title = raw.Title,
-                        Artist = raw.Artist,
-                        Album = raw.Album,
-                        ReleaseYear = raw.ReleaseYear,
-                        Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country,
-                        AlbumCoverUrl = raw.AlbumCoverUrl,
-                        AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
-                        DurationSeconds = raw.DurationSeconds,
-                        IsDownloaded = raw.IsDownloaded,
-                        Status = "COMPLETED",
-                        IsComplete = true
-                    };
-
-                    await context.Songs.AddAsync(newSong);
-                }
-
-                context.RawSongs.Remove(raw);
-            }
-            else
-            {
-                // SIMPAN DRAFT INCOMPLETE KE RAW_SONGS
-                raw.Status = "INCOMPLETE";
-                raw.IsComplete = false;
-
-                context.RawSongs.Update(raw);
-            }
-
-            await context.SaveChangesAsync();
-        }
-
-        private bool IsTrackDataComplete(LocalTrackModel item)
-        {
-            bool hasTitle = !string.IsNullOrWhiteSpace(item.CleanTitle);
-            bool hasArtist = !string.IsNullOrWhiteSpace(item.CleanArtist);
-            bool hasAlbum = !string.IsNullOrWhiteSpace(item.Album);
-            bool hasYear = item.ReleaseYear.HasValue && item.ReleaseYear > 0;
-            bool hasCover = !string.IsNullOrWhiteSpace(item.AlbumCoverUrl);
-            bool hasDuration = item.DurationSeconds > 0;
-
-            return hasTitle && hasArtist && hasAlbum && hasYear && hasCover && hasDuration;
         }
     }
 }
