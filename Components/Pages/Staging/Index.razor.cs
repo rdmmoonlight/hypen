@@ -52,7 +52,6 @@ public partial class Index : ComponentBase
     // =========================================================================
     // SEARCH & FILTER LOGIC
     // =========================================================================
-    // Filter data berdasarkan Title atau Artist (sesuaikan kolom pada RawSongsModel)
     protected IEnumerable<RawSongsModel> FilteredStagingList
     {
         get
@@ -63,7 +62,8 @@ public partial class Index : ComponentBase
             var term = SearchTerm.Trim();
             return stagingList.Where(x => 
                 (x.Title != null && x.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
-                (x.Artist != null && x.Artist.Contains(term, StringComparison.OrdinalIgnoreCase))
+                (x.Artist != null && x.Artist.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Album != null && x.Album.Contains(term, StringComparison.OrdinalIgnoreCase))
             );
         }
     }
@@ -150,9 +150,15 @@ public partial class Index : ComponentBase
         try
         {
             using var context = await DbContextFactory.CreateDbContextAsync();
-            stagingList = await context.RawSongs.OrderByDescending(x => x.Id).ToListAsync();
+
+            // HARAM MELOAD DATA YANG COMPLETED
+            // Hanya muat data yang berstatus PENDING/INCOMPLETE dan belum is_complete
+            stagingList = await context.RawSongs
+                .Where(x => x.Status != "COMPLETED" && x.IsComplete == false)
+                .OrderByDescending(x => x.Id)
+                .ToListAsync();
+
             selectedRawIds.IntersectWith(stagingList.Select(x => x.Id));
-            
             EnsureValidPageBoundary();
         }
         catch (Exception ex)
