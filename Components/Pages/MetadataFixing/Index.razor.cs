@@ -60,9 +60,9 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 {
                     Id = (int)s.Id,
                     FileName = s.YoutubeVideoId ?? $"song_{s.Id}",
-                    Title = s.Title,
-                    Artist = s.Artist,
-                    Album = s.Album,
+                    Title = s.Title ?? string.Empty,
+                    Artist = s.Artist ?? string.Empty,
+                    Album = s.Album ?? string.Empty,
                     ReleaseYear = s.ReleaseYear,
                     Country = "Songs",
                     AlbumCoverUrl = s.AlbumCoverUrl,
@@ -82,16 +82,16 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 {
                     Id = (int)r.Id,
                     FileName = r.YoutubeVideoId ?? $"raw_{r.Id}",
-                    Title = r.Title,
-                    Artist = r.Artist,
-                    Album = r.Album,
+                    Title = r.Title ?? string.Empty,
+                    Artist = r.Artist ?? string.Empty,
+                    Album = r.Album ?? string.Empty,
                     ReleaseYear = r.ReleaseYear,
                     Country = "RawSongs",
                     AlbumCoverUrl = r.AlbumCoverUrl,
                     DurationSeconds = r.DurationSeconds ?? 0,
                     MusicBrainzId = r.MusicBrainzId,
                     FilePath = r.AudioUrl != null && r.AudioUrl.StartsWith("/downloads/")
-                        ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", r.AudioUrl.TrimStart('/'))
+                        ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", s.AudioUrl.TrimStart('/'))
                         : string.Empty,
                     IsSelected = false
                 });
@@ -312,15 +312,15 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
+                // Sinkronisasi data Form Inspector ke target Model secara eksplisit
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
-                    target.CleanTitle = batchModel.CleanTitle;
+                    target.Title = batchModel.CleanTitle;
                 }
 
-                if (!string.IsNullOrWhiteSpace(batchModel.CleanArtist)) target.CleanArtist = batchModel.CleanArtist;
+                if (!string.IsNullOrWhiteSpace(batchModel.CleanArtist)) target.Artist = batchModel.CleanArtist;
                 if (!string.IsNullOrWhiteSpace(batchModel.Album)) target.Album = batchModel.Album;
                 if (batchModel.ReleaseYear > 0) target.ReleaseYear = batchModel.ReleaseYear;
-                if (!string.IsNullOrWhiteSpace(batchModel.Country)) target.Country = batchModel.Country;
                 if (!string.IsNullOrWhiteSpace(batchModel.AlbumCoverUrl)) target.AlbumCoverUrl = batchModel.AlbumCoverUrl;
                 if (batchModel.DurationSeconds > 0) target.DurationSeconds = batchModel.DurationSeconds;
                 if (!string.IsNullOrWhiteSpace(batchModel.MusicBrainzId)) target.MusicBrainzId = batchModel.MusicBrainzId;
@@ -332,7 +332,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Error SaveItemInternalAsync]: {ex.Message}");
+                    Console.WriteLine($"[Error SaveItemInternalAsync ID={target.Id}]: {ex.Message} | {ex.StackTrace}");
                     failCount++;
                 }
             }
@@ -343,7 +343,12 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             if (failCount > 0 && successCount == 0)
             {
-                statusMessage = $"Batch update gagal disimpan ke database.";
+                statusMessage = $"Gagal menyimpan perubahan ke database ({failCount} file). Cek log server.";
+                isError = true;
+            }
+            else if (failCount > 0)
+            {
+                statusMessage = $"Simpan selesai: {successCount} berhasil, {failCount} gagal.";
                 isError = true;
             }
             else
@@ -357,7 +362,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
         private async Task SaveItemInternalAsync(LocalTrackModel item)
         {
-            // 1. ISOLASI TAG EDITOR SERVICE (Abaikan error jika file fisik tidak ada/read-only)
+            // 1. ISOLASI TAG EDITOR SERVICE (Abaikan error jika file fisik tidak ada/read-only di Render Container)
             try
             {
                 if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
@@ -374,110 +379,112 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Warning Non-Fatal] Gagal update tag file fisik: {ex.Message}");
+                Console.WriteLine($"[Warning TagLib] Gagal update tag file fisik: {ex.Message}");
             }
 
-            // 2. EKSEKUSI DATABASE
+            // 2. EKSEKUSI PENYIMPANAN KE DATABASE
             using var context = await DbContextFactory.CreateDbContextAsync();
 
-            if (item.Country == "Songs")
+            // Cek keberadaan di tabel Production Songs terlebih dahulu
+            var song = await context.Songs.FindAsync((long)item.Id);
+            if (song != null)
             {
-                var song = await context.Songs.FindAsync((long)item.Id);
-                if (song != null)
-                {
-                    song.Title = item.CleanTitle;
-                    song.Artist = item.CleanArtist;
-                    song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-                    song.ReleaseYear = item.ReleaseYear;
-                    song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                    song.DurationSeconds = item.DurationSeconds;
-                    song.MusicBrainzId = item.MusicBrainzId;
+                song.Title = item.CleanTitle;
+                song.Artist = item.CleanArtist;
+                song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                song.ReleaseYear = item.ReleaseYear;
+                song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                song.DurationSeconds = item.DurationSeconds;
+                song.MusicBrainzId = item.MusicBrainzId;
 
-                    song.IsComplete = IsTrackDataComplete(item);
-                    song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
+                song.IsComplete = IsTrackDataComplete(item);
+                song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
 
-                    context.Songs.Update(song);
-                    await context.SaveChangesAsync();
-                }
+                context.Songs.Update(song);
+                await context.SaveChangesAsync();
+                return;
             }
-            else
+
+            // Jika tidak ada di Songs, cari dan update di tabel Staging RawSongs
+            var raw = await context.RawSongs.FindAsync((long)item.Id);
+            if (raw != null)
             {
-                var raw = await context.RawSongs.FindAsync((long)item.Id);
-                if (raw != null)
+                // SIMPAN DRAFT SELALU KE RAW_SONGS
+                raw.Title = item.CleanTitle;
+                raw.Artist = item.CleanArtist;
+                raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                raw.ReleaseYear = item.ReleaseYear;
+                raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                raw.DurationSeconds = item.DurationSeconds;
+                raw.MusicBrainzId = item.MusicBrainzId;
+
+                bool isFullyComplete = IsTrackDataComplete(item);
+
+                if (isFullyComplete)
                 {
-                    // Update data draft di tabel raw_songs
-                    raw.Title = item.CleanTitle;
-                    raw.Artist = item.CleanArtist;
-                    raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-                    raw.ReleaseYear = item.ReleaseYear;
-                    raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                    raw.DurationSeconds = item.DurationSeconds;
-                    raw.MusicBrainzId = item.MusicBrainzId;
+                    // PROMOSI OTOMATIS KE TABEL SONGS (Status COMPLETED)
+                    raw.Status = "COMPLETED";
+                    raw.IsComplete = true;
 
-                    bool isFullyComplete = IsTrackDataComplete(item);
+                    string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
+                    var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
 
-                    if (isFullyComplete)
+                    if (existingSong != null)
                     {
-                        // PROMOSI OTOMATIS KE TABEL SONGS (Status COMPLETED)
-                        raw.Status = "COMPLETED";
-                        raw.IsComplete = true;
+                        existingSong.Title = raw.Title;
+                        existingSong.Artist = raw.Artist;
+                        existingSong.Album = raw.Album;
+                        existingSong.ReleaseYear = raw.ReleaseYear;
+                        existingSong.Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country;
+                        existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
+                        existingSong.DurationSeconds = raw.DurationSeconds;
+                        existingSong.MusicBrainzId = raw.MusicBrainzId;
+                        existingSong.Status = "COMPLETED";
+                        existingSong.IsComplete = true;
 
-                        string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
-                        var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
-
-                        if (existingSong != null)
-                        {
-                            existingSong.Title = raw.Title;
-                            existingSong.Artist = raw.Artist;
-                            existingSong.Album = raw.Album;
-                            existingSong.ReleaseYear = raw.ReleaseYear;
-                            existingSong.Country = string.IsNullOrWhiteSpace(item.Country) || item.Country == "RawSongs" ? "Unknown" : item.Country;
-                            existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
-                            existingSong.DurationSeconds = raw.DurationSeconds;
-                            existingSong.MusicBrainzId = raw.MusicBrainzId;
-                            existingSong.Status = "COMPLETED";
-                            existingSong.IsComplete = true;
-
-                            context.Songs.Update(existingSong);
-                        }
-                        else
-                        {
-                            var newSong = new SongsModel
-                            {
-                                RawId = raw.Id,
-                                YoutubeVideoId = ytId,
-                                MusicBrainzId = raw.MusicBrainzId,
-                                Title = raw.Title,
-                                Artist = raw.Artist,
-                                Album = raw.Album,
-                                ReleaseYear = raw.ReleaseYear,
-                                Country = string.IsNullOrWhiteSpace(item.Country) || item.Country == "RawSongs" ? "Unknown" : item.Country,
-                                AlbumCoverUrl = raw.AlbumCoverUrl,
-                                AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
-                                DurationSeconds = raw.DurationSeconds,
-                                IsDownloaded = raw.IsDownloaded,
-                                Status = "COMPLETED",
-                                IsComplete = true
-                            };
-
-                            await context.Songs.AddAsync(newSong);
-                        }
-
-                        // Hapus dari raw_songs karena sudah naik tingkat ke songs
-                        context.RawSongs.Remove(raw);
+                        context.Songs.Update(existingSong);
                     }
                     else
                     {
-                        // SIMPAN DRAFT DI TABEL RAW_SONGS (Status INCOMPLETE)
-                        raw.Status = "INCOMPLETE";
-                        raw.IsComplete = false;
+                        var newSong = new SongsModel
+                        {
+                            RawId = raw.Id,
+                            YoutubeVideoId = ytId,
+                            MusicBrainzId = raw.MusicBrainzId,
+                            Title = raw.Title,
+                            Artist = raw.Artist,
+                            Album = raw.Album,
+                            ReleaseYear = raw.ReleaseYear,
+                            Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country,
+                            AlbumCoverUrl = raw.AlbumCoverUrl,
+                            AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
+                            DurationSeconds = raw.DurationSeconds,
+                            IsDownloaded = raw.IsDownloaded,
+                            Status = "COMPLETED",
+                            IsComplete = true
+                        };
 
-                        context.RawSongs.Update(raw);
+                        await context.Songs.AddAsync(newSong);
                     }
 
-                    // Tulis perubahan ke Database
-                    await context.SaveChangesAsync();
+                    // Hapus entri karantina dari raw_songs
+                    context.RawSongs.Remove(raw);
                 }
+                else
+                {
+                    // SIMPAN DRAFT PERUBAHAN DI TABEL RAW_SONGS
+                    raw.Status = "INCOMPLETE";
+                    raw.IsComplete = false;
+
+                    context.RawSongs.Update(raw);
+                }
+
+                // SIMPAN HASIL DRAFT KE DATABASE
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception($"Data lagu dengan ID {item.Id} tidak ditemukan baik di tabel Songs maupun RawSongs.");
             }
         }
 
@@ -489,9 +496,8 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             bool hasYear = item.ReleaseYear.HasValue && item.ReleaseYear > 0;
             bool hasCover = !string.IsNullOrWhiteSpace(item.AlbumCoverUrl);
             bool hasDuration = item.DurationSeconds > 0;
-            bool hasCountry = !string.IsNullOrWhiteSpace(item.Country) && item.Country != "Unknown" && item.Country != "RawSongs";
 
-            return hasTitle && hasArtist && hasAlbum && hasYear && hasCover && hasDuration && hasCountry;
+            return hasTitle && hasArtist && hasAlbum && hasYear && hasCover && hasDuration;
         }
     }
 }
