@@ -1,118 +1,119 @@
 /* =========================================================================
-   METADATA FIXING PAGE - ISOLATED DARK SLATE THEME
-   Compact Layout — Colors Preserved
+   METADATA FIXING PAGE - STAGING MATCHED DARK THEME
+   Unified Palette: Deep Obsidian (#0a0b0e) + Cyan Accent (#4cc9f0)
    ========================================================================= */
 
 .metadata-fixing-container {
+    padding: 24px;
+    background: #0a0b0e;
     color: #ffffff;
+    min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 0.82rem;
-}
-
-
-/* =========================================================================
-   TEXT
-   ========================================================================= */
-
-.text-accent {
-    color: #38bdf8 !important;
-}
-
-.text-secondary {
-    color: #94a3b8 !important;
-}
-
-
-/* =========================================================================
-   CARD CONTAINER
-   ========================================================================= */
-
-.card-nebula {
-    background: #121418;
-    border: 1px solid #262c36 !important;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-
-/* =========================================================================
-   COMPACT CARD BODY / HEADER
-   ========================================================================= */
-
-.card-nebula .card-body {
-    padding: 0.5rem;
-}
-
-.card-nebula .card-header {
-    padding: 0.45rem 0.65rem;
-}
-
-
-/* =========================================================================
-   TABLE
-   ========================================================================= */
-
-.table-nebula {
-    --bs-table-bg: #121418;
-    --bs-table-color: #ffffff;
-
-    margin-bottom: 0;
-    border-color: #262c36;
     font-size: 0.78rem;
 }
 
+/* =========================================================================
+   TEXT UTILITIES
+   ========================================================================= */
 
-/* Table Header */
+.text-accent {
+    color: #4cc9f0 !important;
+}
+
+.text-secondary {
+    color: #a0a5b1 !important;
+}
+
+/* =========================================================================
+   CARD CONTAINER & INSPECTOR
+   ========================================================================= */
+
+.card-nebula,
+.metadata-inspector {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.card-nebula .card-body,
+.metadata-inspector-body {
+    padding: 12px;
+}
+
+.card-nebula .card-header,
+.metadata-inspector-header {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px 14px;
+    min-height: 38px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* =========================================================================
+   TABLE STYLING
+   ========================================================================= */
+
+.table-wrapper {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+}
+
+.table-nebula {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.78rem;
+    color: #ffffff;
+    margin-bottom: 0;
+}
 
 .table-nebula thead tr {
-    background-color: #181b20;
-    border-bottom: 1px solid #262c36;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .table-nebula th {
     color: #ffffff;
     font-weight: 600;
-    font-size: 0.68rem;
-
-    padding: 0.45rem 0.6rem;
-
-    border-bottom: 1px solid #262c36;
-
+    font-size: 0.7rem;
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     text-transform: uppercase;
-    letter-spacing: 0.35px;
-
+    font-family: monospace;
     white-space: nowrap;
 }
 
-
-/* Table Body */
-
-.table-nebula td {
-    padding: 0.35rem 0.6rem;
-    border-bottom: 1px solid #1e293b;
-    vertical-align: middle;
-}
-
 .table-nebula tbody tr {
-    height: 42px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s ease;
+    height: unset;
 }
 
 .table-nebula tbody tr:hover {
-    background-color: #181b20;
+    background: rgba(255, 255, 255, 0.03);
 }
-
-
-/* Selected Row */
 
 .table-nebula tbody tr.table-active,
-.table-nebula tbody tr.active {
-    background-color: rgba(56, 189, 248, 0.06);
+.table-nebula tbody tr.active,
+.table-nebula tbody tr.selected-row {
+    background: rgba(76, 201, 240, 0.08);
 }
 
+.table-nebula td {
+    padding: 8px 10px;
+    color: #ffffff;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
 
 /* =========================================================================
-   SONG METADATA
+   SONG METADATA & COVERS
    ========================================================================= */
 
 .table-nebula .song-title {
@@ -123,154 +124,150 @@
 }
 
 .table-nebula .song-meta {
-    color: #94a3b8;
-    font-size: 0.66rem;
+    color: #a0a5b1;
+    font-size: 0.68rem;
+    font-family: monospace;
     line-height: 1.2;
     margin-top: 2px;
 }
 
-
-/* =========================================================================
-   COVER
-   ========================================================================= */
-
 .cover-placeholder {
     width: 32px;
     height: 32px;
-
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-
-    color: #38bdf8;
-
+    background: rgba(76, 201, 240, 0.1);
+    border: 1px solid rgba(76, 201, 240, 0.3);
+    color: #4cc9f0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+    font-family: monospace;
+    font-size: 0.7rem;
+}
 
-    border-radius: 5px;
-
+.table-nebula .album-cover,
+.metadata-inspector .inspector-cover {
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
 
 .table-nebula .album-cover {
     width: 32px;
     height: 32px;
-
-    object-fit: cover;
-
-    border-radius: 5px;
-
-    flex-shrink: 0;
 }
 
+.metadata-inspector .inspector-cover {
+    width: 72px;
+    height: 72px;
+}
 
 /* =========================================================================
-   SEARCH / FILTER
+   SEARCH & INPUT CONTROL
    ========================================================================= */
 
-.metadata-search {
-    height: 32px;
-
-    background: #121418;
+.metadata-search,
+.metadata-inspector .form-control,
+.metadata-inspector .form-select {
+    background: rgba(255, 255, 255, 0.04);
     color: #ffffff;
-
-    border: 1px solid #262c36;
-    border-radius: 6px;
-
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
     font-size: 0.75rem;
-
-    padding: 0.3rem 0.55rem;
+    padding: 6px 12px;
+    outline: none;
+    transition: all 0.2s ease;
 }
 
-.metadata-search:focus {
-    background: #121418;
+.metadata-inspector .form-control,
+.metadata-inspector .form-select {
+    font-size: 0.72rem;
+    min-height: 30px;
+    padding: 4px 8px;
+}
+
+.metadata-search:focus,
+.metadata-inspector .form-control:focus,
+.metadata-inspector .form-select:focus {
+    background: rgba(255, 255, 255, 0.07);
     color: #ffffff;
-
-    border-color: #38bdf8;
-
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.08);
+    border-color: #4cc9f0;
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2);
 }
 
-.metadata-search::placeholder {
-    color: #94a3b8;
+.metadata-search::placeholder,
+.metadata-inspector .form-control::placeholder {
+    color: #a0a5b1;
 }
 
+.metadata-inspector .form-label {
+    color: #a0a5b1 !important;
+    font-size: 0.65rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.metadata-inspector .field-group {
+    margin-bottom: 8px;
+}
 
 /* =========================================================================
    BUTTONS
    ========================================================================= */
 
 .btn-nebula-primary {
-    background: #38bdf8;
-    color: #0f172a;
-
-    font-weight: 600;
-
-    border: none;
-    border-radius: 6px;
-
-    padding: 5px 10px;
-
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+    border: 1px solid rgba(76, 201, 240, 0.4);
+    font-weight: 500;
+    border-radius: 4px;
+    padding: 6px 12px;
     font-size: 0.72rem;
-
-    transition: all 0.15s ease;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn-nebula-primary:hover:not(:disabled) {
-    background: #0ea5e9;
+    background: rgba(76, 201, 240, 0.25);
     color: #ffffff;
 }
 
-
 .btn-nebula-outline {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.04);
     color: #ffffff;
-
-    border: 1px solid #334155;
-    border-radius: 6px;
-
-    padding: 5px 10px;
-
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 6px 12px;
     font-size: 0.72rem;
-
-    transition: all 0.15s ease;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn-nebula-outline:hover:not(:disabled) {
-    background: #181b20;
-    border-color: #38bdf8;
-    color: #38bdf8;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
 }
 
-
 .btn-nebula-icon {
-    background: #181b20;
-
-    border: 1px solid #262c36;
-
+    background: transparent;
+    border: none;
     color: #ffffff;
-
-    border-radius: 6px;
-
-    padding: 3px 7px;
-
-    font-size: 0.72rem;
-
-    line-height: 1.2;
-
-    transition: all 0.15s ease;
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
 }
 
 .btn-nebula-icon:hover {
-    background: #262c36;
-    color: #38bdf8;
-    border-color: #38bdf8;
+    opacity: 0.8;
+    color: #4cc9f0;
 }
-
-
-/* =========================================================================
-   SMALL BOOTSTRAP BUTTON OVERRIDE
-   ========================================================================= */
 
 .metadata-fixing-container .btn-sm {
     font-size: 0.72rem;
@@ -278,438 +275,233 @@
 }
 
 .metadata-fixing-container .btn-group-sm > .btn {
-    padding: 0.2rem 0.45rem;
+    padding: 4px 8px;
 }
-
 
 /* =========================================================================
-   BADGES
+   BADGES & TAGS
    ========================================================================= */
 
-.badge-year {
-    background: #1e293b;
-    color: #f1f5f9;
-
-    border: 1px solid #334155;
-
+.badge-year,
+.badge-nebula-secondary {
+    background: rgba(255, 255, 255, 0.04);
+    color: #a0a5b1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.62rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 2px;
 }
-
 
 .badge-nebula-success {
     background: rgba(34, 197, 94, 0.15);
     color: #4ade80;
-
     border: 1px solid rgba(34, 197, 94, 0.3);
-
-    font-size: 0.58rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
+    font-size: 0.62rem;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 2px;
 }
-
 
 .badge-nebula-warning {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-
-    border: 1px solid rgba(245, 158, 11, 0.3);
-
-    font-size: 0.58rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
+    background: rgba(255, 183, 3, 0.15);
+    color: #ffb703;
+    border: 1px solid rgba(255, 183, 3, 0.4);
+    font-size: 0.62rem;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 2px;
 }
 
-
-.badge-nebula-info {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-
-    border: 1px solid rgba(56, 189, 248, 0.3);
-
-    font-size: 0.58rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
-}
-
-
+.badge-nebula-info,
 .badge-nebula-primary {
-    background: rgba(99, 102, 241, 0.15);
-    color: #818cf8;
-
-    border: 1px solid rgba(99, 102, 241, 0.3);
-
-    font-size: 0.58rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+    border: 1px solid rgba(76, 201, 240, 0.3);
+    font-size: 0.62rem;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 2px;
 }
-
-
-.badge-nebula-secondary {
-    background: #1e293b;
-    color: #94a3b8;
-
-    border: 1px solid #334155;
-
-    font-size: 0.58rem;
-    padding: 2px 5px;
-
-    border-radius: 4px;
-}
-
 
 /* =========================================================================
-   INSPECTOR
-   ========================================================================= */
-
-.metadata-inspector {
-    background: #121418;
-    border: 1px solid #262c36;
-
-    border-radius: 8px;
-
-    overflow: hidden;
-}
-
-
-/* Inspector Header */
-
-.metadata-inspector-header {
-    background: #181b20;
-
-    border-bottom: 1px solid #262c36;
-
-    padding: 0.45rem 0.65rem;
-
-    min-height: 34px;
-}
-
-
-/* Inspector Body */
-
-.metadata-inspector-body {
-    padding: 0.6rem;
-}
-
-
-/* Inspector Cover */
-
-.metadata-inspector .inspector-cover {
-    width: 72px;
-    height: 72px;
-
-    object-fit: cover;
-
-    border-radius: 6px;
-
-    border: 1px solid #262c36;
-}
-
-
-/* Inspector Labels */
-
-.metadata-inspector .form-label {
-    color: #94a3b8 !important;
-
-    font-size: 0.64rem;
-
-    margin-bottom: 0.2rem;
-}
-
-
-/* Inspector Inputs */
-
-.metadata-inspector .form-control,
-.metadata-inspector .form-select {
-    background: #121418;
-
-    color: #ffffff;
-
-    border: 1px solid #262c36;
-
-    border-radius: 5px;
-
-    font-size: 0.72rem;
-
-    min-height: 30px;
-
-    padding: 0.25rem 0.45rem;
-}
-
-.metadata-inspector .form-control:focus,
-.metadata-inspector .form-select:focus {
-    background: #121418;
-
-    color: #ffffff;
-
-    border-color: #38bdf8;
-
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.08);
-}
-
-.metadata-inspector .form-control::placeholder {
-    color: #94a3b8;
-}
-
-
-/* Inspector Fields */
-
-.metadata-inspector .field-group {
-    margin-bottom: 0.45rem;
-}
-
-
-/* =========================================================================
-   PAGINATION
+   PAGINATION (MATCHING STAGING PAGINATION BAR)
    ========================================================================= */
 
 .metadata-pagination {
-    padding: 0.4rem 0.6rem;
-
-    border-top: 1px solid #262c36;
-
+    margin-top: 16px;
+    padding: 0;
+    border-top: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #ffffff;
+}
+
+.metadata-pagination .pagination {
+    display: flex;
+    gap: 4px;
+    margin: 0;
 }
 
 .metadata-pagination .page-link {
-    background: #121418;
-
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #ffffff;
-
-    border: 1px solid #262c36;
-
-    font-size: 0.68rem;
-
-    padding: 3px 7px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    transition: all 0.2s;
 }
 
 .metadata-pagination .page-link:hover {
-    background: #181b20;
-
-    color: #38bdf8;
-
-    border-color: #38bdf8;
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .metadata-pagination .page-item.active .page-link {
-    background: #38bdf8;
-
-    color: #0f172a;
-
-    border-color: #38bdf8;
+    background: #4cc9f0;
+    color: #0a0b0e;
+    font-weight: bold;
+    border-color: #4cc9f0;
 }
 
 .metadata-pagination .page-item.disabled .page-link {
-    background: #121418;
-
-    color: #94a3b8;
-
-    border-color: #262c36;
+    opacity: 0.3;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
-
 /* =========================================================================
-   MODAL
+   MODAL & CANDIDATE CARDS
    ========================================================================= */
 
 .nebula-modal-backdrop {
-    background-color: rgba(0, 0, 0, 0.75);
-
+    background-color: rgba(10, 11, 14, 0.85);
     backdrop-filter: blur(4px);
 }
 
-
 .modal-nebula {
-    background: #121418;
-
-    border: 1px solid #262c36;
-
-    border-radius: 8px;
-
+    background: #0a0b0e;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
     color: #ffffff;
 }
 
-
-/* Modal Header */
-
-.modal-nebula .modal-header {
-    padding: 0.5rem 0.7rem;
-
-    border-bottom: 1px solid #262c36;
+.modal-nebula .modal-header,
+.modal-nebula .modal-footer {
+    padding: 10px 14px;
+    border-color: rgba(255, 255, 255, 0.08);
 }
-
-
-/* Modal Body */
 
 .modal-nebula .modal-body {
-    padding: 0.6rem;
+    padding: 14px;
 }
-
-
-/* Modal Footer */
-
-.modal-nebula .modal-footer {
-    padding: 0.5rem 0.7rem;
-
-    border-top: 1px solid #262c36;
-}
-
-
-/* =========================================================================
-   BORDER
-   ========================================================================= */
-
-.border-bottom-nebula {
-    border-bottom: 1px solid #262c36;
-}
-
-
-/* =========================================================================
-   CANDIDATE CARD
-   ========================================================================= */
 
 .candidate-card {
-    background: #181b20;
-
-    border: 1px solid #262c36;
-
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     cursor: pointer;
-
     transition: all 0.15s ease;
-
-    border-radius: 6px;
-
-    padding: 0.45rem 0.55rem;
+    border-radius: 4px;
+    padding: 8px 10px;
 }
 
 .candidate-card:hover {
-    border-color: #38bdf8;
-    background: #1e293b;
+    border-color: #4cc9f0;
+    background: rgba(76, 201, 240, 0.05);
 }
-
-
-/* Candidate Cover */
 
 .candidate-card img {
     width: 36px;
     height: 36px;
-
     object-fit: cover;
-
-    border-radius: 5px;
+    border-radius: 3px;
 }
-
-
-/* Candidate Title */
 
 .candidate-card .candidate-title {
     color: #ffffff;
-
-    font-size: 0.72rem;
-
+    font-size: 0.75rem;
     font-weight: 600;
-
     line-height: 1.2;
 }
 
-
-/* Candidate Metadata */
-
 .candidate-card .candidate-meta {
-    color: #94a3b8;
-
-    font-size: 0.62rem;
-
+    color: #a0a5b1;
+    font-size: 0.65rem;
+    font-family: monospace;
     line-height: 1.2;
-
     margin-top: 2px;
 }
 
-
 /* =========================================================================
-   STATUS ALERT
+   ALERTS & UTILITIES
    ========================================================================= */
 
 .metadata-fixing-container .alert {
-    padding: 0.35rem 0.55rem;
-
-    margin-bottom: 0.5rem;
-
-    border-radius: 6px;
-
-    font-size: 0.72rem;
+    padding: 8px 14px;
+    margin-bottom: 16px;
+    border-radius: 2px;
+    font-size: 0.75rem;
 }
 
+.metadata-fixing-container .alert-info {
+    background: rgba(76, 201, 240, 0.1);
+    border-left: 2px solid #4cc9f0;
+    color: #4cc9f0;
+}
 
-/* =========================================================================
-   STICKY INSPECTOR
-   ========================================================================= */
+.metadata-fixing-container .alert-danger {
+    background: rgba(247, 37, 133, 0.1);
+    border-left: 2px solid #ff4d6d;
+    color: #ff4d6d;
+}
 
+.border-bottom-nebula {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.01);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Sticky Inspector Position Offset */
 .metadata-fixing-container .sticky-top {
-    top: 0.5rem;
+    top: 16px;
 }
-
 
 /* =========================================================================
-   COMPACT SPACING UTILITIES
-   ========================================================================= */
-
-.metadata-fixing-container .gap-3 {
-    gap: 0.5rem !important;
-}
-
-.metadata-fixing-container .gap-2 {
-    gap: 0.4rem !important;
-}
-
-.metadata-fixing-container .mb-3 {
-    margin-bottom: 0.5rem !important;
-}
-
-.metadata-fixing-container .mb-2 {
-    margin-bottom: 0.4rem !important;
-}
-
-.metadata-fixing-container .py-3 {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
-}
-
-.metadata-fixing-container .p-3 {
-    padding: 0.6rem !important;
-}
-
-
-/* =========================================================================
-   RESPONSIVE
+   RESPONSIVE OVERRIDES
    ========================================================================= */
 
 @media (max-width: 991.98px) {
-
     .metadata-inspector {
         position: static !important;
     }
 
     .table-nebula th,
     .table-nebula td {
-        padding-left: 0.45rem;
-        padding-right: 0.45rem;
+        padding-left: 8px;
+        padding-right: 8px;
     }
 }
 
-
 @media (max-width: 575.98px) {
-
     .metadata-fixing-container {
-        font-size: 0.78rem;
+        padding: 16px;
     }
 
     .table-nebula {
@@ -717,21 +509,10 @@
     }
 
     .table-nebula th {
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .table-nebula td {
-        padding: 0.3rem 0.4rem;
-    }
-
-    .table-nebula .album-cover,
-    .cover-placeholder {
-        width: 28px;
-        height: 28px;
-    }
-
-    .metadata-inspector .inspector-cover {
-        width: 64px;
-        height: 64px;
+        padding: 6px 8px;
     }
 }
