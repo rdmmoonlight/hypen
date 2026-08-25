@@ -17,7 +17,7 @@
     <!-- Backend & Application Dependencies -->
     <PackageReference Include="Npgsql" Version="9.0.0" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.68.0.3421" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.76.0" />
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.68.0.3533" />
     <PackageReference Include="Google.Apis.Oauth2.v2" Version="1.68.0.1869" />
     <PackageReference Include="supabase-csharp" Version="0.16.2" />
