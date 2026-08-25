@@ -22,7 +22,9 @@
             <button class="btn btn-outline-light btn-sm px-3" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
                 <i class="ti ti-database me-1"></i> Refresh
             </button>
-            <button class="btn btn-primary btn-sm px-3" @onclick="ProcessSmartMatchSelected" disabled="@isBatchProcessing || !Items.Any()">
+            
+            <!-- Tombol Match: Diperbaiki agar tidak ter-disabled saat ada data / item dipilih -->
+            <button class="btn btn-primary btn-sm px-3" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
                 @if (isBatchProcessing)
                 {
                     <span class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -30,11 +32,13 @@
                 }
                 else
                 {
-                    <i class="ti ti-wand me-1"></i><span>Auto Match (@(Items.Count(x => x.IsSelected) > 0 ? Items.Count(x => x.IsSelected) : Items.Count))</span>
+                    <i class="ti ti-wand me-1"></i><span>Match (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))</span>
                 }
             </button>
-            <button class="btn btn-success btn-sm px-3" @onclick="SaveSelectedToDatabaseAndFiles" disabled="@isBatchProcessing || !Items.Any()">
-                <i class="ti ti-device-floppy me-1"></i> Save Changes
+            
+            <!-- Tombol Save Changes -->
+            <button class="btn btn-success btn-sm px-3" @onclick="SaveSelectedToDatabaseAndFiles" disabled="@(isBatchProcessing || !filteredItems.Any())">
+                <i class="ti ti-device-floppy me-1"></i> Save Changes (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))
             </button>
         </div>
     </div>
@@ -117,7 +121,7 @@
                                     {
                                         <tr class="@(activeEditItem == item ? "table-active bg-primary bg-opacity-10" : "")" style="cursor: pointer;" @onclick="() => SelectForEditing(item)">
                                             <td class="text-center" @onclick:stopPropagation="true">
-                                                <input type="checkbox" class="form-check-input" @bind="item.IsSelected" />
+                                                <input type="checkbox" class="form-check-input" @bind="item.IsSelected" @bind:after="StateHasChanged" />
                                             </td>
                                             <td>
                                                 <img src="@(string.IsNullOrEmpty(item.AlbumCoverUrl) ? "https://placehold.co/36x36/1a1a1a/cccccc?text=🎵" : item.AlbumCoverUrl)" class="rounded shadow-sm" width="36" height="36" style="object-fit: cover;" alt="Cover" />
@@ -238,10 +242,10 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button class="btn btn-outline-info btn-sm text-white py-2" @onclick="() => ReMatchSingle(activeEditItem)">
-                                <i class="ti ti-wand me-1"></i> Auto-Match via Internet
+                            <button class="btn btn-outline-info btn-sm text-white py-2" @onclick="() => ReMatchSingle(activeEditItem)" disabled="@isBatchProcessing">
+                                <i class="ti ti-wand me-1"></i> Match via Internet
                             </button>
-                            <button class="btn btn-success btn-sm py-2" @onclick="() => SaveItemToDatabaseAndFile(activeEditItem)">
+                            <button class="btn btn-success btn-sm py-2" @onclick="() => SaveItemToDatabaseAndFile(activeEditItem)" disabled="@isBatchProcessing">
                                 <i class="ti ti-device-floppy me-1"></i> Simpan ke File &amp; Database
                             </button>
                         </div>
@@ -303,6 +307,9 @@
     private string statusMessage = "";
     private bool isError = false;
     private string searchQuery = "";
+
+    // Properti hitung item ter-centang
+    private int SelectedCount => filteredItems.Count(x => x.IsSelected);
 
     // Pagination State
     private int pageSize = 10;
@@ -469,7 +476,7 @@
         if (!targets.Any()) targets = filteredItems; 
 
         isBatchProcessing = true;
-        statusMessage = $"Menjalankan smart match untuk {targets.Count} lagu...";
+        statusMessage = $"Menjalankan match untuk {targets.Count} lagu...";
         isError = false;
         StateHasChanged();
 
@@ -479,7 +486,7 @@
         }
 
         isBatchProcessing = false;
-        statusMessage = "Smart match selesai.";
+        statusMessage = "Match selesai.";
         StateHasChanged();
     }
 
@@ -564,7 +571,7 @@
                 item.FilePath,
                 item.CleanArtist,
                 item.CleanTitle,
-                item.Album,
+                item.Album ?? string.Empty,
                 item.ReleaseYear,
                 item.AlbumCoverUrl
             );
