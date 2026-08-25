@@ -28,10 +28,18 @@ public class LocalTrackModel
     // Tambahan Properti UI & Smart Match Pipeline
     // ==========================================
     [NotMapped]
-    public string CleanArtist => Artist ?? "Unknown Artist";
+    public string CleanArtist 
+    { 
+        get => Artist ?? "Unknown Artist"; 
+        set => Artist = value; 
+    }
 
     [NotMapped]
-    public string CleanTitle => Title ?? Path.GetFileNameWithoutExtension(FileName);
+    public string CleanTitle 
+    { 
+        get => Title ?? Path.GetFileNameWithoutExtension(FileName); 
+        set => Title = value; 
+    }
 
     [NotMapped]
     public int? ReleaseYear { get; set; }
@@ -46,7 +54,19 @@ public class LocalTrackModel
     public string? MusicBrainzId { get; set; }
 
     [NotMapped]
+    public bool IsSelected { get; set; } = true;
+
+    [NotMapped]
+    public bool IsProcessed { get; set; }
+
+    [NotMapped]
     public bool IsProcessing { get; set; }
+
+    [NotMapped]
+    public bool IsDuplicateInDb { get; set; } = false;
+
+    [NotMapped]
+    public string DuplicateReason { get; set; } = string.Empty;
 
     [NotMapped]
     public bool IsNeedsReview { get; set; } = false;
