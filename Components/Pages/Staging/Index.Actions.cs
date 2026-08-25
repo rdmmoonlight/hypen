@@ -186,7 +186,7 @@ public partial class Index
         ReleaseYear = raw.ReleaseYear,
         AlbumCoverUrl = raw.AlbumCoverUrl,
         Country = raw.Country,
-        DurationSeconds = raw.DurationSeconds,
+        DurationSeconds = raw.DurationSeconds ?? 0, // Diperbaiki: Mengatasi konversi int? ke int
         MusicBrainzId = raw.MusicBrainzId
     };
 }
