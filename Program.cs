@@ -126,6 +126,7 @@ app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () =>
 
 app.MapControllers();
 app.MapSongEndpoints();
+app.MapMetadataFixingEndpoints();
 
 var oauthServiceForEndpoints = new YouTubeOAuthService(
     youtubeOAuthClientId,
