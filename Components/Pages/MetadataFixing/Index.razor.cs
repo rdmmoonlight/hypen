@@ -312,7 +312,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
-                // Set variabel utama Title & Artist
+                // Set nilai langsung ke variabel utama Title & Artist
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
                     target.Title = batchModel.CleanTitle;
@@ -362,7 +362,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
         private async Task SaveItemInternalAsync(LocalTrackModel item)
         {
-            // 1. TagLib Service (Update tag file fisik jika file ada)
+            // Update tag file fisik
             try
             {
                 if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
@@ -382,10 +382,10 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 Console.WriteLine($"[Warning TagLib] Gagal update tag file fisik: {ex.Message}");
             }
 
-            // 2. Eksekusi Database (Sama seperti logika API Postman)
+            // Eksekusi Database persis seperti logika API Postman yang terbukti sukses
             using var context = await DbContextFactory.CreateDbContextAsync();
 
-            // A. Cek keberadaan di tabel Songs (Production)
+            // A. Cek di tabel Songs (Production)
             var song = await context.Songs.FindAsync((long)item.Id);
             if (song != null)
             {
@@ -405,7 +405,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 return;
             }
 
-            // B. Jika tidak ada di Songs, update tabel RawSongs (Staging)
+            // B. Cek di tabel RawSongs (Staging)
             var raw = await context.RawSongs.FindAsync((long)item.Id);
             if (raw != null)
             {
