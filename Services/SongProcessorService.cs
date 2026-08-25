@@ -73,7 +73,7 @@ public class SongProcessorService : ISongProcessorService
                 }
                 else
                 {
-                    context.Songs.Add(new CloudSongsModel
+                    context.Songs.Add(new SongsModel
                     {
                         RawId = raw.Id,
                         YoutubeVideoId = raw.YoutubeVideoId ?? "",
