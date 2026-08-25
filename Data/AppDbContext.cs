@@ -10,7 +10,7 @@ public class AppDbContext : DbContext
     // Master DbSet Songs (Production Library SSOT -> Tabel: songs)
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // Alias untuk API/Endpoint
+    // Alias untuk kecocokan dengan REST Endpoints (SongEndpoints.cs)
     public DbSet<SongsModel> SongsComplete => Songs;
 
     // TABEL STAGING / RAW (Buffer Karantina -> Tabel: raw_songs)
@@ -53,6 +53,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsComplete).HasColumnName("is_complete").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
 
+            // Abaikan helper properties dari mapping EF Core
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
             entity.Ignore(e => e.Cover);
@@ -86,6 +87,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsComplete).HasColumnName("is_complete").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
 
+            // Abaikan helper properties dari mapping EF Core
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
             entity.Ignore(e => e.Cover);
