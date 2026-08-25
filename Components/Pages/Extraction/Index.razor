@@ -30,8 +30,8 @@
         </div>
     }
 
-    <!-- EKSTRAKSI / INGESTION CONTENT (3 CARDS) -->
-    <div class="ingest-grid three-columns">
+    <!-- EKSTRAKSI / INGESTION CONTENT (2 CARDS) -->
+    <div class="ingest-grid two-columns">
         <!-- CARD 1: INGESTION VIA YOUTUBE -->
         <div class="card-ingest">
             <div class="source-tag">Source // Remote</div>
@@ -47,21 +47,9 @@
             </button>
         </div>
 
-        <!-- CARD 2: INGESTION VIA LOCAL MP3 -->
+        <!-- CARD 2: LOCAL SYNC INGEST (GABUNGAN FILE & FOLDER) -->
         <div class="card-ingest">
-            <div class="source-tag">Source // Local File</div>
-            <h3 class="card-title">Local Audio Ingest</h3>
-
-            <div class="form-group">
-                <label class="form-label">Select Audio Files (.mp3)</label>
-                <InputFile OnChange="HandleFileSelection" multiple accept=".mp3" class="input-file" disabled="@isProcessing" />
-            </div>
-            <small class="help-text">Ekstraksi cepat dari berkas MP3 individual.</small>
-        </div>
-
-        <!-- CARD 3: INGESTION VIA LOCAL SYNC -->
-        <div class="card-ingest">
-            <div class="source-tag">Source // Local Directory</div>
+            <div class="source-tag">Source // Local Directory & Files</div>
             <h3 class="card-title">Local Sync Ingest</h3>
 
             <div class="form-group mb-2">
@@ -87,7 +75,7 @@
                     <InputFile OnChange="HandleLocalSyncSelection" multiple accept=".mp3,.wav,.m4a,.flac,.ogg,.aac" class="input-file" disabled="@isProcessing" />
                 }
             </div>
-            <small class="help-text">Pindai folder/direktori lokal secara otomatis.</small>
+            <small class="help-text">Pindai folder/direktori atau pilih berkas audio lokal secara langsung.</small>
         </div>
     </div>
 
