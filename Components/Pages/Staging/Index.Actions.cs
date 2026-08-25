@@ -112,8 +112,8 @@ public partial class Index
             isProcessing = true;
             UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
-            // Mengirim langsung tanpa mapping model tambahan
-            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, raw);
+            // Mengonversi RawSongsModel ke LocalMp3ExtractModel yang diterima service
+            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToExtractModel(raw));
             if (success)
             {
                 using var context = await DbContextFactory.CreateDbContextAsync();
@@ -170,8 +170,8 @@ public partial class Index
                 UpdateStatus($"[{count}/{targetList.Count}] Mengunggah: '{item.Title}'...");
                 try
                 {
-                    // Mengirim langsung tanpa mapping model tambahan
-                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, item))
+                    // Mengonversi RawSongsModel ke LocalMp3ExtractModel yang diterima service
+                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToExtractModel(item)))
                     {
                         using var context = await DbContextFactory.CreateDbContextAsync();
                         var rawEntity = await context.RawSongs.FindAsync(item.Id);
@@ -270,4 +270,19 @@ public partial class Index
             StateHasChanged();
         }
     }
+
+    // =========================================================================
+    // MAPPING HELPER (Penyesuaian Tipe Data Service)
+    // =========================================================================
+    private LocalMp3ExtractModel MapRawToExtractModel(RawSongsModel raw) => new()
+    {
+        CleanArtist = raw.Artist ?? string.Empty,
+        CleanTitle = raw.Title ?? string.Empty,
+        Album = raw.Album,
+        ReleaseYear = raw.ReleaseYear,
+        AlbumCoverUrl = raw.AlbumCoverUrl,
+        Country = raw.Country,
+        DurationSeconds = raw.DurationSeconds,
+        MusicBrainzId = raw.MusicBrainzId
+    };
 }
