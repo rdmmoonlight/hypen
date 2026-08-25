@@ -1,7 +1,10 @@
 @page "/metadatafixing"
+@using Hypen.Web.Data
 @using Hypen.Web.Models
 @using Hypen.Web.Services
+@using Microsoft.EntityFrameworkCore
 @inject MusicSmartMatchService SmartMatchService
+@inject IDbContextFactory<AppDbContext> DbContextFactory
 
 <PageTitle>Metadata Fixing - Hypen</PageTitle>
 
@@ -10,20 +13,32 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold m-0 text-white">Metadata Smart Fixing</h3>
-            <p class="text-secondary small m-0">Kelola dan perbaiki metadata lagu berbasis iTunes &amp; MusicBrainz</p>
+            <p class="text-secondary small m-0">Kelola dan perbaiki metadata lagu dari database (Songs &amp; Raw Songs)</p>
         </div>
-        <button class="btn btn-nebula-primary" @onclick="ProcessAllSmartMatch" disabled="@isBatchProcessing">
-            @if (isBatchProcessing)
-            {
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                <span>Processing...</span>
-            }
-            else
-            {
-                <i class="ti ti-wand me-2"></i><span>Auto Match All</span>
-            }
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-nebula-outline text-white" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
+                <i class="ti ti-database me-1"></i> Refresh Data
+            </button>
+            <button class="btn btn-nebula-primary" @onclick="ProcessAllSmartMatch" disabled="@isBatchProcessing || !Items.Any()">
+                @if (isBatchProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span>Processing...</span>
+                }
+                else
+                {
+                    <i class="ti ti-wand me-2"></i><span>Auto Match All</span>
+                }
+            </button>
+        </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") py-2 small mb-3">
+            @statusMessage
+        </div>
+    }
 
     <!-- Main Content Table Card -->
     <div class="card card-nebula shadow-sm border-0">
@@ -36,7 +51,7 @@
                             <th>Original / Target Metadata</th>
                             <th>Duration</th>
                             <th>Status Match</th>
-                            <th class="text-end" style="width: 160px;">Action</th>
+                            <th class="text-end" style="width: 200px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -45,7 +60,7 @@
                             <tr>
                                 <td colspan="5" class="text-center py-5 text-secondary">
                                     <i class="ti ti-music-off fs-1 d-block mb-2"></i>
-                                    Tidak ada file audio yang perlu diperbaiki.
+                                    Tidak ada data lagu di tabel Songs atau Raw Songs.
                                 </td>
                             </tr>
                         }
@@ -76,8 +91,9 @@
                                             {
                                                 <span class="badge badge-year ms-2">@item.ReleaseYear</span>
                                             }
+                                            <span class="badge bg-dark border border-secondary text-info ms-2">Source: @item.Country</span>
                                         </div>
-                                        <div class="text-secondary extra-small mt-1" style="font-size: 0.75rem;">File: @item.FileName</div>
+                                        <div class="text-secondary extra-small mt-1" style="font-size: 0.75rem;">ID: @item.Id | File: @item.FileName</div>
                                     </td>
                                     <td class="text-white-50">
                                         @(item.DurationSeconds > 0 ? TimeSpan.FromSeconds(item.DurationSeconds).ToString(@"mm\:ss") : "-")
@@ -111,8 +127,11 @@
                                         <button class="btn btn-nebula-icon me-1" @onclick="() => ReMatchSingle(item)" title="Re-match internet">
                                             <i class="ti ti-refresh"></i>
                                         </button>
-                                        <button class="btn btn-nebula-outline btn-sm" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())">
+                                        <button class="btn btn-nebula-outline btn-sm me-1" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())" title="Pilih Kandidat">
                                             Candidates (@item.Candidates.Count)
+                                        </button>
+                                        <button class="btn btn-success btn-sm" @onclick="() => SaveItemToDatabase(item)" title="Simpan ke DB">
+                                            <i class="ti ti-device-floppy"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -163,25 +182,77 @@
     private List<LocalTrackModel> Items = new();
     private LocalTrackModel? selectedItem;
     private bool isBatchProcessing = false;
+    private string statusMessage = "";
+    private bool isError = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Sample Data Initializer
-        Items = new List<LocalTrackModel>
+        await LoadDataFromDatabase();
+    }
+
+    private async Task LoadDataFromDatabase()
+    {
+        try
         {
-            new LocalTrackModel { FileName = "Coldplay - Yellow.mp3", Artist = "Coldplay", Title = "Yellow", DurationSeconds = 266 },
-            new LocalTrackModel { FileName = "track_01_unknown.mp3", Artist = "Unknown Artist", Title = "Numb", DurationSeconds = 187 }
-        };
+            using var context = await DbContextFactory.CreateDbContextAsync();
+            
+            // 1. Ambil dari tabel Songs (Production Library)
+            var songs = await context.Songs.ToListAsync();
+            var songTracks = songs.Select(s => new LocalTrackModel
+            {
+                Id = (int)s.Id,
+                FileName = s.YoutubeVideoId ?? $"song_{s.Id}",
+                Title = s.Title,
+                Artist = s.Artist,
+                Album = s.Album,
+                ReleaseYear = s.ReleaseYear,
+                Country = "Songs", // Penanda asal tabel
+                AlbumCoverUrl = s.AlbumCoverUrl,
+                DurationSeconds = s.DurationSeconds,
+                MusicBrainzId = s.MusicBrainzId
+            });
+
+            // 2. Ambil dari tabel RawSongs (Staging)
+            var rawSongs = await context.RawSongs.Where(r => r.Status == "PENDING").ToListAsync();
+            var rawTracks = rawSongs.Select(r => new LocalTrackModel
+            {
+                Id = (int)r.Id,
+                FileName = r.YoutubeVideoId ?? $"raw_{r.Id}",
+                Title = r.Title,
+                Artist = r.Artist,
+                Album = r.Album,
+                ReleaseYear = r.ReleaseYear,
+                Country = "RawSongs", // Penanda asal tabel
+                AlbumCoverUrl = r.AlbumCoverUrl,
+                DurationSeconds = r.DurationSeconds ?? 0,
+                MusicBrainzId = r.MusicBrainzId
+            });
+
+            Items = songTracks.Concat(rawTracks).ToList();
+            statusMessage = $"Berhasil memuat {Items.Count} lagu dari database.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal memuat data dari database: {ex.Message}";
+            isError = true;
+        }
     }
 
     private async Task ProcessAllSmartMatch()
     {
         isBatchProcessing = true;
+        statusMessage = "Menjalankan smart match otomatis untuk semua lagu...";
+        isError = false;
+
         foreach (var item in Items)
         {
-            await ReMatchSingle(item);
+            await SmartMatchService.SmartMatchFromInternetAsync(item);
         }
+
         isBatchProcessing = false;
+        statusMessage = "Smart match selesai.";
+        StateHasChanged();
     }
 
     private async Task ReMatchSingle(LocalTrackModel item)
@@ -214,5 +285,56 @@
             selectedItem.MatchConfidenceReason = "Manual Selected";
             CloseCandidateModal();
         }
+    }
+
+    private async Task SaveItemToDatabase(LocalTrackModel item)
+    {
+        try
+        {
+            using var context = await DbContextFactory.CreateDbContextAsync();
+
+            if (item.Country == "Songs")
+            {
+                var song = await context.Songs.FindAsync((long)item.Id);
+                if (song != null)
+                {
+                    song.Title = item.CleanTitle;
+                    song.Artist = item.CleanArtist;
+                    song.Album = item.Album;
+                    song.ReleaseYear = item.ReleaseYear;
+                    song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    song.DurationSeconds = item.DurationSeconds;
+                    song.MusicBrainzId = item.MusicBrainzId;
+
+                    await context.SaveChangesAsync();
+                    statusMessage = $"Metadata '{item.CleanTitle}' berhasil diperbarui di tabel Songs.";
+                    isError = false;
+                }
+            }
+            else if (item.Country == "RawSongs")
+            {
+                var raw = await context.RawSongs.FindAsync((long)item.Id);
+                if (raw != null)
+                {
+                    raw.Title = item.CleanTitle;
+                    raw.Artist = item.CleanArtist;
+                    raw.Album = item.Album;
+                    raw.ReleaseYear = item.ReleaseYear;
+                    raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    raw.DurationSeconds = item.DurationSeconds;
+                    raw.MusicBrainzId = item.MusicBrainzId;
+
+                    await context.SaveChangesAsync();
+                    statusMessage = $"Metadata '{item.CleanTitle}' berhasil diperbarui di tabel RawSongs.";
+                    isError = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal menyimpan metadata: {ex.Message}";
+            isError = true;
+        }
+        StateHasChanged();
     }
 }
