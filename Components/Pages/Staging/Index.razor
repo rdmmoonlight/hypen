@@ -1,5 +1,10 @@
 @page "/staging"
 @namespace Hypen.Web.Components.Pages.Staging
+@using Hypen.Web.Models
+@using Hypen.Web.Data
+@using Hypen.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbContextFactory
 
 <PageTitle>Staging Buffer - Hypen Music Vault</PageTitle>
 
@@ -29,13 +34,13 @@
     <div class="staging-toolbar">
         <div>
             <div class="toolbar-info" style="color: #ffffff;">
-                Buffer Pipeline (@pendingRawCount PENDING) 
+                Buffer Pipeline (@pendingRawCount PENDING / INCOMPLETE) 
                 @if (selectedRawIds.Count > 0)
                 {
                     <span class="selected-badge">[ @selectedRawIds.Count TERPILIH ]</span>
                 }
             </div>
-            <div class="toolbar-subtext" style="color: #e0e0e0;">Review metadata & sinkronisasi data staging.</div>
+            <div class="toolbar-subtext" style="color: #e0e0e0;">Review metadata & sinkronisasi data staging ke production library.</div>
         </div>
 
         <!-- SEARCH INPUT -->
@@ -59,7 +64,7 @@
                 </button>
             }
 
-            <button class="btn-action commit-all" @onclick="UploadAllToComplete" disabled="@isProcessing">
+            <button class="btn-action commit-all" @onclick="UploadAllToComplete" disabled="@(isProcessing || !StagingList.Any())">
                 COMMIT ALL
             </button>
         </div>
@@ -68,7 +73,7 @@
     @if (!FilteredStagingList.Any())
     {
         <div class="empty-state" style="color: #ffffff;">
-            @(string.IsNullOrWhiteSpace(SearchTerm) ? "NO PENDING TRACKS IN STAGING BUFFER." : "TIDAK ADA DATA YANG COCOK DENGAN PENCARIAN.")
+            @(string.IsNullOrWhiteSpace(SearchTerm) ? "TIDAK ADA DATA PENDING / INCOMPLETE DI STAGING BUFFER." : "TIDAK ADA DATA YANG COCOK DENGAN PENCARIAN.")
         </div>
     }
     else
@@ -117,7 +122,7 @@
                                 <span class="text-cell mono highlight-text">@(string.IsNullOrWhiteSpace(row.Country) ? "-" : row.Country)</span>
                             </td>
                             <td>
-                                <span class="text-cell mono">@(row.DurationSeconds > 0 ? $"{row.DurationSeconds}s" : "-")</span>
+                                <span class="text-cell mono">@(row.DurationSeconds.HasValue && row.DurationSeconds > 0 ? $"{row.DurationSeconds}s" : "-")</span>
                             </td>
                             <td>
                                 <span class="text-cell mono text-muted-url" title="@row.AlbumCoverUrl">
