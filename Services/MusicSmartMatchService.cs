@@ -8,7 +8,7 @@ public class MusicSmartMatchService
 {
     private readonly HttpClient _http;
     private readonly IMusicBrainzService _musicBrainzService;
-    private readonly LocalMp3ExtractorService _extractorService;
+    private readonly LocalMp3ExtractorService _extractorService; // atau service lain yang Anda gunakan
 
     public MusicSmartMatchService(
         HttpClient http, 
@@ -20,7 +20,7 @@ public class MusicSmartMatchService
         _extractorService = extractorService;
     }
 
-    public async Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
+    public async Task SmartMatchFromInternetAsync(LocalTrackModel item)
     {
         bool iTunesSuccess = await TryMatchiTunesAsync(item);
 
@@ -34,11 +34,12 @@ public class MusicSmartMatchService
         }
     }
 
-    private async Task<bool> TryMatchiTunesAsync(LocalMp3ExtractModel item)
+    private async Task<bool> TryMatchiTunesAsync(LocalTrackModel item)
     {
         try
         {
-            string searchQuery = _extractorService.CleanQueryForSearch($"{item.CleanArtist} {item.CleanTitle}");
+            // Pastikan CleanQueryForSearch menerima string, sesuaikan jika method ini ada di extractor service
+            string searchQuery = $"{item.CleanArtist} {item.CleanTitle}";
             string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(searchQuery)}&entity=song&limit=5";
             var res = await _http.GetFromJsonAsync<JsonElement>(url);
 
@@ -47,7 +48,6 @@ public class MusicSmartMatchService
                 var results = res.GetProperty("results").EnumerateArray();
                 item.Candidates.Clear();
 
-                // 1. TAMBUNG SEMUA KANDIDAT UNTUK UI SELECTION
                 foreach (var track in results)
                 {
                     var candidate = new iTunesCandidateModel();
@@ -61,14 +61,14 @@ public class MusicSmartMatchService
                     item.Candidates.Add(candidate);
                 }
 
-                // 2. CARI KANDIDAT TERBAIK BERBASIS DURASI
-                iTunesCandidateModel? bestMatch = null;
+                LocalTrackModel? bestMatch = null; // Ganti penampung atau sesuaikan tipe logikanya ke kandidat
+                iTunesCandidateModel? bestCandidate = null;
                 int minDiff = int.MaxValue;
-                const int maxAllowedDiffSeconds = 8; // Beda > 8 detik dianggap tidak cocok
+                const int maxAllowedDiffSeconds = 8;
 
-                if (item.DurationSeconds.HasValue && item.DurationSeconds.Value > 0)
+                if (item.DurationSeconds > 0)
                 {
-                    int localDuration = item.DurationSeconds.Value;
+                    int localDuration = item.DurationSeconds;
 
                     foreach (var c in item.Candidates)
                     {
@@ -76,37 +76,33 @@ public class MusicSmartMatchService
                         if (diff <= maxAllowedDiffSeconds && diff < minDiff)
                         {
                             minDiff = diff;
-                            bestMatch = c;
+                            bestCandidate = c;
                         }
                     }
                 }
 
-                // Fallback jika tidak ada durasi lokal
-                if (bestMatch == null && (!item.DurationSeconds.HasValue || item.DurationSeconds == 0))
+                if (bestCandidate == null && item.DurationSeconds == 0)
                 {
-                    bestMatch = item.Candidates.FirstOrDefault();
+                    bestCandidate = item.Candidates.FirstOrDefault();
                 }
 
-                // Jika tidak ada hasil yang lolos batas toleransi durasi -> gagal
-                if (bestMatch == null)
+                if (bestCandidate == null)
                 {
                     return false;
                 }
 
-                // 3. VALIDASI KEMIRIPAN ARTIS
                 bool isArtistExact = string.IsNullOrWhiteSpace(item.CleanArtist)
                     || item.CleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
-                    || bestMatch.Artist.Equals(item.CleanArtist, StringComparison.OrdinalIgnoreCase);
+                    || bestCandidate.Artist.Equals(item.CleanArtist, StringComparison.OrdinalIgnoreCase);
 
-                bool isArtistPartial = bestMatch.Artist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
-                    || item.CleanArtist.Contains(bestMatch.Artist, StringComparison.OrdinalIgnoreCase);
+                bool isArtistPartial = bestCandidate.Artist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
+                    || item.CleanArtist.Contains(bestCandidate.Artist, StringComparison.OrdinalIgnoreCase);
 
                 if (!isArtistExact && !isArtistPartial)
                 {
-                    return false; // Artis beda jauh, gagalkan match
+                    return false;
                 }
 
-                // 4. CEK CONFIDENCE & BUAT PENANDA UNTUK REVIEW UI
                 if (minDiff >= 3 || !isArtistExact)
                 {
                     item.IsNeedsReview = true;
@@ -120,8 +116,7 @@ public class MusicSmartMatchService
                     item.MatchConfidenceReason = "Exact Match";
                 }
 
-                // Terapkan kandidat terbaik ke atribut utama
-                ApplyCandidateToItem(item, bestMatch);
+                ApplyCandidateToItem(item, bestCandidate);
                 return true;
             }
         }
@@ -133,25 +128,25 @@ public class MusicSmartMatchService
         return false;
     }
 
-    public void ApplyCandidateToItem(LocalMp3ExtractModel item, iTunesCandidateModel candidate)
+    public void ApplyCandidateToItem(LocalTrackModel item, iTunesCandidateModel candidate)
     {
-        item.CleanArtist = candidate.Artist;
-        item.CleanTitle = candidate.Title;
+        item.Artist = candidate.Artist;
+        item.Title = candidate.Title;
         item.Album = candidate.Album;
         item.ReleaseYear = candidate.ReleaseYear;
         item.AlbumCoverUrl = candidate.AlbumCoverUrl;
         item.DurationSeconds = candidate.DurationSeconds;
     }
 
-    private async Task TryMatchMusicBrainzAsync(LocalMp3ExtractModel item)
+    private async Task TryMatchMusicBrainzAsync(LocalTrackModel item)
     {
         try
         {
             var mbResult = await _musicBrainzService.SearchRecordingAsync(item.CleanArtist, item.CleanTitle);
             if (mbResult != null)
             {
-                if (!string.IsNullOrWhiteSpace(mbResult.Artist)) item.CleanArtist = mbResult.Artist;
-                if (!string.IsNullOrWhiteSpace(mbResult.Title)) item.CleanTitle = mbResult.Title;
+                if (!string.IsNullOrWhiteSpace(mbResult.Artist)) item.Artist = mbResult.Artist;
+                if (!string.IsNullOrWhiteSpace(mbResult.Title)) item.Title = mbResult.Title;
                 if (!string.IsNullOrWhiteSpace(mbResult.Album)) item.Album = mbResult.Album;
                 if (mbResult.ReleaseYear.HasValue) item.ReleaseYear = mbResult.ReleaseYear;
                 if (!string.IsNullOrWhiteSpace(mbResult.Country)) item.Country = mbResult.Country;
@@ -163,7 +158,7 @@ public class MusicSmartMatchService
         catch { }
     }
 
-    private async Task FetchCountryFromMusicBrainzAsync(LocalMp3ExtractModel item)
+    private async Task FetchCountryFromMusicBrainzAsync(LocalTrackModel item)
     {
         try
         {
