@@ -23,4 +23,47 @@ public class LocalTrackModel
 
     [ForeignKey(nameof(SongId))]
     public virtual SongsModel? Song { get; set; }
+
+    // ==========================================
+    // Tambahan Properti UI & Smart Match Pipeline
+    // ==========================================
+    [NotMapped]
+    public string CleanArtist => Artist ?? "Unknown Artist";
+
+    [NotMapped]
+    public string CleanTitle => Title ?? Path.GetFileNameWithoutExtension(FileName);
+
+    [NotMapped]
+    public int? ReleaseYear { get; set; }
+
+    [NotMapped]
+    public string Country { get; set; } = "Unknown";
+
+    [NotMapped]
+    public string? AlbumCoverUrl { get; set; }
+
+    [NotMapped]
+    public string? MusicBrainzId { get; set; }
+
+    [NotMapped]
+    public bool IsProcessing { get; set; }
+
+    [NotMapped]
+    public bool IsNeedsReview { get; set; } = false;
+
+    [NotMapped]
+    public string MatchConfidenceReason { get; set; } = string.Empty;
+
+    [NotMapped]
+    public List<iTunesCandidateModel> Candidates { get; set; } = new();
+}
+
+public class iTunesCandidateModel
+{
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string Album { get; set; } = "Single";
+    public int? ReleaseYear { get; set; }
+    public string AlbumCoverUrl { get; set; } = string.Empty;
+    public int DurationSeconds { get; set; }
 }
