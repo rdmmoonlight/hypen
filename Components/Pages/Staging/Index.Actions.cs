@@ -16,7 +16,6 @@ public partial class Index
             isProcessing = true;
             UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
-            // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service (dengan casting Id ke int)
             bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToTrackModel(raw));
             if (success)
             {
@@ -179,7 +178,7 @@ public partial class Index
     // =========================================================================
     private LocalTrackModel MapRawToTrackModel(RawSongsModel raw) => new()
     {
-        Id = (int)raw.Id, // <-- Casting eksplisit dari long ke int untuk LocalTrackModel.Id
+        Id = (int)raw.Id, // Casting eksplisit dari long ke int untuk LocalTrackModel.Id
         Artist = raw.Artist ?? string.Empty,
         Title = raw.Title ?? string.Empty,
         Album = raw.Album,
