@@ -208,7 +208,7 @@
                 ReleaseYear = s.ReleaseYear,
                 Country = "Songs", // Penanda asal tabel
                 AlbumCoverUrl = s.AlbumCoverUrl,
-                DurationSeconds = s.DurationSeconds,
+                DurationSeconds = s.DurationSeconds ?? 0, // <-- Diperbaiki dengan ?? 0
                 MusicBrainzId = s.MusicBrainzId
             });
 
