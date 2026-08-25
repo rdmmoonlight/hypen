@@ -23,7 +23,7 @@ public partial class Index : ComponentBase
     protected string targetPlaylistId = "URL";
 
     // INGESTION STATE (Menampung seluruh hasil ekstrak di memori sebelum ke Staging)
-    protected List<LocalMp3ExtractModel> extractedList = [];
+    protected List<LocalTrackModel> extractedList = [];
     protected bool isAllSelected = true;
 
     // METRICS STATE
@@ -60,11 +60,11 @@ public partial class Index : ComponentBase
                 return;
             }
 
-            var newItems = youtubeItems.Select(item => new LocalMp3ExtractModel
+            var newItems = youtubeItems.Select(item => new LocalTrackModel
             {
                 FileName = item.VideoId,
-                CleanTitle = item.Title,
-                CleanArtist = item.ChannelTitle,
+                Title = item.Title,
+                Artist = item.ChannelTitle,
                 IsSelected = true
             }).ToList();
 
@@ -108,7 +108,7 @@ public partial class Index : ComponentBase
         {
             isProcessing = true;
             int scanned = 0;
-            var newItems = new List<LocalMp3ExtractModel>();
+            var newItems = new List<LocalTrackModel>();
 
             foreach (var file in audioFiles)
             {
@@ -124,11 +124,11 @@ public partial class Index : ComponentBase
 
                     var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                    newItems.Add(new LocalMp3ExtractModel
+                    newItems.Add(new LocalTrackModel
                     {
                         FileName = file.Name,
-                        CleanTitle = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
-                        CleanArtist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist,
+                        Title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
+                        Artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist,
                         Album = "Local Sync",
                         IsSelected = true
                     });
