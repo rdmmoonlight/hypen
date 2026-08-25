@@ -39,7 +39,7 @@ public class TagLibService
                                 Description = "Cover",
                                 MimeType = "image/jpeg"
                             };
-                            tfile.Tag.Pictures = new IPicture[] { picture };
+                            tfile.Tag.Pictures = new TagLib.IPicture[] { picture };
                         }
                     }
                     catch (Exception imgEx)
