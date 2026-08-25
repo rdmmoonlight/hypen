@@ -1,0 +1,218 @@
+@page "/metadatafixing"
+@using Hypen.Web.Models
+@using Hypen.Web.Services
+@inject MusicSmartMatchService SmartMatchService
+
+<PageTitle>Metadata Fixing - Hypen</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold m-0">Metadata Smart Fixing</h3>
+            <p class="text-muted small m-0">Kelola dan perbaiki metadata lagu berbasis iTunes &amp; MusicBrainz</p>
+        </div>
+        <button class="btn btn-primary" @onclick="ProcessAllSmartMatch" disabled="@isBatchProcessing">
+            @if (isBatchProcessing)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                <span>Processing...</span>
+            }
+            else
+            {
+                <i class="bi bi-magic me-2"></i><span>Auto Match All</span>
+            }
+        </button>
+    </div>
+
+    <!-- Main Content Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Cover</th>
+                            <th>Original / Target Metadata</th>
+                            <th>Duration</th>
+                            <th>Status Match</th>
+                            <th class="text-end" style="width: 160px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Items == null || !Items.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    <i class="bi bi-music-note-list fs-3 d-block mb-2"></i>
+                                    Tidak ada file audio yang perlu diperbaiki.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in Items)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.AlbumCoverUrl))
+                                        {
+                                            <img src="@item.AlbumCoverUrl" class="rounded shadow-sm" width="56" height="56" style="object-fit: cover;" alt="Cover" />
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" style="width: 56px; height: 56px;">
+                                                <i class="bi bi-music-note fs-4"></i>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.CleanTitle</div>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-person me-1"></i>@item.CleanArtist 
+                                            <span class="mx-1">•</span> 
+                                            <i class="bi bi-disc me-1"></i>@(string.IsNullOrEmpty(item.Album) ? "Unknown Album" : item.Album) 
+                                            @if (item.ReleaseYear.HasValue)
+                                            {
+                                                <span class="badge bg-light text-dark ms-1">@item.ReleaseYear</span>
+                                            }
+                                        </div>
+                                        <div class="text-muted extra-small" style="font-size: 0.75rem;">File: @item.FileName</div>
+                                    </td>
+                                    <td>
+                                        @(item.DurationSeconds.HasValue ? TimeSpan.FromSeconds(item.DurationSeconds.Value).ToString(@"mm\:ss") : "-")
+                                    </td>
+                                    <td>
+                                        @if (item.IsProcessing)
+                                        {
+                                            <span class="badge bg-info text-dark"><span class="spinner-border spinner-border-sm me-1"></span>Matching...</span>
+                                        }
+                                        else if (item.IsNeedsReview)
+                                        {
+                                            <span class="badge bg-warning text-dark" title="@item.MatchConfidenceReason">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Needs Review
+                                            </span>
+                                            <div class="text-danger extra-small mt-1" style="font-size: 0.75rem;">@item.MatchConfidenceReason</div>
+                                        }
+                                        else if (item.MatchConfidenceReason == "Exact Match")
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Exact Match</span>
+                                        }
+                                        else if (item.MatchConfidenceReason == "Manual Selected")
+                                        {
+                                            <span class="badge bg-primary"><i class="bi bi-person-check me-1"></i>Manual</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Unmatched</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-outline-secondary btn-sm me-1" @onclick="() => ReMatchSingle(item)" title="Re-match internet">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())">
+                                            Candidates (@item.Candidates.Count)
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Selector Kandidat Metadata -->
+@if (selectedItem != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pilih Metadata Terbaik</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCandidateModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Pilih hasil dari iTunes yang paling sesuai untuk file: <strong>@selectedItem.FileName</strong></p>
+                    <div class="list-group">
+                        @foreach (var candidate in selectedItem.Candidates)
+                        {
+                            <button type="button" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between p-3" @onclick="() => SelectCandidate(candidate)">
+                                <div class="d-flex align-items-center">
+                                    <img src="@candidate.AlbumCoverUrl" class="rounded me-3" width="60" height="60" style="object-fit: cover;" alt="Cover Candidate" />
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">@candidate.Title</h6>
+                                        <div class="small text-muted">@candidate.Artist — <em>@candidate.Album</em> (@candidate.ReleaseYear)</div>
+                                        <div class="small text-secondary">Duration: @TimeSpan.FromSeconds(candidate.DurationSeconds).ToString(@"mm\:ss")</div>
+                                    </div>
+                                </div>
+                                <span class="btn btn-sm btn-primary">Gunakan</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<LocalMp3ExtractModel> Items = new();
+    private LocalMp3ExtractModel? selectedItem;
+    private bool isBatchProcessing = false;
+
+    protected override void OnInitialized()
+    {
+        // Sampel data awal. Nanti bisa dipanggil dari LocalMp3ExtractorService Anda
+        Items = new List<LocalMp3ExtractModel>
+        {
+            new LocalMp3ExtractModel { FileName = "Coldplay - Yellow.mp3", CleanArtist = "Coldplay", CleanTitle = "Yellow", DurationSeconds = 266 },
+            new LocalMp3ExtractModel { FileName = "track_01_unknown.mp3", CleanArtist = "Unknown Artist", CleanTitle = "Numb", DurationSeconds = 187 }
+        };
+    }
+
+    private async Task ProcessAllSmartMatch()
+    {
+        isBatchProcessing = true;
+        foreach (var item in Items)
+        {
+            await ReMatchSingle(item);
+        }
+        isBatchProcessing = false;
+    }
+
+    private async Task ReMatchSingle(LocalMp3ExtractModel item)
+    {
+        item.IsProcessing = true;
+        StateHasChanged();
+
+        await SmartMatchService.SmartMatchFromInternetAsync(item);
+
+        item.IsProcessing = false;
+        StateHasChanged();
+    }
+
+    private void OpenCandidateModal(LocalMp3ExtractModel item)
+    {
+        selectedItem = item;
+    }
+
+    private void CloseCandidateModal()
+    {
+        selectedItem = null;
+    }
+
+    private void SelectCandidate(iTunesCandidateModel candidate)
+    {
+        if (selectedItem != null)
+        {
+            SmartMatchService.ApplyCandidateToItem(selectedItem, candidate);
+            selectedItem.IsNeedsReview = false;
+            selectedItem.MatchConfidenceReason = "Manual Selected";
+            CloseCandidateModal();
+        }
+    }
+}
