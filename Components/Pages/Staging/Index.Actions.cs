@@ -175,7 +175,7 @@ public partial class Index
         }
     }
 
-// =========================================================================
+    // =========================================================================
     // MAPPING HELPER (Penyesuaian Tipe Data Service ke LocalTrackModel)
     // =========================================================================
     private LocalTrackModel MapRawToTrackModel(RawSongsModel raw) => new()
@@ -186,6 +186,7 @@ public partial class Index
         ReleaseYear = raw.ReleaseYear,
         AlbumCoverUrl = raw.AlbumCoverUrl,
         Country = raw.Country,
-        DurationSeconds = raw.DurationSeconds ?? 0, // <-- Tambahkan ?? 0 di sini
+        DurationSeconds = raw.DurationSeconds ?? 0,
         MusicBrainzId = raw.MusicBrainzId
     };
+}
