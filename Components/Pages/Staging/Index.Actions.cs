@@ -16,7 +16,7 @@ public partial class Index
             isProcessing = true;
             UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
-            // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service
+            // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service (termasuk ID)
             bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToTrackModel(raw));
             if (success)
             {
@@ -74,7 +74,7 @@ public partial class Index
                 UpdateStatus($"[{count}/{targetList.Count}] Mengunggah: '{item.Title}'...");
                 try
                 {
-                    // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service
+                    // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service (termasuk ID)
                     if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToTrackModel(item)))
                     {
                         using var context = await DbContextFactory.CreateDbContextAsync();
@@ -180,6 +180,7 @@ public partial class Index
     // =========================================================================
     private LocalTrackModel MapRawToTrackModel(RawSongsModel raw) => new()
     {
+        Id = raw.Id, // <-- Input raw ID dimasukkan di sini (sesuaikan nama properti tujuan jika misalnya RawId)
         Artist = raw.Artist ?? string.Empty,
         Title = raw.Title ?? string.Empty,
         Album = raw.Album,
