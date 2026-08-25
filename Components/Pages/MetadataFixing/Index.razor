@@ -7,6 +7,8 @@
 
 <PageTitle>Advanced Tag Studio - Hypen</PageTitle>
 
+<script src="/js/metadata-save.js"></script>
+
 <div class="container-fluid py-2 px-2 px-md-3">
 
     <!-- HEADER -->
@@ -51,6 +53,9 @@
             </button>
         </div>
     </div>
+
+    <!-- STATUS (JS - untuk tombol Save di panel inspector, tidak lewat circuit Blazor) -->
+    <div id="js-save-status" class="alert py-1 px-2 small mb-2 shadow-sm rounded-2" style="display:none;"></div>
 
     <!-- STATUS -->
     @if (!string.IsNullOrEmpty(statusMessage))
@@ -304,6 +309,12 @@
                         }
                         else if (activeEditItem != null)
                         {
+                            <!-- Hidden fields: dibaca langsung oleh JS (metadata-save.js), bukan lewat Blazor state -->
+                            <input type="hidden" id="active-item-id" value="@activeEditItem.Id" />
+                            <input type="hidden" id="active-item-israw" value="@(activeEditItem.IsFromRawSongs ? "true" : "false")" />
+                            <input type="hidden" id="active-item-filepath" value="@activeEditItem.FilePath" />
+                            <input type="hidden" id="active-item-filename" value="@activeEditItem.FileName" />
+
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <img src="@(string.IsNullOrEmpty(batchModel.AlbumCoverUrl)
                                     ? "https://placehold.co/72x72/1a1a1a/cccccc?text=🎵"
@@ -329,7 +340,7 @@
                                     <span class="text-warning">(Satu lagu saja)</span>
                                 }
                             </label>
-                            <input type="text"
+                            <input type="text" id="title-input"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                    @bind="batchModel.CleanTitle"
                                    disabled="@(SelectedCount > 1)"
@@ -338,7 +349,7 @@
 
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Artis</label>
-                            <input type="text"
+                            <input type="text" id="artist-input"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                    @bind="batchModel.CleanArtist"
                                    placeholder="Artis..." />
@@ -346,7 +357,7 @@
 
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Album</label>
-                            <input type="text"
+                            <input type="text" id="album-input"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                    @bind="batchModel.Album"
                                    placeholder="Album..." />
@@ -354,7 +365,7 @@
 
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1" style="font-size:.65rem;">URL Cover Album</label>
-                            <input type="text"
+                            <input type="text" id="cover-input"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                    @bind="batchModel.AlbumCoverUrl"
                                    placeholder="https://..." />
@@ -363,14 +374,14 @@
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Tahun Rilis</label>
-                                <input type="number"
+                                <input type="number" id="year-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.ReleaseYear"
                                        placeholder="2026" />
                             </div>
                             <div class="col-6">
                                 <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Kategori / Negara</label>
-                                <input type="text"
+                                <input type="text" id="country-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.Country"
                                        placeholder="Songs..." />
@@ -380,14 +391,14 @@
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Durasi (Detik)</label>
-                                <input type="number"
+                                <input type="number" id="duration-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.DurationSeconds"
                                        placeholder="Detik..." />
                             </div>
                             <div class="col-6">
                                 <label class="form-label text-secondary mb-1" style="font-size:.65rem;">MusicBrainz ID</label>
-                                <input type="text"
+                                <input type="text" id="mbid-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.MusicBrainzId"
                                        placeholder="MBID..." />
@@ -406,12 +417,25 @@
                                 </div>
                             }
                             <div class="@(SelectedCount > 1 ? "col-12" : "col-6")">
-                                <button class="btn btn-success btn-sm w-100 py-1 fw-bold"
-                                        @onclick="ApplyBatchChangesAndSave"
-                                        disabled="@isBatchProcessing">
-                                    <i class="ti ti-device-floppy me-1"></i>
-                                    Simpan @(SelectedCount > 1 ? $"({SelectedCount} Lagu)" : "")
-                                </button>
+                                @if (SelectedCount <= 1)
+                                {
+                                    <!-- Save single item: native onclick (bukan @onclick) -> bypass circuit Blazor sepenuhnya -->
+                                    <button type="button" id="js-save-btn" class="btn btn-success btn-sm w-100 py-1 fw-bold"
+                                            onclick="hypenSaveMetadata()">
+                                        <i class="ti ti-device-floppy me-1"></i>
+                                        Simpan
+                                    </button>
+                                }
+                                else
+                                {
+                                    <!-- Batch (multi-select): tetap via Blazor, butuh circuit hidup -->
+                                    <button class="btn btn-success btn-sm w-100 py-1 fw-bold"
+                                            @onclick="ApplyBatchChangesAndSave"
+                                            disabled="@isBatchProcessing">
+                                        <i class="ti ti-device-floppy me-1"></i>
+                                        Simpan (@SelectedCount Lagu)
+                                    </button>
+                                }
                             </div>
                         </div>
                     }
