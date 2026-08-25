@@ -52,10 +52,12 @@
     flex-shrink: 0;
 }
 
+/* Penyesuaian Header saat Collapsed */
 .hypen-sidebar.collapsed .sidebar-header {
     flex-direction: column;
     gap: 12px;
     justify-content: center;
+    align-items: center;
     padding-bottom: 0;
     border-bottom: none;
 }
@@ -152,9 +154,16 @@
     transition: all 0.15s ease;
 }
 
+/* Pengetengahan sempurna saat Collapsed/Hide Text */
 .hypen-sidebar.collapsed .nav-item-nebula {
     justify-content: center;
+    align-items: center;
     padding: 8px 0;
+    width: 100%;
+}
+
+.hypen-sidebar.collapsed .nav-item-nebula i {
+    margin: 0 auto;
 }
 
 /* Hover & Active States */
@@ -185,6 +194,7 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    align-items: center; /* Memastikan wrapper berada di tengah saat collapsed */
 }
 
 .dropdown-trigger {
@@ -225,10 +235,16 @@
     margin-left: 18px;
 }
 
+.hypen-sidebar.collapsed .submenu-container {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
 .submenu-item {
     padding: 6px 8px;
     font-size: 0.78rem;
-    color: #f8fafc;
+    color: #ffffff; /* Mengubah warna font submenu menjadi putih murni */
 }
 
 .submenu-item i {
@@ -246,6 +262,13 @@
     border-top: 1px solid #1e293b;
     flex-shrink: 0;
     margin-top: auto;
+}
+
+.hypen-sidebar.collapsed .sidebar-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
 }
 
 .footer-text {
