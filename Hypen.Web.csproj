@@ -26,7 +26,7 @@
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
     
     <!-- JUUI Library (Rilisan NuGet Terbaru) -->
-    <PackageReference Include="JUUI" Version="26.8.29" />
+    <PackageReference Include="JUUI" Version="26.8.33" />
   </ItemGroup>
 
 </Project>
