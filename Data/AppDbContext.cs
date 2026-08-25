@@ -7,13 +7,13 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    // Master DbSet Songs (Production Library SSOT)
+    // Master DbSet Songs (Production Library SSOT -> Tabel: songs)
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // Alias untuk kecocokan dengan SongEndpoints.cs
+    // Alias untuk API/Endpoint
     public DbSet<SongsModel> SongsComplete => Songs;
 
-    // TABEL STAGING / RAW (Buffer Karantina & Staging)
+    // TABEL STAGING / RAW (Buffer Karantina -> Tabel: raw_songs)
     public DbSet<RawSongsModel> RawSongs { get; set; } = default!;
 
     // OAuth & Track Tokens
