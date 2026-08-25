@@ -6,7 +6,7 @@ namespace Hypen.Web.Services;
 
 public class LocalMp3ExtractorService
 {
-    public async Task<LocalMp3ExtractModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
+    public async Task<LocalTrackModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
     {
         string tempPath = Path.Combine(Path.GetTempPath(), $"hypen_tag_{Guid.NewGuid():N}.mp3");
 
@@ -27,8 +27,8 @@ public class LocalMp3ExtractorService
 
             var fileFallback = ExtractMetadataFromFileName(originalFileName);
 
-            string artist = !string.IsNullOrWhiteSpace(tagArtist) ? tagArtist : fileFallback.RawArtist;
-            string title = !string.IsNullOrWhiteSpace(tagTitle) ? tagTitle : fileFallback.RawTitle;
+            string artist = !string.IsNullOrWhiteSpace(tagArtist) ? tagArtist : fileFallback.Artist ?? "Unknown Artist";
+            string title = !string.IsNullOrWhiteSpace(tagTitle) ? tagTitle : fileFallback.Title ?? originalFileName;
             string album = !string.IsNullOrWhiteSpace(tagAlbum) ? tagAlbum : "Single";
             int? year = tagYear > 0 ? (int)tagYear : null;
 
@@ -40,18 +40,17 @@ public class LocalMp3ExtractorService
                 embeddedCoverBase64 = $"data:{mimeType};base64,{Convert.ToBase64String(pic.Data.Data)}";
             }
 
-            return new LocalMp3ExtractModel
+            return new LocalTrackModel
             {
                 FileName = originalFileName,
-                RawArtist = artist,
-                RawTitle = title,
-                CleanArtist = artist,
-                CleanTitle = title,
+                FilePath = tempPath,
+                Artist = artist,
+                Title = title,
                 Album = album,
                 ReleaseYear = year,
                 Country = "Unknown",
                 AlbumCoverUrl = embeddedCoverBase64,
-                DurationSeconds = durationSeconds > 0 ? durationSeconds : null
+                DurationSeconds = durationSeconds > 0 ? durationSeconds : 0
             };
         }
         catch
@@ -67,7 +66,7 @@ public class LocalMp3ExtractorService
         }
     }
 
-    public LocalMp3ExtractModel ExtractMetadataFromFileName(string fileName)
+    public LocalTrackModel ExtractMetadataFromFileName(string fileName)
     {
         string cleanName = Regex.Replace(fileName, @"(?i)\.mp3$", "").Trim();
         string cleanedText = CleanQueryForSearch(cleanName);
@@ -82,13 +81,12 @@ public class LocalMp3ExtractorService
             title = parts[1].Trim();
         }
 
-        return new LocalMp3ExtractModel
+        return new LocalTrackModel
         {
             FileName = fileName,
-            RawArtist = artist,
-            RawTitle = title,
-            CleanArtist = artist,
-            CleanTitle = title,
+            FilePath = string.Empty,
+            Artist = artist,
+            Title = title,
             Album = "Single",
             Country = "Unknown"
         };
