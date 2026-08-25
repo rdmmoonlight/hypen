@@ -22,6 +22,41 @@ public class SongDeduplicationEngine
     }
 
     /// <summary>
+    /// Mengimpor daftar RawSong berdasarkan ID ke dalam tabel Songs (Master Database)
+    /// </summary>
+    public async Task<int> ImportRawSongsToMasterAsync(List<long> rawSongIds, CancellationToken cancellationToken = default)
+    {
+        if (rawSongIds == null || !rawSongIds.Any())
+            return 0;
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // 1. Ambil data RawSongs yang dipadankan
+        var rawSongsToImport = await dbContext.RawSongs
+            .Where(r => rawSongIds.Contains(r.Id))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        if (!rawSongsToImport.Any())
+            return 0;
+
+        // 2. Transposisi data RawSongs ke model Songs utama
+        var newSongs = rawSongsToImport.Select(raw => new SongsModel
+        {
+            Title = raw.Title ?? string.Empty,
+            Artist = raw.Artist ?? string.Empty,
+            Album = raw.Album ?? string.Empty,
+            // Properti opsional lainnya disesuaikan dengan schema database Anda
+            // YoutubeVideoId = raw.YoutubeVideoId,
+            // DurationSeconds = raw.DurationSeconds,
+        }).ToList();
+
+        // 3. Simpan entitas baru ke tabel Songs
+        await dbContext.Songs.AddRangeAsync(newSongs, cancellationToken);
+        return await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Memindai satu kandidat lagu baru terhadap database (dipakai saat Ingestion/Staging)
     /// </summary>
     public async Task<DuplicateMatchResult?> FindDuplicateAsync(
@@ -95,7 +130,7 @@ public class SongDeduplicationEngine
     }
 
     /// <summary>
-    /// Memindai seluruh database untuk mengelompokkan lagu-lagu duplikat (Halaman /tools)
+    /// Memindai seluruh database untuk mengelompokkan lagu-lagu duplikat
     /// </summary>
     public async Task<List<DuplicateGroupModel>> ScanAllDuplicatesAsync(
         int durationToleranceSeconds = 3,
@@ -182,12 +217,11 @@ public class SongDeduplicationEngine
                 }
             }
 
-            // Jika ditemukan duplikat (> 1 lagu dalam satu klaster)
+            // Ditemukan duplikat (> 1 lagu dalam satu klaster)
             if (cluster.Count > 1)
             {
                 processedIds.Add(current.Id);
 
-                // Logika Auto-Resolve Master Target
                 var bestMaster = cluster
                     .OrderByDescending(s => !string.IsNullOrEmpty(s.AlbumCoverUrl))
                     .ThenByDescending(s => !string.IsNullOrEmpty(s.YoutubeVideoId) && !s.YoutubeVideoId.StartsWith("LOCAL"))
@@ -210,7 +244,7 @@ public class SongDeduplicationEngine
     }
 
     /// <summary>
-    /// Eksekusi pembersihan massal lagu duplikat berdasarkan pilihan user dari Halaman /tools
+    /// Eksekusi pembersihan massal lagu duplikat berdasarkan pilihan user
     /// </summary>
     public async Task<int> PurgeDuplicatesAsync(List<DuplicateGroupModel> groups, CancellationToken cancellationToken = default)
     {
