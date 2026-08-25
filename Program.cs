@@ -2,6 +2,7 @@ using Hypen.Web;
 using Hypen.Web.Components;
 using Hypen.Web.Data;
 using Hypen.Web.Endpoints;
+using Hypen.Web.Models;
 using Hypen.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -135,7 +136,133 @@ var oauthServiceForEndpoints = new YouTubeOAuthService(
 app.MapOAuthEndpoints(youtubeOAuthClientId, youtubeOAuthRedirectUri, oauthServiceForEndpoints);
 
 // =========================================================================
-// 4. BLAZOR UI ROUTING NATIVE (.NET 10)
+// 4. METADATA FIXING API ENDPOINT (POSTMAN / EXTERNAL CLIENT)
+// =========================================================================
+app.MapPost("/api/metadata/save", async (LocalTrackModel item, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    try
+    {
+        using var context = await dbFactory.CreateDbContextAsync();
+
+        // 1. Cek di tabel Songs (Production)
+        var song = await context.Songs.FindAsync((long)item.Id);
+        if (song != null)
+        {
+            song.Title = item.CleanTitle;
+            song.Artist = item.CleanArtist;
+            song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+            song.ReleaseYear = item.ReleaseYear;
+            song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+            song.DurationSeconds = item.DurationSeconds;
+            song.MusicBrainzId = item.MusicBrainzId;
+
+            bool isComplete = !string.IsNullOrWhiteSpace(song.Title) &&
+                             !string.IsNullOrWhiteSpace(song.Artist) &&
+                             !string.IsNullOrWhiteSpace(song.Album) &&
+                             song.ReleaseYear > 0 &&
+                             !string.IsNullOrWhiteSpace(song.AlbumCoverUrl) &&
+                             song.DurationSeconds > 0;
+
+            song.IsComplete = isComplete;
+            song.Status = isComplete ? "COMPLETED" : "INCOMPLETE";
+
+            context.Songs.Update(song);
+            await context.SaveChangesAsync();
+
+            return Results.Ok(new { success = true, message = "Berhasil memperbarui data di tabel Songs", target = "Songs", status = song.Status });
+        }
+
+        // 2. Cek di tabel RawSongs (Staging)
+        var raw = await context.RawSongs.FindAsync((long)item.Id);
+        if (raw != null)
+        {
+            raw.Title = item.CleanTitle;
+            raw.Artist = item.CleanArtist;
+            raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+            raw.ReleaseYear = item.ReleaseYear;
+            raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+            raw.DurationSeconds = item.DurationSeconds;
+            raw.MusicBrainzId = item.MusicBrainzId;
+
+            bool isFullyComplete = !string.IsNullOrWhiteSpace(raw.Title) &&
+                                  !string.IsNullOrWhiteSpace(raw.Artist) &&
+                                  !string.IsNullOrWhiteSpace(raw.Album) &&
+                                  raw.ReleaseYear > 0 &&
+                                  !string.IsNullOrWhiteSpace(raw.AlbumCoverUrl) &&
+                                  raw.DurationSeconds > 0;
+
+            if (isFullyComplete)
+            {
+                // Promosi otomatis ke tabel Songs
+                raw.Status = "COMPLETED";
+                raw.IsComplete = true;
+
+                string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
+                var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
+
+                if (existingSong != null)
+                {
+                    existingSong.Title = raw.Title;
+                    existingSong.Artist = raw.Artist;
+                    existingSong.Album = raw.Album;
+                    existingSong.ReleaseYear = raw.ReleaseYear;
+                    existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
+                    existingSong.DurationSeconds = raw.DurationSeconds;
+                    existingSong.MusicBrainzId = raw.MusicBrainzId;
+                    existingSong.Status = "COMPLETED";
+                    existingSong.IsComplete = true;
+                    context.Songs.Update(existingSong);
+                }
+                else
+                {
+                    var newSong = new SongsModel
+                    {
+                        RawId = raw.Id,
+                        YoutubeVideoId = ytId,
+                        MusicBrainzId = raw.MusicBrainzId,
+                        Title = raw.Title,
+                        Artist = raw.Artist,
+                        Album = raw.Album,
+                        ReleaseYear = raw.ReleaseYear,
+                        Country = string.IsNullOrWhiteSpace(item.Country) || item.Country == "RawSongs" ? "Unknown" : item.Country,
+                        AlbumCoverUrl = raw.AlbumCoverUrl,
+                        AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
+                        DurationSeconds = raw.DurationSeconds,
+                        IsDownloaded = raw.IsDownloaded,
+                        Status = "COMPLETED",
+                        IsComplete = true
+                    };
+
+                    await context.Songs.AddAsync(newSong);
+                }
+
+                context.RawSongs.Remove(raw);
+                await context.SaveChangesAsync();
+
+                return Results.Ok(new { success = true, message = "Metadata 100% lengkap! Otomatis dipromosikan ke tabel Songs.", target = "PromotedToSongs" });
+            }
+            else
+            {
+                // Simpan draft perubahan ke RawSongs
+                raw.Status = "INCOMPLETE";
+                raw.IsComplete = false;
+                context.RawSongs.Update(raw);
+                await context.SaveChangesAsync();
+
+                return Results.Ok(new { success = true, message = "Draft berhasil disimpan ke RawSongs (Status: INCOMPLETE)", target = "RawSongs" });
+            }
+        }
+
+        return Results.NotFound(new { success = false, message = $"Data lagu dengan ID {item.Id} tidak ditemukan di Songs maupun RawSongs." });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(detail: ex.Message, statusCode: 500);
+    }
+});
+
+// =========================================================================
+// 5. BLAZOR UI ROUTING NATIVE (.NET 10)
 // =========================================================================
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
