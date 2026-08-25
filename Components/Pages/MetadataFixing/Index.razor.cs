@@ -312,6 +312,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
+                // Set langsung ke variabel utama Title & Artist
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
                     target.Title = batchModel.CleanTitle;
@@ -361,6 +362,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
         private async Task SaveItemInternalAsync(LocalTrackModel item)
         {
+            // Update tag file fisik
             try
             {
                 if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
@@ -382,99 +384,103 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             using var context = await DbContextFactory.CreateDbContextAsync();
 
-            var song = await context.Songs.FindAsync((long)item.Id);
-            if (song != null)
+            // PISAHKAN PENCARIAN BERDASARKAN SUMBER DATA (Country Flag)
+            if (item.Country == "Songs")
             {
-                song.Title = item.CleanTitle;
-                song.Artist = item.CleanArtist;
-                song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-                song.ReleaseYear = item.ReleaseYear;
-                song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                song.DurationSeconds = item.DurationSeconds;
-                song.MusicBrainzId = item.MusicBrainzId;
-
-                song.IsComplete = IsTrackDataComplete(item);
-                song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
-
-                context.Songs.Update(song);
-                await context.SaveChangesAsync();
-                return;
-            }
-
-            var raw = await context.RawSongs.FindAsync((long)item.Id);
-            if (raw != null)
-            {
-                raw.Title = item.CleanTitle;
-                raw.Artist = item.CleanArtist;
-                raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
-                raw.ReleaseYear = item.ReleaseYear;
-                raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                raw.DurationSeconds = item.DurationSeconds;
-                raw.MusicBrainzId = item.MusicBrainzId;
-
-                bool isFullyComplete = IsTrackDataComplete(item);
-
-                if (isFullyComplete)
+                var song = await context.Songs.FindAsync((long)item.Id);
+                if (song != null)
                 {
-                    raw.Status = "COMPLETED";
-                    raw.IsComplete = true;
+                    song.Title = item.CleanTitle;
+                    song.Artist = item.CleanArtist;
+                    song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                    song.ReleaseYear = item.ReleaseYear;
+                    song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    song.DurationSeconds = item.DurationSeconds;
+                    song.MusicBrainzId = item.MusicBrainzId;
 
-                    string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
-                    var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
+                    song.IsComplete = IsTrackDataComplete(item);
+                    song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
 
-                    if (existingSong != null)
-                    {
-                        existingSong.Title = raw.Title;
-                        existingSong.Artist = raw.Artist;
-                        existingSong.Album = raw.Album;
-                        existingSong.ReleaseYear = raw.ReleaseYear;
-                        existingSong.Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country;
-                        existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
-                        existingSong.DurationSeconds = raw.DurationSeconds;
-                        existingSong.MusicBrainzId = raw.MusicBrainzId;
-                        existingSong.Status = "COMPLETED";
-                        existingSong.IsComplete = true;
-
-                        context.Songs.Update(existingSong);
-                    }
-                    else
-                    {
-                        var newSong = new SongsModel
-                        {
-                            RawId = raw.Id,
-                            YoutubeVideoId = ytId,
-                            MusicBrainzId = raw.MusicBrainzId,
-                            Title = raw.Title,
-                            Artist = raw.Artist,
-                            Album = raw.Album,
-                            ReleaseYear = raw.ReleaseYear,
-                            Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country,
-                            AlbumCoverUrl = raw.AlbumCoverUrl,
-                            AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
-                            DurationSeconds = raw.DurationSeconds,
-                            IsDownloaded = raw.IsDownloaded,
-                            Status = "COMPLETED",
-                            IsComplete = true
-                        };
-
-                        await context.Songs.AddAsync(newSong);
-                    }
-
-                    context.RawSongs.Remove(raw);
+                    context.Songs.Update(song);
+                    await context.SaveChangesAsync();
                 }
-                else
-                {
-                    raw.Status = "INCOMPLETE";
-                    raw.IsComplete = false;
-
-                    context.RawSongs.Update(raw);
-                }
-
-                await context.SaveChangesAsync();
             }
             else
             {
-                throw new Exception($"Data lagu dengan ID {item.Id} tidak ditemukan baik di tabel Songs maupun RawSongs.");
+                var raw = await context.RawSongs.FindAsync((long)item.Id);
+                if (raw != null)
+                {
+                    // SIMPAN DRAFT KE RAW_SONGS
+                    raw.Title = item.CleanTitle;
+                    raw.Artist = item.CleanArtist;
+                    raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                    raw.ReleaseYear = item.ReleaseYear;
+                    raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    raw.DurationSeconds = item.DurationSeconds;
+                    raw.MusicBrainzId = item.MusicBrainzId;
+
+                    bool isFullyComplete = IsTrackDataComplete(item);
+
+                    if (isFullyComplete)
+                    {
+                        // AUTOMATION: Promosikan ke tabel Songs jika metadata sudah 100% lengkap
+                        raw.Status = "COMPLETED";
+                        raw.IsComplete = true;
+
+                        string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
+                        var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
+
+                        if (existingSong != null)
+                        {
+                            existingSong.Title = raw.Title;
+                            existingSong.Artist = raw.Artist;
+                            existingSong.Album = raw.Album;
+                            existingSong.ReleaseYear = raw.ReleaseYear;
+                            existingSong.Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country;
+                            existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
+                            existingSong.DurationSeconds = raw.DurationSeconds;
+                            existingSong.MusicBrainzId = raw.MusicBrainzId;
+                            existingSong.Status = "COMPLETED";
+                            existingSong.IsComplete = true;
+
+                            context.Songs.Update(existingSong);
+                        }
+                        else
+                        {
+                            var newSong = new SongsModel
+                            {
+                                RawId = raw.Id,
+                                YoutubeVideoId = ytId,
+                                MusicBrainzId = raw.MusicBrainzId,
+                                Title = raw.Title,
+                                Artist = raw.Artist,
+                                Album = raw.Album,
+                                ReleaseYear = raw.ReleaseYear,
+                                Country = string.IsNullOrWhiteSpace(batchModel.Country) || batchModel.Country == "RawSongs" ? "Unknown" : batchModel.Country,
+                                AlbumCoverUrl = raw.AlbumCoverUrl,
+                                AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
+                                DurationSeconds = raw.DurationSeconds,
+                                IsDownloaded = raw.IsDownloaded,
+                                Status = "COMPLETED",
+                                IsComplete = true
+                            };
+
+                            await context.Songs.AddAsync(newSong);
+                        }
+
+                        context.RawSongs.Remove(raw);
+                    }
+                    else
+                    {
+                        // SIMPAN DRAFT INCOMPLETE
+                        raw.Status = "INCOMPLETE";
+                        raw.IsComplete = false;
+
+                        context.RawSongs.Update(raw);
+                    }
+
+                    await context.SaveChangesAsync();
+                }
             }
         }
 
