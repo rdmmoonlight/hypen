@@ -4,7 +4,6 @@
 @using Hypen.Web.Data
 @using Hypen.Web.Services
 @using Microsoft.EntityFrameworkCore
-@inject IDbContextFactory<AppDbContext> DbContextFactory
 
 <PageTitle>Staging Buffer - Hypen Music Vault</PageTitle>
 
@@ -64,7 +63,7 @@
                 </button>
             }
 
-            <button class="btn-action commit-all" @onclick="UploadAllToComplete" disabled="@(isProcessing || !StagingList.Any())">
+            <button class="btn-action commit-all" @onclick="UploadAllToComplete" disabled="@(isProcessing || !stagingList.Any())">
                 COMMIT ALL
             </button>
         </div>
