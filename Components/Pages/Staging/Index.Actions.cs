@@ -112,7 +112,8 @@ public partial class Index
             isProcessing = true;
             UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
-            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToExtractModel(raw));
+            // Mengirim langsung tanpa mapping model tambahan
+            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, raw);
             if (success)
             {
                 using var context = await DbContextFactory.CreateDbContextAsync();
@@ -169,7 +170,8 @@ public partial class Index
                 UpdateStatus($"[{count}/{targetList.Count}] Mengunggah: '{item.Title}'...");
                 try
                 {
-                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToExtractModel(item)))
+                    // Mengirim langsung tanpa mapping model tambahan
+                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, item))
                     {
                         using var context = await DbContextFactory.CreateDbContextAsync();
                         var rawEntity = await context.RawSongs.FindAsync(item.Id);
@@ -268,19 +270,4 @@ public partial class Index
             StateHasChanged();
         }
     }
-
-    // =========================================================================
-    // MAPPING HELPERS
-    // =========================================================================
-    private LocalMp3ExtractModel MapRawToExtractModel(RawSongsModel raw) => new()
-    {
-        CleanArtist = raw.Artist ?? string.Empty,
-        CleanTitle = raw.Title ?? string.Empty,
-        Album = raw.Album,
-        ReleaseYear = raw.ReleaseYear,
-        AlbumCoverUrl = raw.AlbumCoverUrl,
-        Country = raw.Country,
-        DurationSeconds = raw.DurationSeconds,
-        MusicBrainzId = raw.MusicBrainzId
-    };
 }
