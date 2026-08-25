@@ -16,8 +16,8 @@ public partial class Index
             isProcessing = true;
             UpdateStatus($"Mengesahkan & Mengunggah '{raw.Title}' ke tabel songs utama...");
 
-            // Mengonversi RawSongsModel ke LocalMp3ExtractModel yang diterima service
-            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToExtractModel(raw));
+            // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service
+            bool success = await AppSyncService.PromoteRawToCompleteAsync(raw.Id, MapRawToTrackModel(raw));
             if (success)
             {
                 using var context = await DbContextFactory.CreateDbContextAsync();
@@ -74,8 +74,8 @@ public partial class Index
                 UpdateStatus($"[{count}/{targetList.Count}] Mengunggah: '{item.Title}'...");
                 try
                 {
-                    // Mengonversi RawSongsModel ke LocalMp3ExtractModel yang diterima service
-                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToExtractModel(item)))
+                    // Mengonversi RawSongsModel ke LocalTrackModel yang diterima service
+                    if (await AppSyncService.PromoteRawToCompleteAsync(item.Id, MapRawToTrackModel(item)))
                     {
                         using var context = await DbContextFactory.CreateDbContextAsync();
                         var rawEntity = await context.RawSongs.FindAsync(item.Id);
@@ -176,12 +176,12 @@ public partial class Index
     }
 
     // =========================================================================
-    // MAPPING HELPER (Penyesuaian Tipe Data Service)
+    // MAPPING HELPER (Penyesuaian Tipe Data Service ke LocalTrackModel)
     // =========================================================================
-    private LocalMp3ExtractModel MapRawToExtractModel(RawSongsModel raw) => new()
+    private LocalTrackModel MapRawToTrackModel(RawSongsModel raw) => new()
     {
-        CleanArtist = raw.Artist ?? string.Empty,
-        CleanTitle = raw.Title ?? string.Empty,
+        Artist = raw.Artist ?? string.Empty,
+        Title = raw.Title ?? string.Empty,
         Album = raw.Album,
         ReleaseYear = raw.ReleaseYear,
         AlbumCoverUrl = raw.AlbumCoverUrl,
