@@ -4,7 +4,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy project file dari root
+# Copy project file dan restore (optimasi cache layer)
 COPY ["Hypen.Web.csproj", "./"]
 RUN dotnet restore "Hypen.Web.csproj"
 
@@ -19,13 +19,19 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 # Install ca-certificates & curl untuk healthcheck / kebutuhan HTTPS standar
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-
-# Copy hasil publish dotnet dari stage build
-COPY --from=build /app/publish .
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set Port & Environment untuk Render / Cloud Hosting
-ENV ASPNETCORE_URLS=http://+:8080
+# Standar baru .NET 8+ menggunakan ASPNETCORE_HTTP_PORTS
+ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
+
+# Copy hasil publish dari stage build beserta hak kepemilikan ke user 'app'
+COPY --from=build --chown=app:app /app/publish .
+
+# BEST PRACTICE: Gunakan user non-root bawaan image .NET demi keamanan
+USER app
 
 ENTRYPOINT ["dotnet", "Hypen.Web.dll"]
