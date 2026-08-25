@@ -10,7 +10,6 @@ namespace Hypen.Web.Components.Pages.Extraction;
 public partial class Index : ComponentBase
 {
     [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
-    [Inject] protected SyncService AppSyncService { get; set; } = default!;
     [Inject] protected AudioMetadataService MetadataService { get; set; } = default!;
     [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
@@ -86,46 +85,7 @@ public partial class Index : ComponentBase
         }
     }
 
-    // CARD 2: Manual File Upload Extractor
-    protected async Task HandleFileSelection(InputFileChangeEventArgs e)
-    {
-        var files = e.GetMultipleFiles(int.MaxValue);
-
-        try
-        {
-            isProcessing = true;
-            int scanned = 0;
-            var newItems = new List<LocalMp3ExtractModel>();
-
-            foreach (var file in files)
-            {
-                scanned++;
-                UpdateStatus($"[{scanned:N0}/{files.Count:N0}] Mengurai metadata file: '{file.Name}'...");
-
-                await using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
-                var model = await AppSyncService.ExtractMetadataFromStreamAsync(file.Name, stream);
-                model.IsSelected = true;
-                newItems.Add(model);
-            }
-
-            extractedList.AddRange(newItems);
-            isAllSelected = true;
-
-            UpdateStatus($"{files.Count:N0} file MP3 berhasil diurai ke preview.");
-        }
-        catch (Exception ex)
-        {
-            var detail = ex.InnerException?.Message ?? ex.Message;
-            UpdateStatus($"Error saat membaca file MP3: {detail}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
-
-    // CARD 3: Local Sync Extractor (Folder / Audio Files Extractor)
+    // CARD 2: Local Sync (Gabungan File & Folder Extractor)
     protected async Task HandleLocalSyncSelection(InputFileChangeEventArgs e)
     {
         var files = e.GetMultipleFiles(5000);
