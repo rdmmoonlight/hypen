@@ -4,16 +4,17 @@
 @using Hypen.Web.Services
 @using Microsoft.EntityFrameworkCore
 @inject MusicSmartMatchService SmartMatchService
+@inject TagEditorCliService TagEditorService
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 
-<PageTitle>Metadata Fixing - Hypen</PageTitle>
+<PageTitle>Metadata Fixing & Tag Editor - Hypen</PageTitle>
 
-<div class="metadata-fixing-container py-4 px-2 px-md-3">
+<div class="metadata-fixing-container py-3 px-2 px-md-3">
     <!-- Header Section -->
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold m-0 text-white">Metadata Smart Fixing</h4>
-            <p class="text-secondary small m-0">Kelola dan perbaiki metadata lagu dari database</p>
+            <h4 class="fw-bold m-0 text-white"><i class="ti ti-tags me-2 text-accent"></i>Metadata Smart Fixing &amp; Tag Editor</h4>
+            <p class="text-secondary small m-0">Sinkronisasi database Songs/Raw Songs &amp; Tulis Tag Fisik via Martchus TagEditor</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-nebula-outline text-white btn-sm" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
@@ -30,15 +31,15 @@
                     <i class="ti ti-wand me-1"></i><span>Auto Match (@Items.Count(x => x.IsSelected))</span>
                 }
             </button>
-            <button class="btn btn-success btn-sm" @onclick="SaveSelectedToDatabase" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
-                <i class="ti ti-device-floppy me-1"></i> Save Selected
+            <button class="btn btn-success btn-sm" @onclick="SaveSelectedToDatabaseAndFiles" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
+                <i class="ti ti-device-floppy me-1"></i> Save Tag &amp; DB (@Items.Count(x => x.IsSelected))
             </button>
         </div>
     </div>
 
     @if (!string.IsNullOrEmpty(statusMessage))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-success") py-1 px-2 small mb-2">
+        <div class="alert @(isError ? "alert-danger" : "alert-success") py-1 px-2 small mb-2 shadow-sm">
             @statusMessage
         </div>
     }
@@ -47,8 +48,8 @@
     <div class="card card-nebula shadow-sm border-0 mb-2">
         <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
-                <span class="text-secondary small">Baris:</span>
-                <select class="form-select form-select-sm bg-dark text-white border-secondary py-0 px-2" style="width: 70px; height: 28px;" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                <span class="text-secondary small">Baris per halaman:</span>
+                <select class="form-select form-select-sm bg-dark text-white border-secondary py-0 px-2" style="width: 75px; height: 28px;" @bind="pageSize" @bind:after="OnPageSizeChanged">
                     <option value="5">5</option>
                     <option value="10">10</option>
                     <option value="25">25</option>
@@ -57,26 +58,26 @@
                 </select>
             </div>
             <div class="text-secondary small">
-                Total: <strong class="text-white">@totalCount</strong> | Hal <strong class="text-white">@currentPage</strong>/@(totalPages == 0 ? 1 : totalPages)
+                Total Data: <strong class="text-white">@totalCount</strong> | Halaman <strong class="text-white">@currentPage</strong> / <strong class="text-white">@(totalPages == 0 ? 1 : totalPages)</strong>
             </div>
         </div>
     </div>
 
-    <!-- Main Content Table Card (Dibuat Lebih Ringkas & Kompak) -->
-    <div class="card card-nebula shadow-sm border-0 mb-2 mx-auto" style="max-width: 100%;">
+    <!-- Main Content Table Card (Kompak, Lebar Efisien) -->
+    <div class="card card-nebula shadow-sm border-0 mb-2">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-nebula table-sm align-middle mb-0" style="font-size: 0.85rem;">
+                <table class="table table-nebula table-sm align-middle mb-0" style="font-size: 0.82rem;">
                     <thead>
                         <tr>
-                            <th style="width: 30px;" class="text-center">
+                            <th style="width: 35px;" class="text-center">
                                 <input type="checkbox" class="form-check-input bg-dark border-secondary" @checked="isAllSelected" @onchange="ToggleSelectAll" />
                             </th>
                             <th style="width: 50px;">Cover</th>
-                            <th>Metadata &amp; File</th>
+                            <th>Metadata Lagu &amp; Lokasi File</th>
                             <th style="width: 70px;">Durasi</th>
-                            <th style="width: 90px;">Status</th>
-                            <th class="text-end" style="width: 140px;">Action</th>
+                            <th style="width: 90px;">Status Match</th>
+                            <th class="text-end" style="width: 150px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,14 +105,14 @@
                                         }
                                         else
                                         {
-                                            <div class="cover-placeholder rounded d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-                                                <i class="ti ti-music fs-6"></i>
+                                            <div class="cover-placeholder rounded d-flex align-items-center justify-content-center bg-dark" style="width: 36px; height: 36px;">
+                                                <i class="ti ti-music fs-6 text-secondary"></i>
                                             </div>
                                         }
                                     </td>
                                     <td>
-                                        <div class="fw-bold text-white text-truncate" style="max-width: 280px;" title="@item.CleanTitle">@item.CleanTitle</div>
-                                        <div class="text-secondary extra-small text-truncate" style="max-width: 280px; font-size: 0.75rem;">
+                                        <div class="fw-bold text-white text-truncate" style="max-width: 320px;" title="@item.CleanTitle">@item.CleanTitle</div>
+                                        <div class="text-secondary text-truncate" style="max-width: 320px; font-size: 0.73rem;">
                                             <span class="text-white-50">@item.CleanArtist</span> • <em class="text-white-50">@(string.IsNullOrEmpty(item.Album) ? "Single" : item.Album)</em>
                                             @if (item.ReleaseYear.HasValue)
                                             {
@@ -126,33 +127,33 @@
                                     <td>
                                         @if (item.IsProcessing)
                                         {
-                                            <span class="badge bg-info text-dark py-1" style="font-size: 0.7rem;"><span class="spinner-border spinner-border-sm me-1" style="width: 10px; height: 10px;"></span>Match</span>
+                                            <span class="badge bg-info text-dark py-1" style="font-size: 0.68rem;"><span class="spinner-border spinner-border-sm me-1" style="width: 10px; height: 10px;"></span>Match</span>
                                         }
                                         else if (item.IsNeedsReview)
                                         {
-                                            <span class="badge bg-warning text-dark py-1" style="font-size: 0.7rem;" title="@item.MatchConfidenceReason">Review</span>
+                                            <span class="badge bg-warning text-dark py-1" style="font-size: 0.68rem;" title="@item.MatchConfidenceReason">Review</span>
                                         }
                                         else if (item.MatchConfidenceReason == "Exact Match")
                                         {
-                                            <span class="badge bg-success py-1" style="font-size: 0.7rem;">Exact</span>
+                                            <span class="badge bg-success py-1" style="font-size: 0.68rem;">Exact</span>
                                         }
                                         else if (item.MatchConfidenceReason == "Manual Selected")
                                         {
-                                            <span class="badge bg-primary py-1" style="font-size: 0.7rem;">Manual</span>
+                                            <span class="badge bg-primary py-1" style="font-size: 0.68rem;">Manual</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-secondary py-1" style="font-size: 0.7rem;">Idle</span>
+                                            <span class="badge bg-secondary py-1" style="font-size: 0.68rem;">Idle</span>
                                         }
                                     </td>
                                     <td class="text-end text-nowrap">
-                                        <button class="btn btn-dark btn-sm p-1 px-2 me-1" @onclick="() => ReMatchSingle(item)" title="Re-match internet">
+                                        <button class="btn btn-dark btn-sm p-1 px-2 me-1 border-secondary text-white" @onclick="() => ReMatchSingle(item)" title="Cari ulang di Internet">
                                             <i class="ti ti-refresh"></i>
                                         </button>
-                                        <button class="btn btn-outline-secondary btn-sm p-1 px-2 me-1 text-white" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())" title="Pilih Kandidat">
+                                        <button class="btn btn-outline-secondary btn-sm p-1 px-2 me-1 text-white" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())" title="Pilih Kandidat iTunes">
                                             <i class="ti ti-list-details"></i> (@item.Candidates.Count)
                                         </button>
-                                        <button class="btn btn-success btn-sm p-1 px-2" @onclick="() => SaveItemToDatabase(item)" title="Simpan / Upload ke Songs">
+                                        <button class="btn btn-success btn-sm p-1 px-2" @onclick="() => SaveItemToDatabaseAndFile(item)" title="Simpan Tag Fisik &amp; Database">
                                             <i class="ti ti-device-floppy"></i>
                                         </button>
                                     </td>
@@ -195,23 +196,23 @@
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content modal-nebula">
                 <div class="modal-header border-bottom-nebula py-2">
-                    <h6 class="modal-title text-white m-0">Pilih Metadata Terbaik</h6>
+                    <h6 class="modal-title text-white m-0">Pilih Kandidat Metadata (iTunes)</h6>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseCandidateModal"></button>
                 </div>
                 <div class="modal-body p-3">
-                    <p class="text-secondary small mb-2">File: <strong class="text-white">@selectedItem.FileName</strong></p>
+                    <p class="text-secondary small mb-2">Target File: <strong class="text-white">@selectedItem.FileName</strong></p>
                     <div class="list-group gap-2">
                         @foreach (var candidate in selectedItem.Candidates)
                         {
                             <div class="candidate-card d-flex align-items-center justify-content-between p-2 rounded bg-dark border border-secondary" style="cursor: pointer;" @onclick="() => SelectCandidate(candidate)">
                                 <div class="d-flex align-items-center">
-                                    <img src="@candidate.AlbumCoverUrl" class="rounded me-2 shadow-sm" width="44" height="44" style="object-fit: cover;" alt="Cover" />
+                                    <img src="@candidate.AlbumCoverUrl" class="rounded me-2 shadow-sm" width="40" height="40" style="object-fit: cover;" alt="Cover" />
                                     <div>
                                         <h6 class="mb-0 fw-bold text-white small">@candidate.Title</h6>
-                                        <div class="extra-small text-secondary" style="font-size: 0.75rem;">@candidate.Artist — <em class="text-white-50">@candidate.Album</em> (@candidate.ReleaseYear)</div>
+                                        <div class="text-secondary" style="font-size: 0.72rem;">@candidate.Artist — <em class="text-white-50">@candidate.Album</em> (@candidate.ReleaseYear)</div>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-primary btn-sm py-0 px-2" style="font-size: 0.75rem;">Pilih</button>
+                                <button type="button" class="btn btn-primary btn-sm py-0 px-2" style="font-size: 0.72rem;">Gunakan</button>
                             </div>
                         }
                     </div>
@@ -270,6 +271,9 @@
                 AlbumCoverUrl = s.AlbumCoverUrl,
                 DurationSeconds = s.DurationSeconds ?? 0,
                 MusicBrainzId = s.MusicBrainzId,
+                FilePath = s.AudioUrl != null && s.AudioUrl.StartsWith("/downloads/") 
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", s.AudioUrl.TrimStart('/')) 
+                    : string.Empty,
                 IsSelected = false
             });
 
@@ -287,6 +291,9 @@
                 AlbumCoverUrl = r.AlbumCoverUrl,
                 DurationSeconds = r.DurationSeconds ?? 0,
                 MusicBrainzId = r.MusicBrainzId,
+                FilePath = r.AudioUrl != null && r.AudioUrl.StartsWith("/downloads/") 
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", r.AudioUrl.TrimStart('/')) 
+                    : string.Empty,
                 IsSelected = false
             });
 
@@ -392,7 +399,7 @@
         }
     }
 
-    private async Task SaveSelectedToDatabase()
+    private async Task SaveSelectedToDatabaseAndFiles()
     {
         var targets = Items.Where(x => x.IsSelected).ToList();
         if (!targets.Any()) return;
@@ -411,23 +418,23 @@
         }
 
         isBatchProcessing = false;
-        statusMessage = $"Berhasil menyimpan & memproses {successCount} lagu terpilih ke database.";
+        statusMessage = $"Berhasil memperbarui tag file fisik & database untuk {successCount} lagu terpilih.";
         isError = false;
         await LoadDataFromDatabase();
     }
 
-    private async Task SaveItemToDatabase(LocalTrackModel item)
+    private async Task SaveItemToDatabaseAndFile(LocalTrackModel item)
     {
         try
         {
             await SaveItemInternalAsync(item);
-            statusMessage = $"Metadata '{item.CleanTitle}' berhasil disimpan / dipromosikan ke Songs.";
+            statusMessage = $"Tag file fisik & database untuk '{item.CleanTitle}' berhasil diperbarui / dipromosikan ke Songs.";
             isError = false;
             await LoadDataFromDatabase();
         }
         catch (Exception ex)
         {
-            statusMessage = $"Gagal menyimpan metadata: {ex.Message}";
+            statusMessage = $"Gagal menyimpan tag/database: {ex.Message}";
             isError = true;
         }
         StateHasChanged();
@@ -435,6 +442,19 @@
 
     private async Task SaveItemInternalAsync(LocalTrackModel item)
     {
+        // 1. Tulis tag ke file fisik server menggunakan tageditor CLI (Martchus)
+        if (!string.IsNullOrEmpty(item.FilePath))
+        {
+            await TagEditorService.ApplyTagsToFileAsync(
+                item.FilePath,
+                item.CleanArtist,
+                item.CleanTitle,
+                item.Album,
+                item.ReleaseYear,
+                item.AlbumCoverUrl
+            );
+        }
+
         using var context = await DbContextFactory.CreateDbContextAsync();
 
         if (item.Country == "Songs")
@@ -455,6 +475,7 @@
         }
         else if (item.Country == "RawSongs")
         {
+            // ATURAN KHUSUS: Simpan/Edit dari Raw Songs -> Complete Upload ke Songs & Hapus dari Raw Songs
             var raw = await context.RawSongs.FindAsync((long)item.Id);
             if (raw != null)
             {
