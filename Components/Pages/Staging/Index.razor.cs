@@ -19,7 +19,6 @@ public partial class Index : ComponentBase
 
     // SELECTION & STAGING STATE
     protected HashSet<long> selectedRawIds = new();
-    protected HashSet<long> duplicateRawIds = new();
     protected List<RawSongsModel> stagingList = [];
     protected int pendingRawCount = 0;
     protected int completedSongsCount = 0;
@@ -120,7 +119,6 @@ public partial class Index : ComponentBase
             selectedRawIds.IntersectWith(stagingList.Select(x => x.Id));
             
             EnsureValidPageBoundary();
-            CheckLocalDuplicates();
         }
         catch (Exception ex)
         {
