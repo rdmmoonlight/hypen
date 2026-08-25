@@ -341,9 +341,9 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             await LoadDataFromDatabase();
 
-            if (failCount > 0)
+            if (failCount > 0 && successCount == 0)
             {
-                statusMessage = $"Batch update selesai: {successCount} berhasil, {failCount} gagal.";
+                statusMessage = $"Batch update gagal disimpan ke database.";
                 isError = true;
             }
             else
@@ -357,10 +357,10 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
         private async Task SaveItemInternalAsync(LocalTrackModel item)
         {
-            // 1. Tulis metadata ke file fisik ID3/MP4 (jika file ada)
-            if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
+            // 1. ISOLASI TAG EDITOR SERVICE (Abaikan error jika file fisik tidak ada/read-only)
+            try
             {
-                try
+                if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
                 {
                     await TagEditorService.ApplyTagsToFileAsync(
                         item.FilePath,
@@ -371,15 +371,15 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                         item.AlbumCoverUrl
                     );
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Warning] Gagal update tag file fisik: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Warning Non-Fatal] Gagal update tag file fisik: {ex.Message}");
             }
 
+            // 2. EKSEKUSI DATABASE
             using var context = await DbContextFactory.CreateDbContextAsync();
 
-            // 2. KONDISI A: Data sudah di Production (Songs) -> Hanya Update
             if (item.Country == "Songs")
             {
                 var song = await context.Songs.FindAsync((long)item.Id);
@@ -400,13 +400,12 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     await context.SaveChangesAsync();
                 }
             }
-            // 3. KONDISI B: Data di Staging (RawSongs)
             else
             {
                 var raw = await context.RawSongs.FindAsync((long)item.Id);
                 if (raw != null)
                 {
-                    // PERUBAHAN DRAFT SELALU DIPERBARUI DI TABEL RAW_SONGS
+                    // Update data draft di tabel raw_songs
                     raw.Title = item.CleanTitle;
                     raw.Artist = item.CleanArtist;
                     raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
@@ -415,12 +414,11 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     raw.DurationSeconds = item.DurationSeconds;
                     raw.MusicBrainzId = item.MusicBrainzId;
 
-                    // Evaluasi otomatisasi kelengkapan metadata
                     bool isFullyComplete = IsTrackDataComplete(item);
 
                     if (isFullyComplete)
                     {
-                        // AUTOMATION: Promosikan ke tabel `songs` jika metadata sudah 100% lengkap
+                        // PROMOSI OTOMATIS KE TABEL SONGS (Status COMPLETED)
                         raw.Status = "COMPLETED";
                         raw.IsComplete = true;
 
@@ -465,19 +463,19 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                             await context.Songs.AddAsync(newSong);
                         }
 
-                        // Otomatis bersihkan entri dari tabel raw_songs
+                        // Hapus dari raw_songs karena sudah naik tingkat ke songs
                         context.RawSongs.Remove(raw);
                     }
                     else
                     {
-                        // SIMPAN DRAFT: Simpan progres edit ke raw_songs dengan status INCOMPLETE
+                        // SIMPAN DRAFT DI TABEL RAW_SONGS (Status INCOMPLETE)
                         raw.Status = "INCOMPLETE";
                         raw.IsComplete = false;
 
                         context.RawSongs.Update(raw);
                     }
 
-                    // Eksekusi perubahan ke database
+                    // Tulis perubahan ke Database
                     await context.SaveChangesAsync();
                 }
             }
