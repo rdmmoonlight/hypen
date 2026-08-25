@@ -3,13 +3,13 @@
 
 <PageTitle>Staging Buffer - Hypen Music Vault</PageTitle>
 
-<div class="staging-container">
+<div class="staging-container" style="color: #ffffff;">
     
     <!-- HEADER -->
     <div class="staging-header">
         <div>
             <div class="pipeline-tag">System Pipeline</div>
-            <h1 class="staging-title">Staging Buffer Review</h1>
+            <h1 class="staging-title" style="color: #ffffff;">Staging Buffer Review</h1>
         </div>
         <div class="nav-actions">
             <a href="/extraction" class="btn-nav">← EXTRACTION</a>
@@ -28,7 +28,7 @@
     <!-- STAGING REVIEW TOOLBAR -->
     <div class="staging-toolbar">
         <div>
-            <div class="toolbar-info">
+            <div class="toolbar-info" style="color: #ffffff;">
                 Buffer Pipeline (@pendingRawCount PENDING) 
                 @if (selectedRawIds.Count > 0)
                 {
@@ -39,7 +39,7 @@
                     <span class="duplicate-badge">[ @duplicateRawIds.Count DUPLIKAT DETECTED ]</span>
                 }
             </div>
-            <div class="toolbar-subtext">Review metadata & sinkronisasi data staging.</div>
+            <div class="toolbar-subtext" style="color: #e0e0e0;">Review metadata & sinkronisasi data staging.</div>
         </div>
         <div class="toolbar-actions">
             @if (selectedRawIds.Count > 0)
@@ -52,12 +52,12 @@
                 </button>
             }
 
-            <!-- TOMBOL MANUAL CEK DUPLIKAT (SELALU MUNCUL) -->
+            <!-- TOMBOL MANUAL CEK DUPLIKAT -->
             <button class="btn-action check-duplicates" @onclick="RunDuplicateCheck" disabled="@isProcessing">
                 🔍 CHECK DUPLICATES
             </button>
 
-            <!-- TOMBOL PEMBERSIHAN (AKTIF KETIKA DUPLIKAT TERDETEKSI) -->
+            <!-- TOMBOL PEMBERSIHAN -->
             @if (duplicateRawIds.Count > 0)
             {
                 <button class="btn-action clean-duplicates" @onclick="DeleteDuplicateStagingItems" disabled="@isProcessing">
@@ -73,27 +73,27 @@
 
     @if (stagingList.Count == 0)
     {
-        <div class="empty-state">
+        <div class="empty-state" style="color: #ffffff;">
             NO PENDING TRACKS IN STAGING BUFFER.
         </div>
     }
     else
     {
         <div class="table-wrapper">
-            <table class="staging-table">
+            <table class="staging-table" style="color: #ffffff;">
                 <thead>
                     <tr>
                         <th class="col-checkbox">
                             <input type="checkbox" checked="@IsAllSelected" @onchange="ToggleSelectAll" class="custom-chk" />
                         </th>
-                        <th class="col-title">Judul</th>
-                        <th class="col-artist">Artis</th>
-                        <th class="col-album">Album</th>
-                        <th class="col-year">Tahun</th>
-                        <th class="col-reg">Reg</th>
-                        <th class="col-duration">Durasi</th>
-                        <th class="col-cover">Cover URL</th>
-                        <th class="col-actions">Aksi</th>
+                        <th class="col-title" style="color: #ffffff;">Judul</th>
+                        <th class="col-artist" style="color: #ffffff;">Artis</th>
+                        <th class="col-album" style="color: #ffffff;">Album</th>
+                        <th class="col-year" style="color: #ffffff;">Tahun</th>
+                        <th class="col-reg" style="color: #ffffff;">Reg</th>
+                        <th class="col-duration" style="color: #ffffff;">Durasi</th>
+                        <th class="col-cover" style="color: #ffffff;">Cover URL</th>
+                        <th class="col-actions" style="color: #ffffff;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -102,13 +102,13 @@
                         var isSelected = selectedRawIds.Contains(row.Id);
                         var isDuplicate = duplicateRawIds.Contains(row.Id);
 
-                        <tr class="@(isSelected ? "selected-row" : "") @(isDuplicate ? "duplicate-row" : "")">
+                        <tr class="@(isSelected ? "selected-row" : "") @(isDuplicate ? "duplicate-row" : "")" style="color: #ffffff;">
                             <td class="col-checkbox">
                                 <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" class="custom-chk" />
                             </td>
                             <td>
                                 <div class="cell-with-badge">
-                                    <input type="text" @bind="row.Title" class="input-cell" />
+                                    <span class="text-cell font-weight-bold">@(string.IsNullOrWhiteSpace(row.Title) ? "-" : row.Title)</span>
                                     @if (isDuplicate)
                                     {
                                         <span class="badge-duplicate" title="Kombinasi Artis & Judul ganda di Staging">DUPLIKAT</span>
@@ -116,22 +116,24 @@
                                 </div>
                             </td>
                             <td>
-                                <input type="text" @bind="row.Artist" class="input-cell" />
+                                <span class="text-cell">@(string.IsNullOrWhiteSpace(row.Artist) ? "-" : row.Artist)</span>
                             </td>
                             <td>
-                                <input type="text" @bind="row.Album" placeholder="Single" class="input-cell" />
+                                <span class="text-cell">@(string.IsNullOrWhiteSpace(row.Album) ? "Single" : row.Album)</span>
                             </td>
                             <td>
-                                <input type="number" @bind="row.ReleaseYear" placeholder="2026" class="input-cell mono" />
+                                <span class="text-cell mono">@(row.ReleaseYear?.ToString() ?? "-")</span>
                             </td>
                             <td>
-                                <input type="text" @bind="row.Country" placeholder="ID" class="input-cell mono highlight-text" />
+                                <span class="text-cell mono highlight-text">@(string.IsNullOrWhiteSpace(row.Country) ? "-" : row.Country)</span>
                             </td>
                             <td>
-                                <input type="number" @bind="row.DurationSeconds" placeholder="0" class="input-cell mono" />
+                                <span class="text-cell mono">@(row.DurationSeconds > 0 ? $"{row.DurationSeconds}s" : "-")</span>
                             </td>
                             <td>
-                                <input type="text" @bind="row.AlbumCoverUrl" placeholder="https://..." class="input-cell mono text-muted-url" />
+                                <span class="text-cell mono text-muted-url" title="@row.AlbumCoverUrl">
+                                    @(string.IsNullOrWhiteSpace(row.AlbumCoverUrl) ? "-" : row.AlbumCoverUrl)
+                                </span>
                             </td>
                             <td class="col-actions">
                                 <button class="btn-icon commit" title="Commit to Library" @onclick="() => UploadSingleRawToComplete(row)" disabled="@isProcessing">🚀</button>
@@ -144,7 +146,7 @@
         </div>
 
         <!-- PAGINATION BAR -->
-        <div class="pagination-bar">
+        <div class="pagination-bar" style="color: #ffffff;">
             <div class="pagination-info">
                 Menampilkan @StartItem - @EndItem dari @stagingList.Count data
             </div>
@@ -166,8 +168,8 @@
             </div>
 
             <div class="pagination-size">
-                <label>Per halaman:</label>
-                <select value="@pageSize" @onchange="OnPageSizeChanged" class="select-page-size">
+                <label style="color: #ffffff;">Per halaman:</label>
+                <select value="@pageSize" @onchange="OnPageSizeChanged" class="select-page-size" style="color: #ffffff; background-color: #222;">
                     <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
