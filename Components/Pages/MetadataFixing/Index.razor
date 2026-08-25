@@ -10,16 +10,16 @@
 
 <div class="metadata-fixing-container py-4 px-3 px-md-4">
     <!-- Header Section -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <h3 class="fw-bold m-0 text-white">Metadata Smart Fixing</h3>
             <p class="text-secondary small m-0">Kelola dan perbaiki metadata lagu dari database (Songs &amp; Raw Songs)</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-nebula-outline text-white" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
                 <i class="ti ti-database me-1"></i> Refresh Data
             </button>
-            <button class="btn btn-nebula-primary" @onclick="ProcessAllSmartMatch" disabled="@isBatchProcessing || !Items.Any()">
+            <button class="btn btn-nebula-primary" @onclick="ProcessSmartMatchSelected" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
                 @if (isBatchProcessing)
                 {
                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -27,8 +27,11 @@
                 }
                 else
                 {
-                    <i class="ti ti-wand me-2"></i><span>Auto Match All</span>
+                    <i class="ti ti-wand me-2"></i><span>Auto Match Selected (@Items.Count(x => x.IsSelected))</span>
                 }
+            </button>
+            <button class="btn btn-success" @onclick="SaveSelectedToDatabase" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
+                <i class="ti ti-device-floppy me-1"></i> Save Selected
             </button>
         </div>
     </div>
@@ -40,44 +43,70 @@
         </div>
     }
 
+    <!-- Controls Bar: Page Size & Info -->
+    <div class="card card-nebula shadow-sm border-0 mb-3">
+        <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary small">Tampilkan:</span>
+                <select class="form-select form-select-sm bg-dark text-white border-secondary" style="width: 80px;" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="text-secondary small">data per halaman</span>
+            </div>
+            <div class="text-secondary small">
+                Total Data: <strong class="text-white">@totalCount</strong> | Halaman <strong class="text-white">@currentPage</strong> dari <strong class="text-white">@(totalPages == 0 ? 1 : totalPages)</strong>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content Table Card -->
-    <div class="card card-nebula shadow-sm border-0">
+    <div class="card card-nebula shadow-sm border-0 mb-3">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-nebula align-middle mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 80px;">Cover</th>
+                            <th style="width: 40px;" class="text-center">
+                                <input type="checkbox" class="form-check-input bg-dark border-secondary" @checked="isAllSelected" @onchange="ToggleSelectAll" />
+                            </th>
+                            <th style="width: 70px;">Cover</th>
                             <th>Original / Target Metadata</th>
                             <th>Duration</th>
                             <th>Status Match</th>
-                            <th class="text-end" style="width: 200px;">Action</th>
+                            <th class="text-end" style="width: 180px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (Items == null || !Items.Any())
+                        @if (pagedItems == null || !pagedItems.Any())
                         {
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-secondary">
+                                <td colspan="6" class="text-center py-5 text-secondary">
                                     <i class="ti ti-music-off fs-1 d-block mb-2"></i>
-                                    Tidak ada data lagu di tabel Songs atau Raw Songs.
+                                    Tidak ada data lagu ditemukan.
                                 </td>
                             </tr>
                         }
                         else
                         {
-                            @foreach (var item in Items)
+                            @foreach (var item in pagedItems)
                             {
                                 <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input bg-dark border-secondary" @bind="item.IsSelected" />
+                                    </td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.AlbumCoverUrl))
                                         {
-                                            <img src="@item.AlbumCoverUrl" class="rounded shadow-sm" width="52" height="52" style="object-fit: cover;" alt="Cover" />
+                                            <img src="@item.AlbumCoverUrl" class="rounded shadow-sm" width="48" height="48" style="object-fit: cover;" alt="Cover" />
                                         }
                                         else
                                         {
-                                            <div class="cover-placeholder rounded d-flex align-items-center justify-content-center">
-                                                <i class="ti ti-music fs-4"></i>
+                                            <div class="cover-placeholder rounded d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                                <i class="ti ti-music fs-5"></i>
                                             </div>
                                         }
                                     </td>
@@ -91,9 +120,9 @@
                                             {
                                                 <span class="badge badge-year ms-2">@item.ReleaseYear</span>
                                             }
-                                            <span class="badge bg-dark border border-secondary text-info ms-2">Source: @item.Country</span>
+                                            <span class="badge @(item.Country == "Songs" ? "bg-success" : "bg-warning text-dark") ms-2">@item.Country</span>
                                         </div>
-                                        <div class="text-secondary extra-small mt-1" style="font-size: 0.75rem;">ID: @item.Id | File: @item.FileName</div>
+                                        <div class="text-secondary extra-small mt-1" style="font-size: 0.70rem;">ID: @item.Id | File: @item.FileName</div>
                                     </td>
                                     <td class="text-white-50">
                                         @(item.DurationSeconds > 0 ? TimeSpan.FromSeconds(item.DurationSeconds).ToString(@"mm\:ss") : "-")
@@ -106,13 +135,12 @@
                                         else if (item.IsNeedsReview)
                                         {
                                             <span class="badge badge-nebula-warning" title="@item.MatchConfidenceReason">
-                                                <i class="ti ti-alert-triangle me-1"></i>Needs Review
+                                                <i class="ti ti-alert-triangle me-1"></i>Review
                                             </span>
-                                            <div class="text-danger extra-small mt-1" style="font-size: 0.75rem;">@item.MatchConfidenceReason</div>
                                         }
                                         else if (item.MatchConfidenceReason == "Exact Match")
                                         {
-                                            <span class="badge badge-nebula-success"><i class="ti ti-circle-check me-1"></i>Exact Match</span>
+                                            <span class="badge badge-nebula-success"><i class="ti ti-circle-check me-1"></i>Exact</span>
                                         }
                                         else if (item.MatchConfidenceReason == "Manual Selected")
                                         {
@@ -130,7 +158,7 @@
                                         <button class="btn btn-nebula-outline btn-sm me-1" @onclick="() => OpenCandidateModal(item)" disabled="@(!item.Candidates.Any())" title="Pilih Kandidat">
                                             Candidates (@item.Candidates.Count)
                                         </button>
-                                        <button class="btn btn-success btn-sm" @onclick="() => SaveItemToDatabase(item)" title="Simpan ke DB">
+                                        <button class="btn btn-success btn-sm" @onclick="() => SaveItemToDatabase(item)" title="Simpan / Upload ke Songs">
                                             <i class="ti ti-device-floppy"></i>
                                         </button>
                                     </td>
@@ -142,6 +170,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Pagination Footer -->
+    @if (totalPages > 1)
+    {
+        <nav class="d-flex justify-content-center">
+            <ul class="pagination pagination-sm">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link bg-dark text-white border-secondary" @onclick="() => ChangePage(currentPage - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pageIndex = i;
+                    <li class="page-item @(currentPage == pageIndex ? "active" : "")">
+                        <button class="page-link @(currentPage == pageIndex ? "bg-primary border-primary text-white" : "bg-dark text-white border-secondary")" @onclick="() => ChangePage(pageIndex)">@pageIndex</button>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button class="page-link bg-dark text-white border-secondary" @onclick="() => ChangePage(currentPage + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
 </div>
 
 <!-- Modal Selector Kandidat Metadata -->
@@ -180,10 +230,18 @@
 
 @code {
     private List<LocalTrackModel> Items = new();
+    private List<LocalTrackModel> pagedItems = new();
     private LocalTrackModel? selectedItem;
     private bool isBatchProcessing = false;
+    private bool isAllSelected = false;
     private string statusMessage = "";
     private bool isError = false;
+
+    // Pagination State
+    private int pageSize = 10;
+    private int currentPage = 1;
+    private int totalCount = 0;
+    private int totalPages = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,10 +264,11 @@
                 Artist = s.Artist,
                 Album = s.Album,
                 ReleaseYear = s.ReleaseYear,
-                Country = "Songs", // Penanda asal tabel
+                Country = "Songs",
                 AlbumCoverUrl = s.AlbumCoverUrl,
-                DurationSeconds = s.DurationSeconds ?? 0, // <-- Diperbaiki dengan ?? 0
-                MusicBrainzId = s.MusicBrainzId
+                DurationSeconds = s.DurationSeconds ?? 0,
+                MusicBrainzId = s.MusicBrainzId,
+                IsSelected = false
             });
 
             // 2. Ambil dari tabel RawSongs (Staging)
@@ -222,14 +281,18 @@
                 Artist = r.Artist,
                 Album = r.Album,
                 ReleaseYear = r.ReleaseYear,
-                Country = "RawSongs", // Penanda asal tabel
+                Country = "RawSongs",
                 AlbumCoverUrl = r.AlbumCoverUrl,
                 DurationSeconds = r.DurationSeconds ?? 0,
-                MusicBrainzId = r.MusicBrainzId
+                MusicBrainzId = r.MusicBrainzId,
+                IsSelected = false
             });
 
             Items = songTracks.Concat(rawTracks).ToList();
-            statusMessage = $"Berhasil memuat {Items.Count} lagu dari database.";
+            totalCount = Items.Count;
+            UpdatePagination();
+
+            statusMessage = $"Berhasil memuat {totalCount} lagu dari database.";
             isError = false;
         }
         catch (Exception ex)
@@ -239,19 +302,59 @@
         }
     }
 
-    private async Task ProcessAllSmartMatch()
+    private void UpdatePagination()
     {
-        isBatchProcessing = true;
-        statusMessage = "Menjalankan smart match otomatis untuk semua lagu...";
-        isError = false;
+        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
 
-        foreach (var item in Items)
+        pagedItems = Items
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private void ChangePage(int newPage)
+    {
+        if (newPage >= 1 && newPage <= totalPages)
+        {
+            currentPage = newPage;
+            UpdatePagination();
+        }
+    }
+
+    private void OnPageSizeChanged()
+    {
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        isAllSelected = e.Value is bool val && val;
+        foreach (var item in pagedItems)
+        {
+            item.IsSelected = isAllSelected;
+        }
+    }
+
+    private async Task ProcessSmartMatchSelected()
+    {
+        var targets = Items.Where(x => x.IsSelected).ToList();
+        if (!targets.Any()) return;
+
+        isBatchProcessing = true;
+        statusMessage = $"Menjalankan smart match untuk {targets.Count} lagu terpilih...";
+        isError = false;
+        StateHasChanged();
+
+        foreach (var item in targets)
         {
             await SmartMatchService.SmartMatchFromInternetAsync(item);
         }
 
         isBatchProcessing = false;
-        statusMessage = "Smart match selesai.";
+        statusMessage = "Smart match selesai untuk item terpilih.";
         StateHasChanged();
     }
 
@@ -287,48 +390,38 @@
         }
     }
 
+    private async Task SaveSelectedToDatabase()
+    {
+        var targets = Items.Where(x => x.IsSelected).ToList();
+        if (!targets.Any()) return;
+
+        isBatchProcessing = true;
+        int successCount = 0;
+
+        foreach (var item in targets)
+        {
+            try
+            {
+                await SaveItemInternalAsync(item);
+                successCount++;
+            }
+            catch { }
+        }
+
+        isBatchProcessing = false;
+        statusMessage = $"Berhasil menyimpan & memproses {successCount} lagu terpilih ke database.";
+        isError = false;
+        await LoadDataFromDatabase();
+    }
+
     private async Task SaveItemToDatabase(LocalTrackModel item)
     {
         try
         {
-            using var context = await DbContextFactory.CreateDbContextAsync();
-
-            if (item.Country == "Songs")
-            {
-                var song = await context.Songs.FindAsync((long)item.Id);
-                if (song != null)
-                {
-                    song.Title = item.CleanTitle;
-                    song.Artist = item.CleanArtist;
-                    song.Album = item.Album;
-                    song.ReleaseYear = item.ReleaseYear;
-                    song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                    song.DurationSeconds = item.DurationSeconds;
-                    song.MusicBrainzId = item.MusicBrainzId;
-
-                    await context.SaveChangesAsync();
-                    statusMessage = $"Metadata '{item.CleanTitle}' berhasil diperbarui di tabel Songs.";
-                    isError = false;
-                }
-            }
-            else if (item.Country == "RawSongs")
-            {
-                var raw = await context.RawSongs.FindAsync((long)item.Id);
-                if (raw != null)
-                {
-                    raw.Title = item.CleanTitle;
-                    raw.Artist = item.CleanArtist;
-                    raw.Album = item.Album;
-                    raw.ReleaseYear = item.ReleaseYear;
-                    raw.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
-                    raw.DurationSeconds = item.DurationSeconds;
-                    raw.MusicBrainzId = item.MusicBrainzId;
-
-                    await context.SaveChangesAsync();
-                    statusMessage = $"Metadata '{item.CleanTitle}' berhasil diperbarui di tabel RawSongs.";
-                    isError = false;
-                }
-            }
+            await SaveItemInternalAsync(item);
+            statusMessage = $"Metadata '{item.CleanTitle}' berhasil disimpan / dipromosikan ke Songs.";
+            isError = false;
+            await LoadDataFromDatabase();
         }
         catch (Exception ex)
         {
@@ -336,5 +429,76 @@
             isError = true;
         }
         StateHasChanged();
+    }
+
+    private async Task SaveItemInternalAsync(LocalTrackModel item)
+    {
+        using var context = await DbContextFactory.CreateDbContextAsync();
+
+        if (item.Country == "Songs")
+        {
+            // Update langsung di tabel Songs
+            var song = await context.Songs.FindAsync((long)item.Id);
+            if (song != null)
+            {
+                song.Title = item.CleanTitle;
+                song.Artist = item.CleanArtist;
+                song.Album = item.Album;
+                song.ReleaseYear = item.ReleaseYear;
+                song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                song.DurationSeconds = item.DurationSeconds;
+                song.MusicBrainzId = item.MusicBrainzId;
+
+                await context.SaveChangesAsync();
+            }
+        }
+        else if (item.Country == "RawSongs")
+        {
+            // ATURAN KHUSUS: Edit/Simpan dari Raw Songs -> Complete Upload ke Songs & Hapus dari Raw Songs
+            var raw = await context.RawSongs.FindAsync((long)item.Id);
+            if (raw != null)
+            {
+                // 1. Cek apakah sudah ada di Songs berdasarkan YoutubeVideoId atau Kombinasi Title+Artist
+                string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
+                var existingSong = await context.Songs.FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
+
+                if (existingSong != null)
+                {
+                    // Update yang sudah ada
+                    existingSong.Title = item.CleanTitle;
+                    existingSong.Artist = item.CleanArtist;
+                    existingSong.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                    existingSong.ReleaseYear = item.ReleaseYear;
+                    existingSong.Country = string.IsNullOrWhiteSpace(raw.Country) ? "Unknown" : raw.Country;
+                    existingSong.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    existingSong.DurationSeconds = item.DurationSeconds;
+                    existingSong.MusicBrainzId = item.MusicBrainzId;
+                }
+                else
+                {
+                    // Tambahkan baru ke tabel Songs Utama
+                    var newSong = new SongsModel
+                    {
+                        RawId = raw.Id,
+                        YoutubeVideoId = ytId,
+                        MusicBrainzId = item.MusicBrainzId,
+                        Title = item.CleanTitle,
+                        Artist = item.CleanArtist,
+                        Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album,
+                        ReleaseYear = item.ReleaseYear,
+                        Country = string.IsNullOrWhiteSpace(raw.Country) ? "Unknown" : raw.Country,
+                        AlbumCoverUrl = item.AlbumCoverUrl ?? "",
+                        AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
+                        DurationSeconds = item.DurationSeconds,
+                        IsDownloaded = true
+                    };
+                    await context.Songs.AddAsync(newSong);
+                }
+
+                // 2. Hapus dari tabel RawSongs karena sudah dipromosikan (complete upload)
+                context.RawSongs.Remove(raw);
+                await context.SaveChangesAsync();
+            }
+        }
     }
 }
