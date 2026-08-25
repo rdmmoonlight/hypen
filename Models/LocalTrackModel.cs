@@ -28,6 +28,9 @@ public class LocalTrackModel
     // Tambahan Properti UI & Smart Match Pipeline
     // ==========================================
     [NotMapped]
+    public bool IsFromRawSongs { get; set; } = false;
+
+    [NotMapped]
     public string CleanArtist 
     { 
         get => Artist ?? "Unknown Artist"; 
