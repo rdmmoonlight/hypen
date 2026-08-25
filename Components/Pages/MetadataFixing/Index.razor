@@ -46,7 +46,7 @@
             </button>
 
             <button class="btn btn-success btn-sm py-1 px-2"
-                    @onclick="SaveSelectedToDatabaseAndFiles"
+                    @onclick="ApplyBatchChangesAndSave"
                     disabled="@(isBatchProcessing || !filteredItems.Any())">
                 <i class="ti ti-device-floppy me-1"></i>
                 Save (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))
@@ -54,7 +54,7 @@
         </div>
     </div>
 
-    <!-- STATUS NOTIFICATION -->
+    <!-- STATUS -->
     @if (!string.IsNullOrEmpty(statusMessage))
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success") py-1 px-2 small mb-2 shadow-sm rounded-2">
@@ -152,12 +152,12 @@
                                             style="cursor:pointer;"
                                             @onclick="() => SelectForEditing(item)">
 
-                                            <!-- CHECK -->
+                                            <!-- CHECKBOX -->
                                             <td class="text-center py-1" @onclick:stopPropagation="true">
                                                 <input type="checkbox"
                                                        class="form-check-input"
-                                                       @bind="item.IsSelected"
-                                                       @bind:after="StateHasChanged" />
+                                                       checked="@item.IsSelected"
+                                                       @onchange="(e) => OnItemSelectionChanged(item, (bool)(e.Value ?? false))" />
                                             </td>
 
                                             <!-- COVER -->
@@ -166,10 +166,7 @@
                                                     ? "https://placehold.co/32x32/1a1a1a/cccccc?text=🎵"
                                                     : item.AlbumCoverUrl)"
                                                      class="rounded shadow-sm"
-                                                     width="32"
-                                                     height="32"
-                                                     style="object-fit:cover;"
-                                                     alt="Cover" />
+                                                     width="32" height="32" style="object-fit:cover;" alt="Cover" />
                                             </td>
 
                                             <!-- METADATA -->
@@ -181,8 +178,7 @@
                                                     <span>@item.CleanArtist</span>
                                                     <span class="mx-1">•</span>
                                                     <em>@(string.IsNullOrEmpty(item.Album) ? "Single" : item.Album)</em>
-                                                    <span class="badge @(item.Country == "Songs" ? "bg-success" : "bg-warning text-dark") py-0 px-1 ms-1"
-                                                          style="font-size:.55rem;">
+                                                    <span class="badge @(item.Country == "Songs" ? "bg-success" : "bg-warning text-dark") py-0 px-1 ms-1" style="font-size:.55rem;">
                                                         @item.Country
                                                     </span>
                                                 </div>
@@ -281,94 +277,142 @@
 
                 <div class="card-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 py-2 px-2 d-flex justify-content-between align-items-center">
                     <h6 class="text-white m-0 fw-semibold" style="font-size:.78rem;">
-                        <i class="ti ti-adjustments me-1 text-primary"></i> Tag Inspector
+                        <i class="ti ti-adjustments me-1 text-primary"></i>
+                        Tag Inspector @(SelectedCount > 1 ? $"({SelectedCount} Terpilih)" : "")
                     </h6>
-                    @if (activeEditItem != null)
+                    @if (SelectedCount == 1 && activeEditItem != null)
                     {
                         <span class="badge bg-secondary text-light" style="font-size:.55rem;">
                             ID: @activeEditItem.Id
                         </span>
                     }
+                    else if (SelectedCount > 1)
+                    {
+                        <span class="badge bg-warning text-dark fw-bold" style="font-size:.58rem;">
+                            BATCH EDIT
+                        </span>
+                    }
                 </div>
 
-                <div class="card-body p-2">
-                    @if (activeEditItem != null)
+                <div class="card-body p-2" style="max-height: 82vh; overflow-y: auto;">
+                    @if (SelectedCount > 0 || activeEditItem != null)
                     {
-                        <!-- COVER + FILE -->
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <img src="@(string.IsNullOrEmpty(activeEditItem.AlbumCoverUrl)
-                                ? "https://placehold.co/72x72/1a1a1a/cccccc?text=🎵"
-                                : activeEditItem.AlbumCoverUrl)"
-                                 width="72"
-                                 height="72"
-                                 class="rounded shadow-sm border border-secondary"
-                                 style="object-fit:cover;"
-                                 alt="Cover" />
-                            <div class="min-width-0 flex-grow-1">
-                                <div class="text-secondary mb-1" style="font-size:.62rem;">FILE</div>
-                                <div class="text-white text-truncate" style="font-size:.72rem;" title="@activeEditItem.FileName">
-                                    @activeEditItem.FileName
-                                </div>
-                                <div class="text-secondary mt-1" style="font-size:.62rem;">
-                                    ID @activeEditItem.Id
+                        @if (SelectedCount > 1)
+                        {
+                            <div class="alert alert-info py-1 px-2 mb-2" style="font-size:.68rem;">
+                                <i class="ti ti-info-circle me-1"></i>
+                                Perubahan diterapkan ke <strong>@SelectedCount lagu</strong> yang dicentang.
+                            </div>
+                        }
+                        else if (activeEditItem != null)
+                        {
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <img src="@(string.IsNullOrEmpty(batchModel.AlbumCoverUrl)
+                                    ? "https://placehold.co/72x72/1a1a1a/cccccc?text=🎵"
+                                    : batchModel.AlbumCoverUrl)"
+                                     width="64" height="64" class="rounded shadow-sm border border-secondary" style="object-fit:cover;" alt="Cover" />
+                                <div class="min-width-0 flex-grow-1">
+                                    <div class="text-secondary mb-1" style="font-size:.62rem;">FILE</div>
+                                    <div class="text-white text-truncate" style="font-size:.72rem;" title="@activeEditItem.FileName">
+                                        @activeEditItem.FileName
+                                    </div>
+                                    <div class="text-secondary mt-1" style="font-size:.62rem;">
+                                        ID @activeEditItem.Id · @activeEditItem.Country
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        }
 
-                        <!-- TITLE -->
                         <div class="mb-2">
-                            <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Judul Lagu</label>
+                            <label class="form-label text-secondary mb-1 d-flex justify-content-between" style="font-size:.65rem;">
+                                <span>Judul Lagu</span>
+                                @if (SelectedCount > 1)
+                                {
+                                    <span class="text-warning">(Satu lagu saja)</span>
+                                }
+                            </label>
                             <input type="text"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="activeEditItem.CleanTitle" />
+                                   @bind="batchModel.CleanTitle"
+                                   disabled="@(SelectedCount > 1)"
+                                   placeholder="@(SelectedCount > 1 ? "[Bervariasi per lagu]" : "Judul lagu...")" />
                         </div>
 
-                        <!-- ARTIST -->
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Artis</label>
                             <input type="text"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="activeEditItem.CleanArtist" />
+                                   @bind="batchModel.CleanArtist"
+                                   placeholder="Artis..." />
                         </div>
 
-                        <!-- ALBUM -->
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Album</label>
                             <input type="text"
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="activeEditItem.Album" />
+                                   @bind="batchModel.Album"
+                                   placeholder="Album..." />
                         </div>
 
-                        <!-- YEAR / DURATION -->
+                        <div class="mb-2">
+                            <label class="form-label text-secondary mb-1" style="font-size:.65rem;">URL Cover Album</label>
+                            <input type="text"
+                                   class="form-control form-control-sm bg-dark text-white border-secondary py-1"
+                                   @bind="batchModel.AlbumCoverUrl"
+                                   placeholder="https://..." />
+                        </div>
+
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Tahun</label>
+                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Tahun Rilis</label>
                                 <input type="number"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="activeEditItem.ReleaseYear" />
+                                       @bind="batchModel.ReleaseYear"
+                                       placeholder="2026" />
                             </div>
                             <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Durasi</label>
-                                <input type="number"
+                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Kategori / Negara</label>
+                                <input type="text"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="activeEditItem.DurationSeconds" />
+                                       @bind="batchModel.Country"
+                                       placeholder="Songs..." />
                             </div>
                         </div>
 
-                        <!-- ACTIONS -->
-                        <div class="row g-2 mt-1">
+                        <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <button class="btn btn-outline-info btn-sm text-white w-100 py-1"
-                                        @onclick="() => ReMatchSingle(activeEditItem)"
-                                        disabled="@isBatchProcessing">
-                                    <i class="ti ti-wand me-1"></i> Match
-                                </button>
+                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Durasi (Detik)</label>
+                                <input type="number"
+                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
+                                       @bind="batchModel.DurationSeconds"
+                                       placeholder="Detik..." />
                             </div>
                             <div class="col-6">
-                                <button class="btn btn-success btn-sm w-100 py-1"
-                                        @onclick="() => SaveItemToDatabaseAndFile(activeEditItem)"
+                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">MusicBrainz ID</label>
+                                <input type="text"
+                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
+                                       @bind="batchModel.MusicBrainzId"
+                                       placeholder="MBID..." />
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mt-2">
+                            @if (SelectedCount <= 1 && activeEditItem != null)
+                            {
+                                <div class="col-6">
+                                    <button class="btn btn-outline-info btn-sm text-white w-100 py-1"
+                                            @onclick="() => ReMatchSingle(activeEditItem)"
+                                            disabled="@isBatchProcessing">
+                                        <i class="ti ti-wand me-1"></i> Match
+                                    </button>
+                                </div>
+                            }
+                            <div class="@(SelectedCount > 1 ? "col-12" : "col-6")">
+                                <button class="btn btn-success btn-sm w-100 py-1 fw-bold"
+                                        @onclick="ApplyBatchChangesAndSave"
                                         disabled="@isBatchProcessing">
-                                    <i class="ti ti-device-floppy me-1"></i> Save
+                                    <i class="ti ti-device-floppy me-1"></i>
+                                    Simpan @(SelectedCount > 1 ? $"({SelectedCount} Lagu)" : "")
                                 </button>
                             </div>
                         </div>
@@ -377,7 +421,7 @@
                     {
                         <div class="text-center py-4 text-secondary">
                             <i class="ti ti-click fs-3 d-block mb-1"></i>
-                            <p class="small m-0">Pilih lagu untuk mengedit metadata.</p>
+                            <p class="small m-0">Pilih atau centang lagu untuk mengedit metadata.</p>
                         </div>
                     }
                 </div>
@@ -386,7 +430,7 @@
     </div>
 </div>
 
-<!-- CANDIDATE MODAL -->
+<!-- MODAL CANDIDATE -->
 @if (selectedItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.7);">
@@ -409,10 +453,7 @@
                                 <div class="d-flex align-items-center min-width-0">
                                     <img src="@candidate.AlbumCoverUrl"
                                          class="rounded me-2 shadow-sm"
-                                         width="36"
-                                         height="36"
-                                         style="object-fit:cover;"
-                                         alt="Cover" />
+                                         width="36" height="36" style="object-fit:cover;" alt="Cover" />
                                     <div class="min-width-0">
                                         <div class="fw-semibold text-truncate" style="font-size:.75rem;">
                                             @candidate.Title
@@ -422,9 +463,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button"
-                                        class="btn btn-primary btn-sm py-0 px-2 ms-2 flex-shrink-0"
-                                        style="font-size:.62rem;">
+                                <button type="button" class="btn btn-primary btn-sm py-0 px-2 ms-2 flex-shrink-0" style="font-size:.62rem;">
                                     Gunakan
                                 </button>
                             </div>
@@ -434,4 +473,431 @@
             </div>
         </div>
     </div>
+}
+
+@code {
+    private List<LocalTrackModel> Items = new();
+    private List<LocalTrackModel> filteredItems = new();
+    private List<LocalTrackModel> pagedItems = new();
+
+    private LocalTrackModel? selectedItem;
+    private LocalTrackModel? activeEditItem;
+    private LocalTrackModel batchModel = new();
+
+    private bool isBatchProcessing = false;
+    private bool isAllSelected = false;
+
+    private string statusMessage = "";
+    private bool isError = false;
+    private string searchQuery = "";
+
+    private int SelectedCount => filteredItems.Count(x => x.IsSelected);
+
+    private int pageSize = 10;
+    private int currentPage = 1;
+    private int totalCount = 0;
+    private int filteredCount = 0;
+    private int totalPages = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataFromDatabase();
+    }
+
+    private string FormatDuration(int seconds)
+    {
+        if (seconds <= 0) return "-";
+        var timeSpan = TimeSpan.FromSeconds(seconds);
+        return timeSpan.Hours > 0
+            ? timeSpan.ToString(@"hh\:mm\:ss")
+            : timeSpan.ToString(@"mm\:ss");
+    }
+
+    private async Task LoadDataFromDatabase()
+    {
+        try
+        {
+            using var context = await DbContextFactory.CreateDbContextAsync();
+
+            var songs = await context.Songs.ToListAsync();
+            var songTracks = songs.Select(s => new LocalTrackModel
+            {
+                Id = (int)s.Id,
+                FileName = s.YoutubeVideoId ?? $"song_{s.Id}",
+                Title = s.Title,
+                Artist = s.Artist,
+                Album = s.Album,
+                ReleaseYear = s.ReleaseYear,
+                Country = "Songs",
+                AlbumCoverUrl = s.AlbumCoverUrl,
+                DurationSeconds = s.DurationSeconds ?? 0,
+                MusicBrainzId = s.MusicBrainzId,
+                FilePath = s.AudioUrl != null && s.AudioUrl.StartsWith("/downloads/")
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", s.AudioUrl.TrimStart('/'))
+                    : string.Empty,
+                IsSelected = false
+            });
+
+            var rawSongs = await context.RawSongs
+                .Where(r => r.Status == "PENDING")
+                .ToListAsync();
+
+            var rawTracks = rawSongs.Select(r => new LocalTrackModel
+            {
+                Id = (int)r.Id,
+                FileName = r.YoutubeVideoId ?? $"raw_{r.Id}",
+                Title = r.Title,
+                Artist = r.Artist,
+                Album = r.Album,
+                ReleaseYear = r.ReleaseYear,
+                Country = "RawSongs",
+                AlbumCoverUrl = r.AlbumCoverUrl,
+                DurationSeconds = r.DurationSeconds ?? 0,
+                MusicBrainzId = r.MusicBrainzId,
+                FilePath = r.AudioUrl != null && r.AudioUrl.StartsWith("/downloads/")
+                    ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", r.AudioUrl.TrimStart('/'))
+                    : string.Empty,
+                IsSelected = false
+            });
+
+            Items = songTracks.Concat(rawTracks).ToList();
+            totalCount = Items.Count;
+
+            ApplyFilter();
+
+            if (filteredItems.Any() && activeEditItem == null)
+            {
+                SelectForEditing(filteredItems.First());
+            }
+
+            statusMessage = $"Berhasil memuat {totalCount} lagu dari database.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Gagal memuat data dari database: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredItems = Items;
+        }
+        else
+        {
+            var query = searchQuery.Trim().ToLower();
+            filteredItems = Items.Where(x =>
+                (!string.IsNullOrEmpty(x.CleanTitle) && x.CleanTitle.ToLower().Contains(query)) ||
+                (!string.IsNullOrEmpty(x.CleanArtist) && x.CleanArtist.ToLower().Contains(query)) ||
+                (!string.IsNullOrEmpty(x.Album) && x.Album.ToLower().Contains(query)) ||
+                (!string.IsNullOrEmpty(x.FileName) && x.FileName.ToLower().Contains(query))
+            ).ToList();
+        }
+
+        filteredCount = filteredItems.Count;
+        UpdatePagination();
+    }
+
+    private void OnSearchQueryChanged()
+    {
+        currentPage = 1;
+        ApplyFilter();
+    }
+
+    private void ClearSearch()
+    {
+        searchQuery = "";
+        currentPage = 1;
+        ApplyFilter();
+    }
+
+    private void UpdatePagination()
+    {
+        totalPages = (int)Math.Ceiling(filteredCount / (double)pageSize);
+
+        if (currentPage > totalPages && totalPages > 0)
+            currentPage = totalPages;
+
+        if (currentPage < 1)
+            currentPage = 1;
+
+        pagedItems = filteredItems
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private void ChangePage(int newPage)
+    {
+        if (newPage >= 1 && newPage <= totalPages)
+        {
+            currentPage = newPage;
+            UpdatePagination();
+        }
+    }
+
+    private void OnPageSizeChanged()
+    {
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        isAllSelected = e.Value is bool val && val;
+        foreach (var item in pagedItems)
+        {
+            item.IsSelected = isAllSelected;
+        }
+
+        var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
+        if (selectedList.Count == 1)
+        {
+            SelectForEditing(selectedList.First());
+        }
+        else if (selectedList.Count > 1)
+        {
+            batchModel.CleanTitle = string.Empty;
+        }
+    }
+
+    private void OnItemSelectionChanged(LocalTrackModel item, bool isSelected)
+    {
+        item.IsSelected = isSelected;
+        var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
+
+        if (selectedList.Count == 1)
+        {
+            SelectForEditing(selectedList.First());
+        }
+        else if (selectedList.Count > 1)
+        {
+            batchModel.CleanTitle = string.Empty;
+        }
+
+        StateHasChanged();
+    }
+
+    private void SelectForEditing(LocalTrackModel item)
+    {
+        activeEditItem = item;
+        if (SelectedCount <= 1)
+        {
+            PopulateInspectorFromModel(item);
+        }
+    }
+
+    private void PopulateInspectorFromModel(LocalTrackModel item)
+    {
+        batchModel.CleanTitle = item.CleanTitle;
+        batchModel.CleanArtist = item.CleanArtist;
+        batchModel.Album = item.Album;
+        batchModel.ReleaseYear = item.ReleaseYear;
+        batchModel.Country = item.Country;
+        batchModel.AlbumCoverUrl = item.AlbumCoverUrl;
+        batchModel.DurationSeconds = item.DurationSeconds;
+        batchModel.MusicBrainzId = item.MusicBrainzId;
+    }
+
+    private async Task ProcessSmartMatchSelected()
+    {
+        var targets = filteredItems.Where(x => x.IsSelected).ToList();
+        if (!targets.Any()) targets = filteredItems;
+
+        isBatchProcessing = true;
+        statusMessage = $"Menjalankan match untuk {targets.Count} lagu...";
+        isError = false;
+        StateHasChanged();
+
+        foreach (var item in targets)
+        {
+            await SmartMatchService.SmartMatchFromInternetAsync(item);
+        }
+
+        isBatchProcessing = false;
+        statusMessage = "Match selesai.";
+        StateHasChanged();
+    }
+
+    private async Task ReMatchSingle(LocalTrackModel item)
+    {
+        item.IsProcessing = true;
+        StateHasChanged();
+
+        await SmartMatchService.SmartMatchFromInternetAsync(item);
+
+        item.IsProcessing = false;
+        StateHasChanged();
+    }
+
+    private void OpenCandidateModal(LocalTrackModel item)
+    {
+        selectedItem = item;
+    }
+
+    private void CloseCandidateModal()
+    {
+        selectedItem = null;
+    }
+
+    private void SelectCandidate(iTunesCandidateModel candidate)
+    {
+        if (selectedItem != null)
+        {
+            SmartMatchService.ApplyCandidateToItem(selectedItem, candidate);
+            selectedItem.IsNeedsReview = false;
+            selectedItem.MatchConfidenceReason = "Manual Selected";
+            PopulateInspectorFromModel(selectedItem);
+            CloseCandidateModal();
+        }
+    }
+
+    private async Task ApplyBatchChangesAndSave()
+    {
+        var targets = filteredItems.Where(x => x.IsSelected).ToList();
+        if (!targets.Any() && activeEditItem != null)
+        {
+            targets.Add(activeEditItem);
+        }
+
+        if (!targets.Any()) return;
+
+        isBatchProcessing = true;
+        int successCount = 0;
+        int failCount = 0;
+
+        foreach (var target in targets)
+        {
+            if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
+            {
+                target.CleanTitle = batchModel.CleanTitle;
+            }
+
+            if (!string.IsNullOrWhiteSpace(batchModel.CleanArtist)) target.CleanArtist = batchModel.CleanArtist;
+            if (!string.IsNullOrWhiteSpace(batchModel.Album)) target.Album = batchModel.Album;
+            if (batchModel.ReleaseYear > 0) target.ReleaseYear = batchModel.ReleaseYear;
+            if (!string.IsNullOrWhiteSpace(batchModel.Country)) target.Country = batchModel.Country;
+            if (!string.IsNullOrWhiteSpace(batchModel.AlbumCoverUrl)) target.AlbumCoverUrl = batchModel.AlbumCoverUrl;
+            if (batchModel.DurationSeconds > 0) target.DurationSeconds = batchModel.DurationSeconds;
+            if (!string.IsNullOrWhiteSpace(batchModel.MusicBrainzId)) target.MusicBrainzId = batchModel.MusicBrainzId;
+
+            try
+            {
+                await SaveItemInternalAsync(target);
+                successCount++;
+            }
+            catch
+            {
+                failCount++;
+            }
+        }
+
+        isBatchProcessing = false;
+
+        await LoadDataFromDatabase();
+
+        if (failCount > 0)
+        {
+            statusMessage = $"Batch update selesai: {successCount} berhasil, {failCount} gagal.";
+            isError = true;
+        }
+        else
+        {
+            statusMessage = $"Berhasil memperbarui metadata batch untuk {successCount} lagu.";
+            isError = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task SaveItemInternalAsync(LocalTrackModel item)
+    {
+        if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
+        {
+            try
+            {
+                await TagEditorService.ApplyTagsToFileAsync(
+                    item.FilePath,
+                    item.CleanArtist,
+                    item.CleanTitle,
+                    item.Album ?? string.Empty,
+                    item.ReleaseYear,
+                    item.AlbumCoverUrl
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Warning] Gagal update tag file fisik: {ex.Message}");
+            }
+        }
+
+        using var context = await DbContextFactory.CreateDbContextAsync();
+
+        if (item.Country == "Songs")
+        {
+            var song = await context.Songs.FindAsync((long)item.Id);
+            if (song != null)
+            {
+                song.Title = item.CleanTitle;
+                song.Artist = item.CleanArtist;
+                song.Album = item.Album;
+                song.ReleaseYear = item.ReleaseYear;
+                song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                song.DurationSeconds = item.DurationSeconds;
+                song.MusicBrainzId = item.MusicBrainzId;
+
+                await context.SaveChangesAsync();
+            }
+        }
+        else if (item.Country == "RawSongs")
+        {
+            var raw = await context.RawSongs.FindAsync((long)item.Id);
+            if (raw != null)
+            {
+                string ytId = raw.YoutubeVideoId ?? $"LOCAL-{Guid.NewGuid():N}";
+
+                var existingSong = await context.Songs
+                    .FirstOrDefaultAsync(s => s.YoutubeVideoId == ytId);
+
+                if (existingSong != null)
+                {
+                    existingSong.Title = item.CleanTitle;
+                    existingSong.Artist = item.CleanArtist;
+                    existingSong.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
+                    existingSong.ReleaseYear = item.ReleaseYear;
+                    existingSong.Country = string.IsNullOrWhiteSpace(raw.Country) ? "Unknown" : raw.Country;
+                    existingSong.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
+                    existingSong.DurationSeconds = item.DurationSeconds;
+                    existingSong.MusicBrainzId = item.MusicBrainzId;
+                }
+                else
+                {
+                    var newSong = new SongsModel
+                    {
+                        RawId = raw.Id,
+                        YoutubeVideoId = ytId,
+                        MusicBrainzId = item.MusicBrainzId,
+                        Title = item.CleanTitle,
+                        Artist = item.CleanArtist,
+                        Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album,
+                        ReleaseYear = item.ReleaseYear,
+                        Country = string.IsNullOrWhiteSpace(raw.Country) ? "Unknown" : raw.Country,
+                        AlbumCoverUrl = item.AlbumCoverUrl ?? "",
+                        AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
+                        DurationSeconds = item.DurationSeconds,
+                        IsDownloaded = true
+                    };
+
+                    await context.Songs.AddAsync(newSong);
+                }
+
+                context.RawSongs.Remove(raw);
+
+                await context.SaveChangesAsync();
+            }
+        }
+    }
 }
