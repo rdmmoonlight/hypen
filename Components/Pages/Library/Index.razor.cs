@@ -7,18 +7,15 @@ namespace Hypen.Web.Components.Pages.Library;
 
 public partial class Index : ComponentBase
 {
-    [Inject]
-    protected ISongsService SongsService { get; set; } = default!;
-
-    [Inject]
-    protected IJSRuntime JS { get; set; } = default!;
-
-    [Inject]
-    protected NavigationManager Navigation { get; set; } = default!;
+    [Inject] protected ISongsService SongsService { get; set; } = default!;
+    [Inject] protected IJSRuntime JS { get; set; } = default!;
+    [Inject] protected NavigationManager Navigation { get; set; } = default!;
 
     protected List<SongsModel> songs = [];
+    protected List<SongsModel> pagedSongs = []; // Cache hasil pagination untuk UI
+    
     protected string searchQuery = "";
-    protected string sortBy = "title_asc"; // Default: Judul A-Z
+    protected string sortBy = "title_asc";
     protected string statusMsg = "";
     protected bool isLoading;
     protected bool isError;
@@ -28,77 +25,11 @@ public partial class Index : ComponentBase
     protected int currentProcessedCount = 0;
     protected int progressPercentage = 0;
 
-    // PAGINATION LOGIC
     protected int currentPage = 1;
     protected int pageSize = 50;
+    protected int totalFilteredCount = 0;
 
-    // Evaluasi 1x per panggilan pagination untuk efisiensi
-    protected int TotalPages => (int)Math.Ceiling((double)SortedSongsList.Count / pageSize);
-
-    // 1. Filtering
-    protected IEnumerable<SongsModel> FilteredSongs =>
-        string.IsNullOrWhiteSpace(searchQuery)
-            ? songs
-            : songs.Where(song =>
-                song.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
-
-    // 2. Sorting Logic
-    protected List<SongsModel> SortedSongsList
-    {
-        get
-        {
-            var query = FilteredSongs;
-
-            var sorted = sortBy switch
-            {
-                "title_asc"   => query.OrderBy(s => s.Title),
-                "title_desc"  => query.OrderByDescending(s => s.Title),
-                "artist_asc"  => query.OrderBy(s => s.Artist),
-                "artist_desc" => query.OrderByDescending(s => s.Artist),
-                "date_asc"    => query.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id), 
-                "date_desc"   => query.OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id), 
-                _             => query.OrderBy(s => s.Title)
-            };
-
-            return sorted.ToList();
-        }
-    }
-
-    // 3. Paging
-    protected List<SongsModel> PagedSongs =>
-        SortedSongsList
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-    protected void OnSortChanged(ChangeEventArgs e)
-    {
-        sortBy = e.Value?.ToString() ?? "title_asc";
-        currentPage = 1;
-        UpdateSelectAllStatus();
-    }
-
-    protected void GoToPage(int page)
-    {
-        if (page < 1) page = 1;
-        if (page > TotalPages && TotalPages > 0) page = TotalPages;
-
-        currentPage = page;
-        UpdateSelectAllStatus();
-    }
-
-    protected void OnSearchInput(ChangeEventArgs e)
-    {
-        searchQuery = e.Value?.ToString() ?? "";
-        currentPage = 1;
-        UpdateSelectAllStatus();
-    }
-
-    protected bool IsLockedFromEdit(SongsModel song) =>
-        !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
-        !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
+    protected int TotalPages => (int)Math.Ceiling((double)totalFilteredCount / pageSize);
 
     protected override async Task OnInitializedAsync()
     {
@@ -114,9 +45,8 @@ public partial class Index : ComponentBase
 
             songs = await SongsService.GetSongsAsync();
             currentPage = 1;
-            isSelectAllChecked = false;
             
-            // Clear status message jika sukses
+            ApplyFilterAndPaging();
             UpdateStatus("");
         }
         catch (Exception ex)
@@ -130,10 +60,78 @@ public partial class Index : ComponentBase
         }
     }
 
+    // Terpusat: Eksekusi filter, sort, dan paging dalam 1 jalur efisien
+    private void ApplyFilterAndPaging()
+    {
+        // 1. Filtering
+        IEnumerable<SongsModel> query = string.IsNullOrWhiteSpace(searchQuery)
+            ? songs
+            : songs.Where(song =>
+                song.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                song.Artist.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                (song.Album != null && song.Album.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)));
+
+        // 2. Sorting
+        query = sortBy switch
+        {
+            "title_asc"   => query.OrderBy(s => s.Title),
+            "title_desc"  => query.OrderByDescending(s => s.Title),
+            "artist_asc"  => query.OrderBy(s => s.Artist),
+            "artist_desc" => query.OrderByDescending(s => s.Artist),
+            "date_asc"    => query.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id), 
+            "date_desc"   => query.OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id), 
+            _             => query.OrderBy(s => s.Title)
+        };
+
+        var filteredList = query.ToList();
+        totalFilteredCount = filteredList.Count;
+
+        // Reset page jika melebih batas total halaman baru
+        if (currentPage > TotalPages && TotalPages > 0)
+        {
+            currentPage = TotalPages;
+        }
+
+        // 3. Paging
+        pagedSongs = filteredList
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        UpdateSelectAllStatus();
+    }
+
+    protected void OnSortChanged(ChangeEventArgs e)
+    {
+        sortBy = e.Value?.ToString() ?? "title_asc";
+        currentPage = 1;
+        ApplyFilterAndPaging();
+    }
+
+    protected void GoToPage(int page)
+    {
+        if (page < 1) page = 1;
+        if (page > TotalPages && TotalPages > 0) page = TotalPages;
+
+        currentPage = page;
+        ApplyFilterAndPaging();
+    }
+
+    protected void OnSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        currentPage = 1;
+        ApplyFilterAndPaging();
+    }
+
+    protected bool IsLockedFromEdit(SongsModel song) =>
+        !string.IsNullOrWhiteSpace(song.YoutubeVideoId) &&
+        !song.YoutubeVideoId.StartsWith("LOCAL", StringComparison.OrdinalIgnoreCase);
+
     protected void ToggleSelectAll(ChangeEventArgs e)
     {
         isSelectAllChecked = e.Value is bool val && val;
-        foreach (var song in PagedSongs)
+        foreach (var song in pagedSongs)
         {
             song.IsSelected = isSelectAllChecked;
         }
@@ -149,15 +147,7 @@ public partial class Index : ComponentBase
 
     private void UpdateSelectAllStatus()
     {
-        var currentPagedList = PagedSongs;
-        if (currentPagedList.Count > 0)
-        {
-            isSelectAllChecked = currentPagedList.All(s => s.IsSelected);
-        }
-        else
-        {
-            isSelectAllChecked = false;
-        }
+        isSelectAllChecked = pagedSongs.Count > 0 && pagedSongs.All(s => s.IsSelected);
     }
 
     protected async Task DeleteSingle(long id)
