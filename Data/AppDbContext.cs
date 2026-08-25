@@ -10,19 +10,15 @@ public class AppDbContext : DbContext
     // Master DbSet Songs (Production Library SSOT)
     public DbSet<SongsModel> Songs { get; set; } = default!;
 
-    // TABEL STAGING / RAW (Pintu Masuk & Arena Pertandingan Duplikat Fisik)
+    // TABEL STAGING / RAW (Buffer Karantina & Staging)
     public DbSet<RawSongsModel> RawSongs { get; set; } = default!;
 
-    // Alias Property (Hanya untuk SongsComplete, SongsRaw dihapus agar menunjuk ke tabel raw_songs)
-    public DbSet<SongsModel> SongsComplete => Songs;
-
+    // OAuth & Track Tokens
     public DbSet<YouTubeOAuthTokenModel> YouTubeOAuthTokens { get; set; } = default!;
-    
-    // Tabel Google Drive OAuth Token & Tracks
     public DbSet<GoogleDriveOAuthTokenModel> GoogleDriveOAuthTokens { get; set; } = default!;
     public DbSet<GDriveTrackModel> GDriveTracks { get; set; } = default!;
 
-    // TABEL BARU: Local Sync Tracks
+    // Local Sync Tracks
     public DbSet<LocalTrackModel> LocalTracks { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -30,7 +26,7 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // =========================================================================
-        // MAPPING TABEL: songs (Production Library)
+        // MAPPING TABEL: songs (Production Library SSOT)
         // =========================================================================
         modelBuilder.Entity<SongsModel>(entity =>
         {
@@ -56,6 +52,7 @@ public class AppDbContext : DbContext
                 .HasColumnName("is_complete")
                 .ValueGeneratedOnAddOrUpdate();
 
+            // Sembunyikan/Abaikan helper & UI computation properties agar tidak terikat ke DB
             entity.Ignore(e => e.CreatedAt);
             entity.Ignore(e => e.YoutubeId);
             entity.Ignore(e => e.Mbid);
@@ -164,7 +161,7 @@ public class AppDbContext : DbContext
         });
 
         // =========================================================================
-        // MAPPING TABEL: local_tracks (Local Sync Engine)
+        // MAPPING TABEL: local_tracks
         // =========================================================================
         modelBuilder.Entity<LocalTrackModel>(entity =>
         {
