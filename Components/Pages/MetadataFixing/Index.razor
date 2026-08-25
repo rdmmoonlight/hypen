@@ -80,7 +80,7 @@
                                         <div class="text-secondary extra-small mt-1" style="font-size: 0.75rem;">File: @item.FileName</div>
                                     </td>
                                     <td class="text-white-50">
-                                        @(item.DurationSeconds.HasValue ? TimeSpan.FromSeconds(item.DurationSeconds.Value).ToString(@"mm\:ss") : "-")
+                                        @(item.DurationSeconds > 0 ? TimeSpan.FromSeconds(item.DurationSeconds).ToString(@"mm\:ss") : "-")
                                     </td>
                                     <td>
                                         @if (item.IsProcessing)
@@ -160,17 +160,17 @@
 }
 
 @code {
-    private List<LocalMp3ExtractModel> Items = new();
-    private LocalMp3ExtractModel? selectedItem;
+    private List<LocalTrackModel> Items = new();
+    private LocalTrackModel? selectedItem;
     private bool isBatchProcessing = false;
 
     protected override void OnInitialized()
     {
         // Sample Data Initializer
-        Items = new List<LocalMp3ExtractModel>
+        Items = new List<LocalTrackModel>
         {
-            new LocalMp3ExtractModel { FileName = "Coldplay - Yellow.mp3", CleanArtist = "Coldplay", CleanTitle = "Yellow", DurationSeconds = 266 },
-            new LocalMp3ExtractModel { FileName = "track_01_unknown.mp3", CleanArtist = "Unknown Artist", CleanTitle = "Numb", DurationSeconds = 187 }
+            new LocalTrackModel { FileName = "Coldplay - Yellow.mp3", Artist = "Coldplay", Title = "Yellow", DurationSeconds = 266 },
+            new LocalTrackModel { FileName = "track_01_unknown.mp3", Artist = "Unknown Artist", Title = "Numb", DurationSeconds = 187 }
         };
     }
 
@@ -184,7 +184,7 @@
         isBatchProcessing = false;
     }
 
-    private async Task ReMatchSingle(LocalMp3ExtractModel item)
+    private async Task ReMatchSingle(LocalTrackModel item)
     {
         item.IsProcessing = true;
         StateHasChanged();
@@ -195,7 +195,7 @@
         StateHasChanged();
     }
 
-    private void OpenCandidateModal(LocalMp3ExtractModel item)
+    private void OpenCandidateModal(LocalTrackModel item)
     {
         selectedItem = item;
     }
