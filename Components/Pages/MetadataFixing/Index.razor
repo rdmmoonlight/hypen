@@ -20,7 +20,7 @@
             <button class="btn btn-nebula-outline text-white btn-sm" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
                 <i class="ti ti-database me-1"></i> Refresh
             </button>
-            <button class="btn btn-nebula-primary btn-sm" @onclick="ProcessSmartMatchSelected" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
+            <button class="btn btn-nebula-primary btn-sm" @onclick="ProcessSmartMatchSelected" disabled="@isBatchProcessing || !Items.Any()">
                 @if (isBatchProcessing)
                 {
                     <span class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -28,11 +28,11 @@
                 }
                 else
                 {
-                    <i class="ti ti-wand me-1"></i><span>Auto Match (@Items.Count(x => x.IsSelected))</span>
+                    <i class="ti ti-wand me-1"></i><span>Auto Match (All / @Items.Count(x => x.IsSelected))</span>
                 }
             </button>
-            <button class="btn btn-success btn-sm" @onclick="SaveSelectedToDatabaseAndFiles" disabled="@isBatchProcessing || !Items.Any(x => x.IsSelected)">
-                <i class="ti ti-device-floppy me-1"></i> Save Checked (@Items.Count(x => x.IsSelected))
+            <button class="btn btn-success btn-sm" @onclick="SaveSelectedToDatabaseAndFiles" disabled="@isBatchProcessing || !Items.Any()">
+                <i class="ti ti-device-floppy me-1"></i> Save Checked / All
             </button>
         </div>
     </div>
@@ -102,16 +102,7 @@
                                                 <input type="checkbox" class="form-check-input bg-dark border-secondary" @bind="item.IsSelected" />
                                             </td>
                                             <td>
-                                                @if (!string.IsNullOrEmpty(item.AlbumCoverUrl))
-                                                {
-                                                    <img src="@item.AlbumCoverUrl" class="rounded shadow-sm" width="36" height="36" style="object-fit: cover;" alt="Cover" />
-                                                }
-                                                else
-                                                {
-                                                    <div class="cover-placeholder rounded d-flex align-items-center justify-content-center bg-dark" style="width: 36px; height: 36px;">
-                                                        <i class="ti ti-music fs-6 text-secondary"></i>
-                                                    </div>
-                                                }
+                                                <img src="@(string.IsNullOrEmpty(item.AlbumCoverUrl) ? "https://placehold.co/36x36/1a1a1a/cccccc?text=🎵" : item.AlbumCoverUrl)" class="rounded shadow-sm" width="36" height="36" style="object-fit: cover;" alt="Cover" />
                                             </td>
                                             <td>
                                                 <div class="fw-bold text-white text-truncate" style="max-width: 250px;" title="@item.CleanTitle">@item.CleanTitle</div>
@@ -199,7 +190,7 @@
                     @if (activeEditItem != null)
                     {
                         <div class="text-center mb-3">
-                            <img src="@(string.IsNullOrEmpty(activeEditItem.AlbumCoverUrl) ? "/img/default-cover.png" : activeEditItem.AlbumCoverUrl)" width="88" height="88" class="rounded shadow-sm object-fit-cover mb-2 border border-secondary" alt="Cover" />
+                            <img src="@(string.IsNullOrEmpty(activeEditItem.AlbumCoverUrl) ? "https://placehold.co/88x88/1a1a1a/cccccc?text=🎵" : activeEditItem.AlbumCoverUrl)" width="88" height="88" class="rounded shadow-sm object-fit-cover mb-2 border border-secondary" alt="Cover" />
                             <div class="extra-small text-secondary text-truncate" style="font-size: 0.75rem;">File: @activeEditItem.FileName</div>
                         </div>
 
@@ -317,7 +308,6 @@
         {
             using var context = await DbContextFactory.CreateDbContextAsync();
             
-            // 1. Ambil dari tabel Songs (Production Library)
             var songs = await context.Songs.ToListAsync();
             var songTracks = songs.Select(s => new LocalTrackModel
             {
@@ -337,7 +327,6 @@
                 IsSelected = false
             });
 
-            // 2. Ambil dari tabel RawSongs (Staging)
             var rawSongs = await context.RawSongs.Where(r => r.Status == "PENDING").ToListAsync();
             var rawTracks = rawSongs.Select(r => new LocalTrackModel
             {
@@ -420,10 +409,10 @@
     private async Task ProcessSmartMatchSelected()
     {
         var targets = Items.Where(x => x.IsSelected).ToList();
-        if (!targets.Any()) return;
+        if (!targets.Any()) targets = Items; // Fallback ke semua item jika tidak ada yang dicentang
 
         isBatchProcessing = true;
-        statusMessage = $"Menjalankan smart match untuk {targets.Count} lagu terpilih...";
+        statusMessage = $"Menjalankan smart match untuk {targets.Count} lagu...";
         isError = false;
         StateHasChanged();
 
@@ -433,7 +422,7 @@
         }
 
         isBatchProcessing = false;
-        statusMessage = "Smart match selesai untuk item terpilih.";
+        statusMessage = "Smart match selesai.";
         StateHasChanged();
     }
 
@@ -472,7 +461,7 @@
     private async Task SaveSelectedToDatabaseAndFiles()
     {
         var targets = Items.Where(x => x.IsSelected).ToList();
-        if (!targets.Any()) return;
+        if (!targets.Any()) targets = Items; // Fallback ke semua item jika tidak ada yang dicentang
 
         isBatchProcessing = true;
         int successCount = 0;
@@ -488,7 +477,7 @@
         }
 
         isBatchProcessing = false;
-        statusMessage = $"Berhasil memperbarui tag file fisik & database untuk {successCount} lagu terpilih.";
+        statusMessage = $"Berhasil memperbarui tag file fisik & database untuk {successCount} lagu.";
         isError = false;
         await LoadDataFromDatabase();
     }
@@ -512,7 +501,6 @@
 
     private async Task SaveItemInternalAsync(LocalTrackModel item)
     {
-        // 1. Tulis tag ke file fisik server menggunakan tageditor CLI (Martchus)
         if (!string.IsNullOrEmpty(item.FilePath))
         {
             await TagEditorService.ApplyTagsToFileAsync(
@@ -545,7 +533,6 @@
         }
         else if (item.Country == "RawSongs")
         {
-            // ATURAN KHUSUS: Simpan/Edit dari Raw Songs -> Complete Upload ke Songs & Hapus dari Raw Songs
             var raw = await context.RawSongs.FindAsync((long)item.Id);
             if (raw != null)
             {
