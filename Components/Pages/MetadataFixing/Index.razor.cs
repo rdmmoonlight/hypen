@@ -6,7 +6,7 @@ using Hypen.Web.Services;
 
 namespace Hypen.Web.Pages
 {
-    public partial class MetadataFixing : ComponentBase
+    public partial class Index : ComponentBase
     {
         [Inject] protected MusicSmartMatchService SmartMatchService { get; set; } = default!;
         [Inject] protected TagLibService TagEditorService { get; set; } = default!;
