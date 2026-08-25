@@ -35,21 +35,21 @@ public class SyncService
     }
 
     // Wrapper delegasi ke Extractor Service
-    public Task<LocalMp3ExtractModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
+    public Task<LocalTrackModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
         => _extractorService.ExtractMetadataFromStreamAsync(originalFileName, fileStream);
 
-    public LocalMp3ExtractModel ExtractMetadataFromFileName(string fileName)
+    public LocalTrackModel ExtractMetadataFromFileName(string fileName)
         => _extractorService.ExtractMetadataFromFileName(fileName);
 
     // Wrapper delegasi ke Smart Match Service
-    public Task SmartMatchFromInternetAsync(LocalMp3ExtractModel item)
+    public Task SmartMatchFromInternetAsync(LocalTrackModel item)
         => _smartMatchService.SmartMatchFromInternetAsync(item);
 
     /// <summary>
     /// Memeriksa daftar preview di UI dan menandai item yang sudah ada di database Staging/Main.
     /// Item yang duplikat ditandai 'IsDuplicateInDb = true' dan 'IsSelected = false'.
     /// </summary>
-    public async Task CheckDuplicatesInPreviewAsync(List<LocalMp3ExtractModel> items)
+    public async Task CheckDuplicatesInPreviewAsync(List<LocalTrackModel> items)
     {
         if (items == null || items.Count == 0) return;
 
@@ -84,10 +84,10 @@ public class SyncService
 
     // Operational DB: Raw Ingestion (Staging)
     // Menampung SEMUA data tanpa batasan jumlah list (Hanya menyaring item yang dipilih & bukan duplikat).
-    public async Task<int> SaveToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
+    public async Task<int> SaveToRawAsync(List<LocalTrackModel> items, int delayMilliseconds = 0)
         => await SaveSelectedToRawAsync(items, delayMilliseconds);
 
-    private async Task<int> SaveSelectedToRawAsync(List<LocalMp3ExtractModel> items, int delayMilliseconds = 0)
+    private async Task<int> SaveSelectedToRawAsync(List<LocalTrackModel> items, int delayMilliseconds = 0)
     {
         // Hanya proses item yang di-check DAN tidak terdeteksi duplikat
         var selectedItems = items.Where(i => i.IsSelected && !i.IsDuplicateInDb).ToList();
@@ -129,7 +129,7 @@ public class SyncService
     }
 
     // Operational DB: Promotion ke Complete (Production Library)
-    public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalMp3ExtractModel validatedData)
+    public async Task<bool> PromoteRawToCompleteAsync(long rawId, LocalTrackModel validatedData)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
 
@@ -178,7 +178,7 @@ public class SyncService
                 existingComplete.ReleaseYear = validatedData.ReleaseYear;
                 existingComplete.Country = countryName;
                 existingComplete.AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "";
-                existingComplete.DurationSeconds = validatedData.DurationSeconds ?? existingComplete.DurationSeconds;
+                existingComplete.DurationSeconds = validatedData.DurationSeconds > 0 ? validatedData.DurationSeconds : existingComplete.DurationSeconds;
                 if (!string.IsNullOrWhiteSpace(validatedData.MusicBrainzId))
                 {
                     existingComplete.MusicBrainzId = validatedData.MusicBrainzId;
@@ -198,7 +198,7 @@ public class SyncService
                     Country = countryName,
                     AlbumCoverUrl = validatedData.AlbumCoverUrl ?? "",
                     AudioUrl = audioUrl,
-                    DurationSeconds = validatedData.DurationSeconds ?? 0,
+                    DurationSeconds = validatedData.DurationSeconds,
                     IsDownloaded = true
                 };
 
