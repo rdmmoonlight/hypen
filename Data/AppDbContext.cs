@@ -1,12 +1,28 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Hypen.Web.Models;
 
 namespace Hypen.Web.Data;
 
+// Paksa semua DateTime yang masuk/keluar Postgres (timestamptz) selalu ber-Kind=Utc.
+// Npgsql menolak DateTime dengan Kind=Unspecified/Local untuk kolom "timestamp with time zone".
+public class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
+{
+    public UtcDateTimeConverter() : base(
+        v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+        v => DateTime.SpecifyKind(v, DateTimeKind.Utc))
+    { }
+}
+
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
 
     // Master DbSet Songs (Production Library SSOT -> Tabel: songs)
     public DbSet<SongsModel> Songs { get; set; } = default!;
