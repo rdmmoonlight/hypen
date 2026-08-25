@@ -91,7 +91,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     DurationSeconds = r.DurationSeconds ?? 0,
                     MusicBrainzId = r.MusicBrainzId,
                     FilePath = r.AudioUrl != null && r.AudioUrl.StartsWith("/downloads/")
-                        ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", s.AudioUrl.TrimStart('/'))
+                        ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", r.AudioUrl.TrimStart('/'))
                         : string.Empty,
                     IsSelected = false
                 });
@@ -312,7 +312,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
-                // Sinkronisasi data Form Inspector ke target Model secara eksplisit
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
                     target.Title = batchModel.CleanTitle;
@@ -362,7 +361,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
         private async Task SaveItemInternalAsync(LocalTrackModel item)
         {
-            // 1. ISOLASI TAG EDITOR SERVICE (Abaikan error jika file fisik tidak ada/read-only di Render Container)
             try
             {
                 if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
@@ -382,10 +380,8 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 Console.WriteLine($"[Warning TagLib] Gagal update tag file fisik: {ex.Message}");
             }
 
-            // 2. EKSEKUSI PENYIMPANAN KE DATABASE
             using var context = await DbContextFactory.CreateDbContextAsync();
 
-            // Cek keberadaan di tabel Production Songs terlebih dahulu
             var song = await context.Songs.FindAsync((long)item.Id);
             if (song != null)
             {
@@ -405,11 +401,9 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 return;
             }
 
-            // Jika tidak ada di Songs, cari dan update di tabel Staging RawSongs
             var raw = await context.RawSongs.FindAsync((long)item.Id);
             if (raw != null)
             {
-                // SIMPAN DRAFT SELALU KE RAW_SONGS
                 raw.Title = item.CleanTitle;
                 raw.Artist = item.CleanArtist;
                 raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
@@ -422,7 +416,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
                 if (isFullyComplete)
                 {
-                    // PROMOSI OTOMATIS KE TABEL SONGS (Status COMPLETED)
                     raw.Status = "COMPLETED";
                     raw.IsComplete = true;
 
@@ -467,19 +460,16 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                         await context.Songs.AddAsync(newSong);
                     }
 
-                    // Hapus entri karantina dari raw_songs
                     context.RawSongs.Remove(raw);
                 }
                 else
                 {
-                    // SIMPAN DRAFT PERUBAHAN DI TABEL RAW_SONGS
                     raw.Status = "INCOMPLETE";
                     raw.IsComplete = false;
 
                     context.RawSongs.Update(raw);
                 }
 
-                // SIMPAN HASIL DRAFT KE DATABASE
                 await context.SaveChangesAsync();
             }
             else
