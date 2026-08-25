@@ -155,8 +155,9 @@ public static class MetadataFixingEndpoints
             }
             catch (Exception ex)
             {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
                 logger.LogError(ex, "[MetadataFixing] Gagal menyimpan ID={Id}", req.Id);
-                return Results.Problem(detail: ex.Message, statusCode: 500);
+                return Results.Problem(detail: $"{ex.Message} | INNER: {innerMsg}", statusCode: 500);
             }
         });
     }
