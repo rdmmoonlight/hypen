@@ -1,0 +1,257 @@
+/* =========================================================================
+   INGESTION GRID & CARDS
+   ========================================================================= */
+.ingest-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.ingest-grid.two-columns {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+    .ingest-grid.two-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.card-ingest {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.source-tag {
+    font-size: 0.7rem;
+    font-family: monospace;
+    color: #525866;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.card-ingest .card-title {
+    color: #d0d3d8;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0 0 16px 0;
+}
+
+/* =========================================================================
+   FORM CONTROLS & TOGGLES
+   ========================================================================= */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group.mb-2 {
+    margin-bottom: 8px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.65rem;
+    color: #525866;
+    margin-bottom: 6px;
+    font-family: monospace;
+    text-transform: uppercase;
+}
+
+.sync-container input[type="text"].form-control {
+    width: 100%;
+    padding: 8px 10px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #d0d3d8 !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    font-family: monospace !important;
+    box-sizing: border-box;
+}
+
+.sync-container input[type="text"].form-control:focus {
+    border-color: rgba(69, 162, 158, 0.5) !important;
+}
+
+.input-file {
+    color: #8a8f98;
+    font-size: 0.78rem;
+    font-family: monospace;
+    width: 100%;
+}
+
+.mode-toggle-group {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-mode {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #8a8f98;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-mode.active {
+    background: rgba(69, 162, 158, 0.15);
+    border-color: rgba(69, 162, 158, 0.4);
+    color: #45a29e;
+    font-weight: 600;
+}
+
+.help-text {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    color: #525866;
+}
+
+/* =========================================================================
+   BUTTONS & ACTIONS
+   ========================================================================= */
+.btn-action {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e6e8ec;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 9px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    cursor: pointer;
+}
+
+.btn-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-clear {
+    background: transparent;
+    border: 1px solid rgba(255, 77, 109, 0.3);
+    color: #ff4d6d;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-family: monospace;
+    cursor: pointer;
+}
+
+/* =========================================================================
+   PREVIEW TABLE & DUPLICATE STYLING
+   ========================================================================= */
+.preview-container {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.preview-header {
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.count-tag { color: #45a29e; font-weight: 600; }
+.dup-summary-tag {
+    color: #ff4d6d;
+    font-size: 0.7rem;
+    font-family: monospace;
+    background: rgba(255, 77, 109, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.preview-table thead tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: #525866;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.preview-table th, .preview-table td { padding: 8px 10px; }
+.th-check, .td-check { width: 32px; text-align: center; }
+.td-status { width: 110px; }
+
+.sync-container input[type="text"].table-input {
+    padding: 4px 8px !important;
+    font-size: 0.78rem !important;
+}
+
+.checkbox-input { accent-color: #45a29e; cursor: pointer; }
+
+.file-name {
+    color: #666c7a;
+    font-size: 0.75rem;
+    font-family: monospace;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.row-duplicate { background: rgba(255, 77, 109, 0.03) !important; }
+.row-duplicate td { opacity: 0.65; }
+
+.badge-dup, .badge-new {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.62rem;
+    font-family: monospace;
+    font-weight: 600;
+}
+.badge-dup { background: rgba(255, 77, 109, 0.15); border: 1px solid rgba(255, 77, 109, 0.4); color: #ff4d6d; }
+.badge-new { background: rgba(69, 162, 158, 0.15); border: 1px solid rgba(69, 162, 158, 0.4); color: #45a29e; }
+
+.preview-footer {
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: right;
+}
+
+.btn-commit {
+    width: auto;
+    padding: 8px 20px;
+    background: rgba(69, 162, 158, 0.15);
+    border: 1px solid rgba(69, 162, 158, 0.4);
+    color: #45a29e;
+    font-weight: 600;
+}
+
+.btn-commit:hover:not(:disabled) {
+    background: rgba(69, 162, 158, 0.25);
+    color: #66caaa;
+}
