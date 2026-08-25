@@ -186,7 +186,7 @@ public class SyncService
             }
             else
             {
-                var newComplete = new CloudSongsModel
+                var newComplete = new SongsModel
                 {
                     RawId = rawId,
                     YoutubeVideoId = ytId,
