@@ -23,6 +23,7 @@ public class LocalMp3ExtractModel
     // UI & Pipeline State
     public bool IsSelected { get; set; } = true;
     public bool IsProcessed { get; set; }
+    public bool IsProcessing { get; set; } // <-- Ditambahkan agar sesuai dengan komponen Razor
 
     // Deduplication UI State Properties
     public bool IsDuplicateInDb { get; set; } = false;
