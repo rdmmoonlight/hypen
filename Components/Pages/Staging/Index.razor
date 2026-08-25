@@ -37,6 +37,17 @@
             </div>
             <div class="toolbar-subtext" style="color: #e0e0e0;">Review metadata & sinkronisasi data staging.</div>
         </div>
+
+        <!-- SEARCH INPUT -->
+        <div class="toolbar-search">
+            <input type="text" 
+                   class="search-input" 
+                   placeholder="Cari Judul / Artis..." 
+                   value="@SearchTerm" 
+                   @oninput="@(e => SearchTerm = e.Value?.ToString() ?? "")"
+                   style="color: #ffffff; background-color: #1e1e1e; border: 1px solid #444; padding: 6px 12px; border-radius: 4px;" />
+        </div>
+
         <div class="toolbar-actions">
             @if (selectedRawIds.Count > 0)
             {
@@ -54,10 +65,10 @@
         </div>
     </div>
 
-    @if (stagingList.Count == 0)
+    @if (!FilteredStagingList.Any())
     {
         <div class="empty-state" style="color: #ffffff;">
-            NO PENDING TRACKS IN STAGING BUFFER.
+            @(string.IsNullOrWhiteSpace(SearchTerm) ? "NO PENDING TRACKS IN STAGING BUFFER." : "TIDAK ADA DATA YANG COCOK DENGAN PENCARIAN.")
         </div>
     }
     else
@@ -126,7 +137,7 @@
         <!-- PAGINATION BAR -->
         <div class="pagination-bar" style="color: #ffffff;">
             <div class="pagination-info">
-                Menampilkan @StartItem - @EndItem dari @stagingList.Count data
+                Menampilkan @StartItem - @EndItem dari @FilteredStagingList.Count() data
             </div>
 
             <div class="pagination-controls">
