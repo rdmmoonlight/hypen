@@ -1,3 +1,4 @@
+@page "/metadata-fixing"
 @page "/metadatafixing"
 @using Hypen.Web.Models
 @using Hypen.Web.Services
@@ -166,7 +167,7 @@
 
     protected override void OnInitialized()
     {
-        // Sampel data awal. Nanti bisa dipanggil dari LocalMp3ExtractorService Anda
+        // Sample Data Initializer
         Items = new List<LocalMp3ExtractModel>
         {
             new LocalMp3ExtractModel { FileName = "Coldplay - Yellow.mp3", CleanArtist = "Coldplay", CleanTitle = "Yellow", DurationSeconds = 266 },
