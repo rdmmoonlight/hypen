@@ -1,5 +1,3 @@
-using TagLib;
-
 namespace Hypen.Web.Services;
 
 public class TagLibService
@@ -15,20 +13,18 @@ public class TagLibService
     {
         try
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
                 return false;
 
-            // Menggunakan TagLib# secara asynchronous / aman
             await Task.Run(() =>
             {
-                using var file = TagLib.File.Create(filePath);
+                using var tfile = TagLib.File.Create(filePath);
                 
-                if (!string.IsNullOrWhiteSpace(title)) file.Tag.Title = title;
-                if (!string.IsNullOrWhiteSpace(artist)) file.Tag.Performers = new[] { artist };
-                if (!string.IsNullOrWhiteSpace(album)) file.Tag.Album = album;
-                if (year.HasValue) file.Tag.Year = (uint)year.Value;
+                if (!string.IsNullOrWhiteSpace(title)) tfile.Tag.Title = title;
+                if (!string.IsNullOrWhiteSpace(artist)) tfile.Tag.Performers = new[] { artist };
+                if (!string.IsNullOrWhiteSpace(album)) tfile.Tag.Album = album;
+                if (year.HasValue) tfile.Tag.Year = (uint)year.Value;
 
-                // Jika ada URL cover art, kita bisa download dan sematkan (opsional)
                 if (!string.IsNullOrEmpty(coverUrl) && (coverUrl.StartsWith("http://") || coverUrl.StartsWith("https://")))
                 {
                     try
@@ -43,7 +39,7 @@ public class TagLibService
                                 Description = "Cover",
                                 MimeType = "image/jpeg"
                             };
-                            file.Tag.Pictures = new IPicture[] { picture };
+                            tfile.Tag.Pictures = new IPicture[] { picture };
                         }
                     }
                     catch (Exception imgEx)
@@ -52,7 +48,7 @@ public class TagLibService
                     }
                 }
 
-                file.Save();
+                tfile.Save();
             });
 
             return true;
