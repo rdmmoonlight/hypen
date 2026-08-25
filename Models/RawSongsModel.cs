@@ -2,9 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Hypen.Web.Models;
 
-/// <summary>
-/// Model Staging / Buffer Karantina (Tabel: raw_songs)
-/// </summary>
 [Table("raw_songs")]
 public class RawSongsModel
 {
