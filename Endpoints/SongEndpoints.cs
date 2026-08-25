@@ -10,7 +10,7 @@ public static class SongEndpoints
     public static void MapSongEndpoints(this IEndpointRouteBuilder app)
     {
         // ------------------------------------------------------------
-        // GET ALL SONGS (Membaca dari tabel olahan songs_complete via ORM)
+        // GET ALL SONGS (Membaca dari tabel songs via ORM)
         // ------------------------------------------------------------
         app.MapGet("/api/songs", async (
             IDbContextFactory<AppDbContext> dbContextFactory, 
@@ -20,12 +20,13 @@ public static class SongEndpoints
             {
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                var songs = await context.SongsComplete
+                var songs = await context.Songs
                     .AsNoTracking()
                     .OrderByDescending(s => s.Id)
-                    .Select(s => new CloudSongsModel
+                    .Select(s => new SongsModel
                     {
                         Id = s.Id,
+                        RawId = s.RawId,
                         YoutubeVideoId = s.YoutubeVideoId ?? "",
                         Title = string.IsNullOrWhiteSpace(s.Title) ? "Untitled" : s.Title,
                         Artist = string.IsNullOrWhiteSpace(s.Artist) ? "Unknown" : s.Artist,
@@ -34,7 +35,7 @@ public static class SongEndpoints
                         AlbumCoverUrl = s.AlbumCoverUrl ?? "",
                         AudioUrl = s.AudioUrl ?? "",
                         IsDownloaded = s.IsDownloaded,
-                        DurationSeconds = 0
+                        DurationSeconds = s.DurationSeconds ?? 0
                     })
                     .ToListAsync();
 
@@ -42,7 +43,7 @@ public static class SongEndpoints
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[DB ORM] Failed to fetch songs from songs_complete");
+                logger.LogError(ex, "[DB ORM] Failed to fetch songs from master library");
                 return Results.Problem(detail: ex.Message, statusCode: 500);
             }
         });
@@ -59,10 +60,10 @@ public static class SongEndpoints
             {
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                var song = await context.SongsComplete.FindAsync(id);
+                var song = await context.Songs.FindAsync(id);
                 if (song == null) return Results.NotFound();
 
-                context.SongsComplete.Remove(song);
+                context.Songs.Remove(song);
                 await context.SaveChangesAsync();
 
                 return Results.Ok();
@@ -78,7 +79,7 @@ public static class SongEndpoints
         // DELETE BATCH SONGS (Menggunakan Bulk Delete EF Core)
         // ------------------------------------------------------------
         app.MapPost("/api/songs/delete-batch", async (
-            [FromBody] Hypen.Web.Models.BatchDeleteRequest req, 
+            [FromBody] BatchDeleteRequest req, 
             IDbContextFactory<AppDbContext> dbContextFactory, 
             ILogger<Program> logger) =>
         {
@@ -89,7 +90,7 @@ public static class SongEndpoints
             {
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                int affected = await context.SongsComplete
+                int affected = await context.Songs
                     .Where(s => req.Ids.Contains(s.Id))
                     .ExecuteDeleteAsync();
 
