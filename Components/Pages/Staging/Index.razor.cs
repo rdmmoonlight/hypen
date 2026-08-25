@@ -17,6 +17,22 @@ public partial class Index : ComponentBase
     protected bool isError;
     protected bool isProcessing;
 
+    // SEARCH FILTER STATE
+    private string _searchTerm = "";
+    protected string SearchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            if (_searchTerm != value)
+            {
+                _searchTerm = value;
+                currentPage = 1; // Reset ke halaman 1 setiap kali kata kunci berubah
+                EnsureValidPageBoundary();
+            }
+        }
+    }
+
     // SELECTION & STAGING STATE
     protected HashSet<long> selectedRawIds = new();
     protected List<RawSongsModel> stagingList = [];
@@ -34,13 +50,32 @@ public partial class Index : ComponentBase
     }
 
     // =========================================================================
-    // PAGINATION LOGIC
+    // SEARCH & FILTER LOGIC
     // =========================================================================
-    protected int TotalPages => Math.Max(1, (int)Math.Ceiling((double)stagingList.Count / pageSize));
-    protected int StartItem => stagingList.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    protected int EndItem => Math.Min(currentPage * pageSize, stagingList.Count);
+    // Filter data berdasarkan Title atau Artist (sesuaikan kolom pada RawSongsModel)
+    protected IEnumerable<RawSongsModel> FilteredStagingList
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SearchTerm))
+                return stagingList;
 
-    protected IEnumerable<RawSongsModel> PagedStagingList => stagingList
+            var term = SearchTerm.Trim();
+            return stagingList.Where(x => 
+                (x.Title != null && x.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Artist != null && x.Artist.Contains(term, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+    }
+
+    // =========================================================================
+    // PAGINATION LOGIC (Menggunakan FilteredStagingList)
+    // =========================================================================
+    protected int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredStagingList.Count() / pageSize));
+    protected int StartItem => !FilteredStagingList.Any() ? 0 : ((currentPage - 1) * pageSize) + 1;
+    protected int EndItem => Math.Min(currentPage * pageSize, FilteredStagingList.Count());
+
+    protected IEnumerable<RawSongsModel> PagedStagingList => FilteredStagingList
         .Skip((currentPage - 1) * pageSize)
         .Take(pageSize);
 
