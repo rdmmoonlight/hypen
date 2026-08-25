@@ -12,29 +12,22 @@ public class TagEditorCliService
         _logger = logger;
     }
 
-    // Menulis tag lengkap (Artist, Title, Album, Year, Genre, Cover) ke file fisik
-    public async Task<bool> ApplyFullTagsToFileAsync(LocalTrackModel track, string? customCoverPath = null)
+    public async Task<bool> ApplyTagsToFileAsync(string filePath, string artist, string title, string album, int? year, string? coverUrl = null)
     {
         try
         {
-            if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath))
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                 return false;
 
             var args = new List<string> { "set" };
 
-            if (!string.IsNullOrWhiteSpace(track.CleanArtist)) args.Add($"artist=\"{track.CleanArtist}\"");
-            if (!string.IsNullOrWhiteSpace(track.CleanTitle)) args.Add($"title=\"{track.CleanTitle}\"");
-            if (!string.IsNullOrWhiteSpace(track.Album)) args.Add($"album=\"{track.Album}\"");
-            if (track.ReleaseYear.HasValue) args.Add($"date={track.ReleaseYear.Value}");
-
-            // Jika ada cover art baru yang ingin disematkan via tageditor
-            if (!string.IsNullOrEmpty(customCoverPath) && File.Exists(customCoverPath))
-            {
-                args.Add($"cover=\"{customCoverPath}\"");
-            }
+            if (!string.IsNullOrWhiteSpace(artist)) args.Add($"artist=\"{artist}\"");
+            if (!string.IsNullOrWhiteSpace(title)) args.Add($"title=\"{title}\"");
+            if (!string.IsNullOrWhiteSpace(album)) args.Add($"album=\"{album}\"");
+            if (year.HasValue) args.Add($"date={year.Value}");
 
             args.Add("-f");
-            args.Add($"\"{track.FilePath}\"");
+            args.Add($"\"{filePath}\"");
 
             var startInfo = new ProcessStartInfo
             {
@@ -52,11 +45,17 @@ public class TagEditorCliService
             string errorOutput = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            return process.ExitCode == 0;
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError($"Gagal menjalankan tageditor CLI: {errorOutput}");
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Gagal mengeksekusi tageditor set.");
+            _logger.LogError(ex, "Exception saat mengeksekusi tageditor CLI.");
             return false;
         }
     }
