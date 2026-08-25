@@ -72,10 +72,14 @@ public partial class Sidebar
         Navigation.NavigateTo("/tools/dedup");
     }
 
-
     protected void NavigateToGDriveManagement()
     {
         Navigation.NavigateTo("/tools/drivedetector");
+    }
+
+    protected void NavigateToMetadataFixing()
+    {
+        Navigation.NavigateTo("/metadatafixing");
     }
 
     protected void NavigateToYouTubeAutoSync()
