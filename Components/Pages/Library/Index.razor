@@ -104,7 +104,7 @@
                         </td>
                     </tr>
                 }
-                else if (!PagedSongs.Any())
+                else if (pagedSongs.Count == 0)
                 {
                     <tr>
                         <td colspan="13" class="table-empty">
@@ -114,7 +114,7 @@
                 }
                 else
                 {
-                    @foreach (var song in PagedSongs)
+                    @foreach (var song in pagedSongs)
                     {
                         <tr @key="song.Id" class="data-row">
                             <td class="col-checkbox">
