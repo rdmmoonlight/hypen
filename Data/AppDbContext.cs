@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Hypen.Web.Models;
 
 namespace Hypen.Web.Data;
@@ -34,32 +35,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SongsModel>(entity =>
         {
             entity.ToTable("songs");
-
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
-            entity.Property(e => e.RawId).HasColumnName("raw_id");
-            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
-            entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
-            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
-            entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
-            entity.Property(e => e.Album).HasColumnName("album").HasDefaultValue("Single");
-            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
-            entity.Property(e => e.Country).HasColumnName("country").HasDefaultValue("Unknown");
-            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
-            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
-            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
-            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
-            entity.Property(e => e.IsComplete).HasColumnName("is_complete").HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-
-            // Abaikan helper properties dari mapping EF Core
-            entity.Ignore(e => e.YoutubeId);
-            entity.Ignore(e => e.Mbid);
-            entity.Ignore(e => e.Cover);
-            entity.Ignore(e => e.StreamUrl);
-            entity.Ignore(e => e.Provider);
-            entity.Ignore(e => e.IsSelected);
+            ConfigureBaseTrackEntity(entity);
         });
 
         // =========================================================================
@@ -68,32 +44,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RawSongsModel>(entity =>
         {
             entity.ToTable("raw_songs");
-
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
-            entity.Property(e => e.RawId).HasColumnName("raw_id");
-            entity.Property(e => e.YoutubeVideoId).HasColumnName("youtube_video_id");
-            entity.Property(e => e.MusicBrainzId).HasColumnName("musicbrainz_id");
-            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
-            entity.Property(e => e.Artist).HasColumnName("artist").IsRequired();
-            entity.Property(e => e.Album).HasColumnName("album").HasDefaultValue("Single");
-            entity.Property(e => e.ReleaseYear).HasColumnName("release_year");
-            entity.Property(e => e.Country).HasColumnName("country").HasDefaultValue("Unknown");
-            entity.Property(e => e.AlbumCoverUrl).HasColumnName("album_cover_url");
-            entity.Property(e => e.AudioUrl).HasColumnName("audio_url");
-            entity.Property(e => e.DurationSeconds).HasColumnName("duration_seconds");
-            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("PENDING");
-            entity.Property(e => e.IsDownloaded).HasColumnName("is_downloaded").HasDefaultValue(false);
-            entity.Property(e => e.IsComplete).HasColumnName("is_complete").HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
-
-            // Abaikan helper properties dari mapping EF Core
-            entity.Ignore(e => e.YoutubeId);
-            entity.Ignore(e => e.Mbid);
-            entity.Ignore(e => e.Cover);
-            entity.Ignore(e => e.StreamUrl);
-            entity.Ignore(e => e.Provider);
-            entity.Ignore(e => e.IsSelected);
+            ConfigureBaseTrackEntity(entity);
         });
 
         // =========================================================================
@@ -187,5 +138,37 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.SongId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
+
+    /// <summary>
+    /// Helper internal untuk menyamakan skema kolom antara tabel `songs` dan `raw_songs`.
+    /// </summary>
+    private static void ConfigureBaseTrackEntity<TEntity>(EntityTypeBuilder<TEntity> entity) where TEntity : class
+    {
+        entity.HasKey("Id");
+        entity.Property("Id").HasColumnName("id").ValueGeneratedOnAdd();
+        entity.Property("RawId").HasColumnName("raw_id");
+        entity.Property("YoutubeVideoId").HasColumnName("youtube_video_id");
+        entity.Property("MusicBrainzId").HasColumnName("musicbrainz_id");
+        entity.Property("Title").HasColumnName("title").IsRequired();
+        entity.Property("Artist").HasColumnName("artist").IsRequired();
+        entity.Property("Album").HasColumnName("album").HasDefaultValue("Single");
+        entity.Property("ReleaseYear").HasColumnName("release_year");
+        entity.Property("Country").HasColumnName("country").HasDefaultValue("Unknown");
+        entity.Property("AlbumCoverUrl").HasColumnName("album_cover_url");
+        entity.Property("AudioUrl").HasColumnName("audio_url");
+        entity.Property("DurationSeconds").HasColumnName("duration_seconds");
+        entity.Property("Status").HasColumnName("status").HasDefaultValue("PENDING");
+        entity.Property("IsDownloaded").HasColumnName("is_downloaded").HasDefaultValue(false);
+        entity.Property("IsComplete").HasColumnName("is_complete").HasDefaultValue(false);
+        entity.Property("CreatedAt").HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+        // Abaikan helper properties yang tidak perlu masuk ke database
+        entity.Ignore("YoutubeId");
+        entity.Ignore("Mbid");
+        entity.Ignore("Cover");
+        entity.Ignore("StreamUrl");
+        entity.Ignore("Provider");
+        entity.Ignore("IsSelected");
     }
 }
