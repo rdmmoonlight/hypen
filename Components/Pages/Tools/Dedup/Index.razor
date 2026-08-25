@@ -2,22 +2,9 @@
 @using Hypen.Web.Models
 @using Hypen.Web.Services
 
-<PageTitle>Duplicate Detector - Hypen Tools</PageTitle>
+<PageTitle>Raw Songs Comparison - Hypen Tools</PageTitle>
 
 <div class="matte-container">
-
-    <!-- TAB NAVIGATION BAR -->
-    <div class="matte-tabs">
-        <a href="/tools/dedup" class="tab-item active">
-            <i class="ti ti-search"></i> DUPLICATE DETECTOR
-        </a>
-        <a href="/tools/localsync" class="tab-item">
-            <i class="ti ti-folder-sync"></i> LOCAL SYNC
-        </a>
-        <a href="/tools/driveDetector" class="tab-item">
-            <i class="ti ti-brand-google-drive"></i> GDRIVE MANAGEMENT
-        </a>
-    </div>
 
     <!-- ALERT STATUS -->
     @if (!string.IsNullOrEmpty(statusMsg))
@@ -30,31 +17,33 @@
     <!-- HEADER -->
     <div class="matte-header">
         <div>
-            <div class="matte-subtitle">System Maintenance</div>
-            <h1 class="matte-title">Database Duplicate Detector</h1>
+            <div class="matte-subtitle">System Maintenance // Dual-Table Access</div>
+            <h1 class="matte-title">Raw Songs vs Database Checker</h1>
         </div>
         <div class="matte-counter">
-            @duplicateGroups.Count CLUSTERS
+            @rawSongComparisons.Count RAW SONGS
         </div>
     </div>
 
     <!-- TOOLBAR -->
     <div class="matte-toolbar">
         <div class="matte-action-group">
-            <button class="btn-matte btn-primary" @onclick="ScanDuplicates" disabled="@isProcessing">
-                <i class="ti ti-scan"></i> @(isProcessing ? "MEMINDAI DATABASE..." : "SCAN DATABASE FOR DUPLICATES")
+            <button class="btn-matte btn-primary" @onclick="ScanRawSongsAgainstDatabase" disabled="@isProcessing">
+                <i class="ti ti-scan"></i> @(isProcessing ? "MEMINDAI DATA..." : "BANDINGKAN RAW SONGS DENGAN DATABASE")
             </button>
 
-            @if (duplicateGroups.Count > 0)
+            @if (UnmatchedRawCount > 0)
             {
-                <button class="btn-matte btn-danger" @onclick="PurgeSelected" disabled="@(isProcessing || TotalToDeleteCount == 0)">
-                    <i class="ti ti-trash"></i> PURGE TERPILIH (@TotalToDeleteCount)
+                <button class="btn-matte btn-success" @onclick="ImportUnmatchedToDatabase" disabled="@isProcessing">
+                    <i class="ti ti-file-import"></i> IMPOR BARU KE DATABASE (@UnmatchedRawCount)
                 </button>
             }
         </div>
 
         <div class="matte-search-group">
-            <span class="status-badge"><i class="ti ti-database-check"></i> STATUS DB: OK</span>
+            <span class="status-badge">
+                <i class="ti ti-database-check"></i> UNMATCHED: @UnmatchedRawCount | MATCHED: @MatchedRawCount
+            </span>
         </div>
     </div>
 
@@ -62,86 +51,78 @@
     @if (!hasScanned && !isProcessing)
     {
         <div class="matte-card text-center py-4">
-            <div class="matte-tag">Maintenance Engine</div>
-            <h3 class="card-title">Mulai Pemindaian Database</h3>
+            <div class="matte-tag">Dual-Table Engine</div>
+            <h3 class="card-title">Mulai Pemindaian Raw Songs</h3>
             <p class="status-text text-muted">
-                Klik <strong>SCAN DATABASE FOR DUPLICATES</strong> di atas untuk mendeteksi klaster lagu yang mirip secara otomatis.
+                Klik tombol <strong>BANDINGKAN RAW SONGS DENGAN DATABASE</strong> di atas untuk mengecek keberadaan data awal terhadap tabel rujukan (Songs).
             </p>
         </div>
     }
     else if (isProcessing)
     {
         <div class="matte-card text-center py-4">
-            <div class="matte-tag">Analyzing Audio Metadata</div>
-            <h3 class="card-title">Memindai Seluruh Isi Database...</h3>
+            <div class="matte-tag">Analyzing Tables</div>
+            <h3 class="card-title">Membandingkan RawSongs &amp; Songs Database...</h3>
             <p class="status-text text-muted">
-                Menganalisis kemiripan judul, artis, durasi, dan ID eksternal secara presisi.
+                Mencocokkan metadata lagu awal dengan data rujukan utama.
             </p>
         </div>
     }
-    else if (hasScanned && duplicateGroups.Count == 0)
+    else if (hasScanned && rawSongComparisons.Count == 0)
     {
         <div class="matte-card text-center py-4 border-clean">
-            <div class="matte-tag tag-clean">Database Status // Clean</div>
-            <h3 class="card-title text-clean">Database Clean &amp; Pristine!</h3>
+            <div class="matte-tag tag-clean">Raw Table Status // Empty</div>
+            <h3 class="card-title text-clean">Tabel Raw Songs Kosong!</h3>
             <p class="status-text text-muted">
-                Tidak ditemukan lagu duplikat berdasarkan parameter toleransi saat ini.
+                Tidak ada data di tabel awal untuk dibandingkan.
             </p>
         </div>
     }
-    else if (duplicateGroups.Count > 0)
+    else if (rawSongComparisons.Count > 0)
     {
         <div class="preview-container">
             <div class="preview-header">
-                <span>TERDETEKSI (@duplicateGroups.Count:N0) KELOMPOK DUPLIKAT</span>
-                <span class="dup-summary-tag">@TotalToDeleteCount:N0 SONGS WILL BE REMOVED FROM DATABASE</span>
+                <span>TOTAL RAW SONGS (@rawSongComparisons.Count:N0)</span>
+                <span class="dup-summary-tag">
+                    @UnmatchedRawCount HASIL BELUM ADA DI DATABASE
+                </span>
             </div>
 
-            <div class="cluster-list">
-                @foreach (var group in duplicateGroups)
+            <div class="song-compact-grid">
+                @foreach (var item in rawSongComparisons)
                 {
-                    <div class="matte-card cluster-card">
-                        <div class="cluster-sub-header">
-                            <div class="cluster-title-info">
-                                <span class="badge-dup">@group.MatchReason</span>
-                                <span class="cluster-key">Grup: @group.GroupKey</span>
-                            </div>
-                            <span class="score-tag">Score: @group.SimilarityScore%</span>
-                        </div>
+                    <div class="song-compact-card @(!item.IsInDatabase ? "card-purge" : "card-keep")">
 
-                        <div class="song-compact-grid">
-                            @foreach (var song in group.Items)
+                        <div class="compact-card-header">
+                            @if (!item.IsInDatabase)
                             {
-                                bool isMaster = group.KeepSongId == song.Id;
-                                <div class="song-compact-card @(isMaster ? "card-keep" : "card-purge")"
-                                     @onclick="() => OnMasterSelected(group, song.Id)">
-
-                                    <div class="compact-card-header">
-                                        <button type="button"
-                                                class="badge-action @(isMaster ? "badge-keep-btn" : "badge-purge-btn")"
-                                                @onclick:stopPropagation="true"
-                                                @onclick="() => OnMasterSelected(group, song.Id)">
-                                            <i class="ti @(isMaster ? "ti-bookmark-check" : "ti-trash")"></i>
-                                            @(isMaster ? "SIMPAN (MASTER)" : "HAPUS")
-                                        </button>
-                                        <span class="song-id-tag">#@song.Id</span>
-                                    </div>
-
-                                    <div class="compact-card-body">
-                                        <div class="compact-song-title">@song.Title</div>
-                                        <div class="compact-song-artist">
-                                            @(song.Artist ?? "Unknown Artist") • @(song.Album ?? "Single")
-                                        </div>
-                                    </div>
-
-                                    <div class="compact-card-footer">
-                                        <span><i class="ti ti-clock"></i> @(song.DurationSeconds.HasValue ? TimeSpan.FromSeconds(song.DurationSeconds.Value).ToString(@"mm\:ss") : "-")</span>
-                                        <span><i class="ti ti-photo"></i> @(!string.IsNullOrEmpty(song.AlbumCoverUrl) ? "Ada" : "Absen")</span>
-                                        <span><i class="ti ti-id"></i> @(string.IsNullOrEmpty(song.YoutubeVideoId) ? "LOCAL" : song.YoutubeVideoId)</span>
-                                    </div>
-                                </div>
+                                <span class="badge-action badge-purge-btn">
+                                    <i class="ti ti-alert-circle"></i> BELUM ADA DI DATABASE
+                                </span>
                             }
+                            else
+                            {
+                                <span class="badge-action badge-keep-btn">
+                                    <i class="ti ti-circle-check"></i> SUDAH ADA DI DATABASE
+                                </span>
+                            }
+                            <span class="song-id-tag">RAW #@item.RawSongId</span>
                         </div>
+
+                        <div class="compact-card-body">
+                            <div class="compact-song-title">@item.Title</div>
+                            <div class="compact-song-artist">
+                                @(item.Artist ?? "Unknown Artist") • @(item.Album ?? "Single")
+                            </div>
+                        </div>
+
+                        <div class="compact-card-footer">
+                            <span>
+                                <i class="ti ti-database"></i> 
+                                DB Ref ID: @(item.MatchedSongId.HasValue ? $"#{item.MatchedSongId.Value}" : "N/A")
+                            </span>
+                        </div>
+
                     </div>
                 }
             </div>
