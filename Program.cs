@@ -78,7 +78,7 @@ builder.Services.AddScoped<SongDeduplicationEngine>();
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<GoogleDriveScannerEngine>();
 builder.Services.AddScoped<AudioMetadataService>();
-builder.Services.AddScoped<TagEditorCliService>();
+builder.Services.AddScoped<TagLibService>();
 
 // =========================================================================
 // 2. BUILD PIPELINE & MIDDLEWARE
