@@ -93,26 +93,17 @@ public class SongsModel
 
 /// <summary>
 /// Model Staging / Buffer Karantina (Tabel: raw_songs)
-/// Kelas ini berdiri sendiri (tanpa warisan) untuk menghindari bentrok properti.
+/// Kelas mandiri tanpa pewarisan untuk menghindari konflik properti.
 /// </summary>
 [Table("raw_songs")]
 public class RawSongsModel
 {
-    // =========================================================================
-    // 1. PRIMARY KEY & RELASI
-    // =========================================================================
     public long Id { get; set; }
     public long? RawId { get; set; }
 
-    // =========================================================================
-    // 2. EXTERNAL IDENTIFIERS
-    // =========================================================================
     public string? YoutubeVideoId { get; set; }
     public string? MusicBrainzId { get; set; }
 
-    // =========================================================================
-    // 3. METADATA LAGU
-    // =========================================================================
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
     public string? Album { get; set; } = "Single";
@@ -122,17 +113,11 @@ public class RawSongsModel
     public string? AudioUrl { get; set; }
     public int? DurationSeconds { get; set; }
 
-    // =========================================================================
-    // 4. STATUS & TRACKING
-    // =========================================================================
     public string Status { get; set; } = "PENDING";
     public bool IsDownloaded { get; set; } = false;
     public bool IsComplete { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // =========================================================================
-    // 5. HELPER PROPERTIES / ALIAS (Diabaikan oleh EF Core)
-    // =========================================================================
     [NotMapped]
     public string? YoutubeId
     {
