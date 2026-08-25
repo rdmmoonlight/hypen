@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Hypen.Web.Models;
 
 namespace Hypen.Web.Services;
 
@@ -11,23 +12,29 @@ public class TagEditorCliService
         _logger = logger;
     }
 
-    public async Task<bool> ApplyTagsToFileAsync(string filePath, string artist, string title, string album, int? year, string? coverUrl)
+    // Menulis tag lengkap (Artist, Title, Album, Year, Genre, Cover) ke file fisik
+    public async Task<bool> ApplyFullTagsToFileAsync(LocalTrackModel track, string? customCoverPath = null)
     {
         try
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrEmpty(track.FilePath) || !File.Exists(track.FilePath))
                 return false;
 
-            // Argumen dasar tageditor set
             var args = new List<string> { "set" };
 
-            if (!string.IsNullOrWhiteSpace(artist)) args.Add($"artist=\"{artist}\"");
-            if (!string.IsNullOrWhiteSpace(title)) args.Add($"title=\"{title}\"");
-            if (!string.IsNullOrWhiteSpace(album)) args.Add($"album=\"{album}\"");
-            if (year.HasValue) args.Add($"date={year.Value}");
+            if (!string.IsNullOrWhiteSpace(track.CleanArtist)) args.Add($"artist=\"{track.CleanArtist}\"");
+            if (!string.IsNullOrWhiteSpace(track.CleanTitle)) args.Add($"title=\"{track.CleanTitle}\"");
+            if (!string.IsNullOrWhiteSpace(track.Album)) args.Add($"album=\"{track.Album}\"");
+            if (track.ReleaseYear.HasValue) args.Add($"date={track.ReleaseYear.Value}");
+
+            // Jika ada cover art baru yang ingin disematkan via tageditor
+            if (!string.IsNullOrEmpty(customCoverPath) && File.Exists(customCoverPath))
+            {
+                args.Add($"cover=\"{customCoverPath}\"");
+            }
 
             args.Add("-f");
-            args.Add($"\"{filePath}\"");
+            args.Add($"\"{track.FilePath}\"");
 
             var startInfo = new ProcessStartInfo
             {
@@ -45,17 +52,11 @@ public class TagEditorCliService
             string errorOutput = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            if (process.ExitCode != 0)
-            {
-                _logger.LogError($"Gagal menulis tag dengan tageditor: {errorOutput}");
-                return false;
-            }
-
-            return true;
+            return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception saat mengeksekusi tageditor CLI.");
+            _logger.LogError(ex, "Gagal mengeksekusi tageditor set.");
             return false;
         }
     }
