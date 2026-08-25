@@ -34,10 +34,6 @@
                 {
                     <span class="selected-badge">[ @selectedRawIds.Count TERPILIH ]</span>
                 }
-                @if (duplicateRawIds.Count > 0)
-                {
-                    <span class="duplicate-badge">[ @duplicateRawIds.Count DUPLIKAT DETECTED ]</span>
-                }
             </div>
             <div class="toolbar-subtext" style="color: #e0e0e0;">Review metadata & sinkronisasi data staging.</div>
         </div>
@@ -49,19 +45,6 @@
                 </button>
                 <button class="btn-action delete-selected" @onclick="DeleteSelectedRawItems" disabled="@isProcessing">
                     ✕ DELETE SELECTED (@selectedRawIds.Count)
-                </button>
-            }
-
-            <!-- TOMBOL MANUAL CEK DUPLIKAT -->
-            <button class="btn-action check-duplicates" @onclick="RunDuplicateCheck" disabled="@isProcessing">
-                🔍 CHECK DUPLICATES
-            </button>
-
-            <!-- TOMBOL PEMBERSIHAN -->
-            @if (duplicateRawIds.Count > 0)
-            {
-                <button class="btn-action clean-duplicates" @onclick="DeleteDuplicateStagingItems" disabled="@isProcessing">
-                    🧹 CLEAN DUPLICATES (@duplicateRawIds.Count)
                 </button>
             }
 
@@ -100,19 +83,14 @@
                     @foreach (var row in PagedStagingList)
                     {
                         var isSelected = selectedRawIds.Contains(row.Id);
-                        var isDuplicate = duplicateRawIds.Contains(row.Id);
 
-                        <tr class="@(isSelected ? "selected-row" : "") @(isDuplicate ? "duplicate-row" : "")" style="color: #ffffff;">
+                        <tr class="@(isSelected ? "selected-row" : "")" style="color: #ffffff;">
                             <td class="col-checkbox">
                                 <input type="checkbox" checked="@isSelected" @onchange="@(e => ToggleSelect(row.Id, e))" class="custom-chk" />
                             </td>
                             <td>
                                 <div class="cell-with-badge">
                                     <span class="text-cell font-weight-bold">@(string.IsNullOrWhiteSpace(row.Title) ? "-" : row.Title)</span>
-                                    @if (isDuplicate)
-                                    {
-                                        <span class="badge-duplicate" title="Kombinasi Artis & Judul ganda di Staging">DUPLIKAT</span>
-                                    }
                                 </div>
                             </td>
                             <td>
