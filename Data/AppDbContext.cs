@@ -161,6 +161,8 @@ public class AppDbContext : DbContext
         entity.Property("Status").HasColumnName("status").HasDefaultValue("PENDING");
         entity.Property("IsDownloaded").HasColumnName("is_downloaded").HasDefaultValue(false);
         entity.Property("IsComplete").HasColumnName("is_complete").HasDefaultValue(false);
+        entity.Property("IsComplete").Metadata.SetBeforeSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+        entity.Property("IsComplete").Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
         entity.Property("CreatedAt").HasColumnName("created_at").HasDefaultValueSql("NOW()");
 
         // Abaikan helper properties yang tidak perlu masuk ke database
