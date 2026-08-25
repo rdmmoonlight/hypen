@@ -1,0 +1,207 @@
+/* =========================================================================
+   PREVIEW & CLUSTER CONTAINERS
+   ========================================================================= */
+.preview-container {
+    background: #181b20;
+    border-radius: 6px;
+    border: 1px solid #262c36;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.preview-header {
+    padding: 10px 14px;
+    font-size: 0.72rem;
+    font-family: monospace;
+    border-bottom: 1px solid #262c36;
+    color: #ffffff;
+    background: #121418;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dup-summary-tag {
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-family: monospace;
+    background: rgba(244, 63, 94, 0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(244, 63, 94, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cluster-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cluster-card {
+    background: #14171c;
+    border: 1px solid #222730;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.cluster-sub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e242d;
+}
+
+.cluster-title-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cluster-key {
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-family: monospace;
+}
+
+.score-tag {
+    font-size: 0.68rem;
+    font-family: monospace;
+    color: #ffffff;
+}
+
+.badge-dup {
+    background: #27141a;
+    border: 1px solid #4c1d24;
+    color: #ffffff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+/* =========================================================================
+   COMPACT SONG CARDS (MATTE SLATE)
+   ========================================================================= */
+.song-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 8px;
+}
+
+.song-compact-card {
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 85px;
+    color: #ffffff;
+}
+
+/* STATE CARD KEEP vs PURGE */
+.card-keep {
+    background: #0d1f2d;
+    border: 1px solid #0284c7;
+}
+
+.card-keep:hover {
+    background: #112738;
+}
+
+.card-purge {
+    background: #0f1115;
+    border: 1px solid #1e242d;
+    opacity: 0.85;
+}
+
+.card-purge:hover {
+    opacity: 1;
+    background: #161920;
+    border-color: #334155;
+}
+
+.compact-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.badge-action {
+    border: none;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-family: monospace;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #ffffff;
+}
+
+.badge-keep-btn {
+    background: #0369a1;
+    color: #ffffff;
+}
+
+.badge-purge-btn {
+    background: #27141a;
+    color: #ffffff;
+    border: 1px solid #4c1d24;
+}
+
+.song-id-tag {
+    font-size: 0.62rem;
+    font-family: monospace;
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.compact-song-title {
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.compact-song-artist {
+    color: #ffffff;
+    opacity: 0.85;
+    font-size: 0.7rem;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.compact-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid #1a1f28;
+    font-size: 0.62rem;
+    font-family: monospace;
+    color: #ffffff;
+    opacity: 0.75;
+}
+
+.compact-card-footer span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
