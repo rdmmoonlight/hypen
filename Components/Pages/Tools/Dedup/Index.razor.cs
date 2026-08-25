@@ -18,10 +18,12 @@ public partial class Index : ComponentBase
     [Inject]
     protected IJSRuntime JS { get; set; } = default!;
 
-    // State Duplicate Detector
-    protected List<DuplicateGroupModel> duplicateGroups = new();
+    // State Duplicate & Raw Songs Detector
+    protected List<RawSongComparisonModel> rawSongComparisons = new();
     protected bool hasScanned;
-    protected int TotalToDeleteCount => duplicateGroups.Sum(g => Math.Max(0, g.Items.Count - 1));
+    
+    protected int UnmatchedRawCount => rawSongComparisons.Count(r => !r.IsInDatabase);
+    protected int MatchedRawCount => rawSongComparisons.Count(r => r.IsInDatabase);
 
     // General Status State
     protected bool isProcessing;
@@ -33,35 +35,55 @@ public partial class Index : ComponentBase
         await Task.CompletedTask;
     }
 
-    #region --- LOGIC DUPLICATE DETECTOR ---
+    #region --- LOGIC RAW SONGS VS SONGS DATABASE ---
 
-    protected async Task ScanDuplicates()
+    /// <summary>
+    /// Memindai seluruh tabel RawSongs dan mencocokkan keberadaannya di tabel Songs (Database utama)
+    /// </summary>
+    protected async Task ScanRawSongsAgainstDatabase()
     {
         try
         {
             isProcessing = true;
-            statusMsg = "Sedang memindai kemiripan data di database...";
+            statusMsg = "Membandingkan data Raw Songs dengan data di Database (Songs)...";
             isError = false;
             StateHasChanged();
 
-            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
+            using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
-            foreach (var group in duplicateGroups)
+            // Ambil semua data RawSongs
+            var rawSongs = await dbContext.RawSongs.AsNoTracking().ToListAsync();
+
+            // Ambil rujukan Kunci/Identitas dari tabel Songs (misal: berdasarkan Title & Artist atau Hash)
+            var existingSongKeys = await dbContext.Songs
+                .AsNoTracking()
+                .Select(s => new { s.Id, Key = (s.Title + "|" + s.Artist).ToLower().Trim() })
+                .ToDictionaryAsync(s => s.Key, s => s.Id);
+
+            rawSongComparisons.Clear();
+
+            foreach (var raw in rawSongs)
             {
-                if (group.KeepSongId == 0 && group.Items.Count > 0)
+                var rawKey = (raw.Title + "|" + raw.Artist).ToLower().Trim();
+                bool exists = existingSongKeys.TryGetValue(rawKey, out long matchedSongId);
+
+                rawSongComparisons.Add(new RawSongComparisonModel
                 {
-                    group.KeepSongId = group.Items.First().Id;
-                }
+                    RawSongId = raw.Id,
+                    Title = raw.Title,
+                    Artist = raw.Artist,
+                    Album = raw.Album,
+                    IsInDatabase = exists,
+                    MatchedSongId = exists ? matchedSongId : null
+                });
             }
 
             hasScanned = true;
-            statusMsg = duplicateGroups.Count > 0
-                ? $"Pemindaian selesai. Ditemukan {duplicateGroups.Count} kelompok duplikat."
-                : "Pemeriksaan selesai. Database bersih dari duplikasi.";
+            statusMsg = $"Pemindaian selesai. Dari {rawSongComparisons.Count} Raw Songs, {UnmatchedRawCount} belum ada di Database.";
         }
         catch (Exception ex)
         {
-            statusMsg = $"Gagal memindai database: {ex.Message}";
+            statusMsg = $"Gagal membandingkan data: {ex.Message}";
             isError = true;
         }
         finally
@@ -71,47 +93,35 @@ public partial class Index : ComponentBase
         }
     }
 
-    protected void OnMasterSelected(DuplicateGroupModel group, long songId)
+    /// <summary>
+    /// Memasukkan data Raw Songs yang belum ada ke dalam tabel Songs (Database)
+    /// </summary>
+    protected async Task ImportUnmatchedToDatabase()
     {
-        group.KeepSongId = songId;
-        StateHasChanged();
-    }
+        if (UnmatchedRawCount == 0) return;
 
-    protected void SelectMaster(DuplicateGroupModel group, long songId) => OnMasterSelected(group, songId);
-
-    protected async Task PurgeSelected()
-    {
-        if (TotalToDeleteCount == 0) return;
-
-        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Yakin ingin menghapus {TotalToDeleteCount} lagu duplikat terpilih dari Database secara permanen?");
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Impor {UnmatchedRawCount} lagu yang belum ada ke Database?");
         if (!confirm) return;
 
         try
         {
             isProcessing = true;
-            statusMsg = "Menghapus lagu duplikat dari database...";
+            statusMsg = "Mengimpor data ke tabel Songs...";
             isError = false;
             StateHasChanged();
 
-            int deletedCount = await DedupEngine.PurgeDuplicatesAsync(duplicateGroups);
+            int importedCount = await DedupEngine.ImportRawSongsToMasterAsync(
+                rawSongComparisons.Where(r => !r.IsInDatabase).Select(r => r.RawSongId).ToList()
+            );
 
-            statusMsg = $"Berhasil membersihkan {deletedCount} lagu duplikat dari Database!";
-
-            duplicateGroups = await DedupEngine.ScanAllDuplicatesAsync();
-
-            foreach (var group in duplicateGroups)
-            {
-                if (group.KeepSongId == 0 && group.Items.Count > 0)
-                {
-                    group.KeepSongId = group.Items.First().Id;
-                }
-            }
-
-            hasScanned = true;
+            statusMsg = $"Berhasil menambahkan {importedCount} lagu baru ke Database!";
+            
+            // Re-scan untuk memperbarui status
+            await ScanRawSongsAgainstDatabase();
         }
         catch (Exception ex)
         {
-            statusMsg = $"Gagal mengeksekusi purge: {ex.Message}";
+            statusMsg = $"Gagal mengimpor data: {ex.Message}";
             isError = true;
         }
         finally
@@ -122,4 +132,19 @@ public partial class Index : ComponentBase
     }
 
     #endregion
+}
+
+/// <summary>
+/// Model DTO untuk menampung hasil pembandingan RawSongs vs Songs
+/// </summary>
+public class RawSongComparisonModel
+{
+    public long RawSongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string Album { get; set; } = string.Empty;
+    
+    // Flag penanda keberadaan di database
+    public bool IsInDatabase { get; set; }
+    public long? MatchedSongId { get; set; }
 }
