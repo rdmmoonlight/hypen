@@ -1,5 +1,5 @@
 /* =========================================================================
-   HYPEN SIDEBAR - MATTE DARK SLATE WITH TABLER ICONS
+   HYPEN SIDEBAR - MATTE DARK SLATE WITH TABLER ICONS (WHITE TEXT REVISION)
    ========================================================================= */
 
 .hypen-sidebar {
@@ -22,7 +22,7 @@
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #94a3b8;
+    color: #ffffff;
 }
 
 .hypen-sidebar.expanded {
@@ -62,7 +62,7 @@
 
 .nebula-title {
     font-size: 1.1rem;
-    color: #f1f5f9;
+    color: #ffffff;
     margin-bottom: 2px;
     font-weight: 600;
     white-space: nowrap;
@@ -80,7 +80,7 @@
 .toggle-btn {
     background: #181b20;
     border: 1px solid #262c36;
-    color: #94a3b8;
+    color: #ffffff;
     width: 32px;
     height: 32px;
     border-radius: 4px;
@@ -95,7 +95,7 @@
 .toggle-btn:hover {
     background: #1e293b;
     border-color: #334155;
-    color: #f1f5f9;
+    color: #ffffff;
 }
 
 .sidebar-nav {
@@ -125,7 +125,7 @@
     align-items: center;
     gap: 10px;
     text-decoration: none;
-    color: #94a3b8;
+    color: #ffffff;
     padding: 8px 10px;
     border-radius: 6px;
     font-size: 0.85rem;
@@ -159,13 +159,13 @@
 
 /* Hover & Active States */
 .nav-item-nebula:hover {
-    color: #f1f5f9 !important;
+    color: #ffffff !important;
     background: #181b20;
     border-color: #262c36;
 }
 
 .nav-item-nebula.active {
-    color: #f1f5f9 !important;
+    color: #ffffff !important;
     background: #181b20;
     border-color: rgba(56, 189, 248, 0.4);
 }
@@ -204,7 +204,7 @@
     width: auto !important;
     height: auto !important;
     font-size: 0.9rem !important;
-    color: #64748b !important;
+    color: #ffffff !important;
     background: transparent !important;
     border: none !important;
     transition: color 0.15s ease;
@@ -228,6 +228,7 @@
 .submenu-item {
     padding: 6px 8px;
     font-size: 0.78rem;
+    color: #f8fafc;
 }
 
 .submenu-item i {
@@ -249,7 +250,7 @@
 
 .footer-text {
     font-size: 0.72rem;
-    color: #64748b;
+    color: #ffffff;
     line-height: 1.35;
     margin: 0;
 }
