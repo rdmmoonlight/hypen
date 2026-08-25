@@ -75,7 +75,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 });
 
                 var rawSongs = await context.RawSongs
-                    .Where(r => r.Status == "PENDING" || r.Status == "INCOMPLETE")
+                    .Where(r => r.Status != "COMPLETED" && r.IsComplete == false)
                     .ToListAsync();
 
                 var rawTracks = rawSongs.Select(r => new LocalTrackModel
@@ -251,10 +251,14 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             foreach (var item in targets)
             {
                 await SmartMatchService.SmartMatchFromInternetAsync(item);
+                if (item == activeEditItem)
+                {
+                    PopulateInspectorFromModel(item);
+                }
             }
 
             isBatchProcessing = false;
-            statusMessage = "Match selesai.";
+            statusMessage = "Match selesai. Klik Save untuk menyimpan perubahan ke Database.";
             StateHasChanged();
         }
 
@@ -264,6 +268,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
 
             await SmartMatchService.SmartMatchFromInternetAsync(item);
+            PopulateInspectorFromModel(item);
 
             item.IsProcessing = false;
             StateHasChanged();
@@ -325,8 +330,9 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     await SaveItemInternalAsync(target);
                     successCount++;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.WriteLine($"[Error SaveItemInternalAsync]: {ex.Message}");
                     failCount++;
                 }
             }
@@ -342,7 +348,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
             else
             {
-                statusMessage = $"Berhasil memperbarui metadata batch untuk {successCount} lagu.";
+                statusMessage = $"Berhasil menyimpan data untuk {successCount} lagu ke database.";
                 isError = false;
             }
 
@@ -381,7 +387,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 {
                     song.Title = item.CleanTitle;
                     song.Artist = item.CleanArtist;
-                    song.Album = item.Album;
+                    song.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
                     song.ReleaseYear = item.ReleaseYear;
                     song.AlbumCoverUrl = item.AlbumCoverUrl ?? "";
                     song.DurationSeconds = item.DurationSeconds;
@@ -390,15 +396,17 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     song.IsComplete = IsTrackDataComplete(item);
                     song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
 
+                    context.Songs.Update(song);
                     await context.SaveChangesAsync();
                 }
             }
             // 3. KONDISI B: Data di Staging (RawSongs)
-            else if (item.Country == "RawSongs")
+            else
             {
                 var raw = await context.RawSongs.FindAsync((long)item.Id);
                 if (raw != null)
                 {
+                    // PERUBAHAN DRAFT SELALU DIPERBARUI DI TABEL RAW_SONGS
                     raw.Title = item.CleanTitle;
                     raw.Artist = item.CleanArtist;
                     raw.Album = string.IsNullOrWhiteSpace(item.Album) ? "Single" : item.Album;
@@ -407,11 +415,12 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     raw.DurationSeconds = item.DurationSeconds;
                     raw.MusicBrainzId = item.MusicBrainzId;
 
-                    // Evaluasi Kelengkapan Metadata untuk Promosi
+                    // Evaluasi otomatisasi kelengkapan metadata
                     bool isFullyComplete = IsTrackDataComplete(item);
 
                     if (isFullyComplete)
                     {
+                        // AUTOMATION: Promosikan ke tabel `songs` jika metadata sudah 100% lengkap
                         raw.Status = "COMPLETED";
                         raw.IsComplete = true;
 
@@ -424,12 +433,14 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                             existingSong.Artist = raw.Artist;
                             existingSong.Album = raw.Album;
                             existingSong.ReleaseYear = raw.ReleaseYear;
-                            existingSong.Country = string.IsNullOrWhiteSpace(raw.Country) || raw.Country == "RawSongs" ? "Unknown" : raw.Country;
+                            existingSong.Country = string.IsNullOrWhiteSpace(item.Country) || item.Country == "RawSongs" ? "Unknown" : item.Country;
                             existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
                             existingSong.DurationSeconds = raw.DurationSeconds;
                             existingSong.MusicBrainzId = raw.MusicBrainzId;
                             existingSong.Status = "COMPLETED";
                             existingSong.IsComplete = true;
+
+                            context.Songs.Update(existingSong);
                         }
                         else
                         {
@@ -442,7 +453,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                                 Artist = raw.Artist,
                                 Album = raw.Album,
                                 ReleaseYear = raw.ReleaseYear,
-                                Country = string.IsNullOrWhiteSpace(raw.Country) || raw.Country == "RawSongs" ? "Unknown" : raw.Country,
+                                Country = string.IsNullOrWhiteSpace(item.Country) || item.Country == "RawSongs" ? "Unknown" : item.Country,
                                 AlbumCoverUrl = raw.AlbumCoverUrl,
                                 AudioUrl = raw.AudioUrl ?? $"/downloads/{item.FileName}",
                                 DurationSeconds = raw.DurationSeconds,
@@ -454,25 +465,24 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                             await context.Songs.AddAsync(newSong);
                         }
 
-                        // Otomatis hapus dari Staging setelah dipromosikan
+                        // Otomatis bersihkan entri dari tabel raw_songs
                         context.RawSongs.Remove(raw);
                     }
                     else
                     {
-                        // Jika belum lengkap, tetap di Staging
+                        // SIMPAN DRAFT: Simpan progres edit ke raw_songs dengan status INCOMPLETE
                         raw.Status = "INCOMPLETE";
                         raw.IsComplete = false;
+
                         context.RawSongs.Update(raw);
                     }
 
+                    // Eksekusi perubahan ke database
                     await context.SaveChangesAsync();
                 }
             }
         }
 
-        /// <summary>
-        /// Mengecek apakah semua atribut wajib metadata sudah terisi penuh.
-        /// </summary>
         private bool IsTrackDataComplete(LocalTrackModel item)
         {
             bool hasTitle = !string.IsNullOrWhiteSpace(item.CleanTitle);
