@@ -117,22 +117,22 @@
 }
 
 /* =========================================================================
-   GRID & CARDS (SUPPORT 3-COLUMN LAYOUT)
+   GRID & CARDS (SUPPORT 2-COLUMN LAYOUT)
    ========================================================================= */
 .ingest-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
 }
 
-.ingest-grid.three-columns {
-    grid-template-columns: repeat(3, 1fr);
+.ingest-grid.two-columns {
+    grid-template-columns: repeat(2, 1fr);
 }
 
-@media (max-width: 1024px) {
-    .ingest-grid.three-columns {
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+@media (max-width: 768px) {
+    .ingest-grid.two-columns {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -464,5 +464,4 @@
     background: rgba(69, 162, 158, 0.25);
     border-color: rgba(69, 162, 158, 0.6);
     color: #66caaa;
-   }
-       
+}
