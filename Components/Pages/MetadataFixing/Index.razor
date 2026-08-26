@@ -54,10 +54,10 @@
         </div>
     </div>
 
-    <!-- STATUS (JS - untuk tombol Save di panel inspector, tidak lewat circuit Blazor) -->
+    <!-- STATUS JS -->
     <div id="js-save-status" class="alert py-1 px-2 small mb-2 shadow-sm rounded-2" style="display:none;"></div>
 
-    <!-- STATUS -->
+    <!-- STATUS BLAZOR -->
     @if (!string.IsNullOrEmpty(statusMessage))
     {
         <div class="alert @(isError ? "alert-danger" : "alert-success") py-1 px-2 small mb-2 shadow-sm rounded-2">
@@ -277,7 +277,7 @@
             </div>
         </div>
 
-        <!-- RIGHT — INSPECTOR -->
+        <!-- RIGHT — TAG INSPECTOR (FULLY DYNAMIC) -->
         <div class="col-lg-4">
             <div class="card bg-dark text-white shadow-sm border border-secondary border-opacity-25 rounded-3 sticky-top" style="top:.5rem;">
 
@@ -312,7 +312,7 @@
                         }
                         else if (activeEditItem != null)
                         {
-                            <!-- Hidden fields: dibaca langsung oleh JS (metadata-save.js), bukan lewat Blazor state -->
+                            <!-- Hidden elements untuk dibaca oleh JS pendukung -->
                             <input type="hidden" id="active-item-id" value="@activeEditItem.Id" />
                             <input type="hidden" id="active-item-israw" value="@(activeEditItem.IsFromRawSongs ? "true" : "false")" />
                             <input type="hidden" id="active-item-filepath" value="@activeEditItem.FilePath" />
@@ -329,12 +329,13 @@
                                         @activeEditItem.FileName
                                     </div>
                                     <div class="text-secondary mt-1" style="font-size:.62rem;">
-                                        ID @activeEditItem.Id · @activeEditItem.Country
+                                        ID @activeEditItem.Id · @(string.IsNullOrEmpty(activeEditItem.Country) ? "-" : activeEditItem.Country)
                                     </div>
                                 </div>
                             </div>
                         }
 
+                        <!-- INPUT FORM INSPECTOR (DINAMIS SEPENUHNYA) -->
                         <div class="mb-2">
                             <label class="form-label text-secondary mb-1 d-flex justify-content-between" style="font-size:.65rem;">
                                 <span>Judul Lagu</span>
@@ -347,7 +348,7 @@
                                    class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                    @bind="batchModel.CleanTitle"
                                    disabled="@(SelectedCount > 1)"
-                                   placeholder="@(SelectedCount > 1 ? "[Bervariasi per lagu]" : "Judul lagu...")" />
+                                   placeholder="Judul lagu..." />
                         </div>
 
                         <div class="mb-2">
@@ -380,14 +381,14 @@
                                 <input type="number" id="year-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.ReleaseYear"
-                                       placeholder="2026" />
+                                       placeholder="Tahun..." />
                             </div>
                             <div class="col-6">
                                 <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Negara / Region</label>
                                 <input type="text" id="country-input"
                                        class="form-control form-control-sm bg-dark text-white border-secondary py-1"
                                        @bind="batchModel.Country"
-                                       placeholder="ID, US..." />
+                                       placeholder="Kode Negara..." />
                             </div>
                         </div>
 
@@ -422,7 +423,6 @@
                             <div class="@(SelectedCount > 1 ? "col-12" : "col-6")">
                                 @if (SelectedCount <= 1)
                                 {
-                                    <!-- Save single item: native onclick (bukan @onclick) -> bypass circuit Blazor sepenuhnya -->
                                     <button type="button" id="js-save-btn" class="btn btn-success btn-sm w-100 py-1 fw-bold"
                                             onclick="hypenSaveMetadata()">
                                         <i class="ti ti-device-floppy me-1"></i>
@@ -431,7 +431,6 @@
                                 }
                                 else
                                 {
-                                    <!-- Batch (multi-select): tetap via Blazor, butuh circuit hidup -->
                                     <button class="btn btn-success btn-sm w-100 py-1 fw-bold"
                                             @onclick="ApplyBatchChangesAndSave"
                                             disabled="@isBatchProcessing">
@@ -455,7 +454,7 @@
     </div>
 </div>
 
-<!-- MODAL CANDIDATE DENGAN MAKSIMAL 5 KANDIDAT & STRICT 98% BADGE -->
+<!-- MODAL KANDIDAT METADATA -->
 @if (selectedItem != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.75);">
@@ -483,7 +482,6 @@
                         @foreach (var candidate in selectedItem.Candidates.Take(5))
                         {
                             var scorePercent = Math.Round(candidate.SimilarityScore * 100, 1);
-                            // Kriteria Strict 98%: Hijau hanya jika >= 98%, Kuning 80%-97%, Merah < 80%
                             var badgeColor = scorePercent >= 98.0 ? "bg-success" : (scorePercent >= 80.0 ? "bg-warning text-dark" : "bg-danger");
 
                             <div class="bg-dark text-white border border-secondary rounded-2 p-2 d-flex align-items-center justify-content-between"
