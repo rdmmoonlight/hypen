@@ -21,7 +21,15 @@
                 REFRESH DB
             </button>
             <button class="btn-nav btn-staging" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
-                @(isBatchProcessing ? "SEARCHING..." : $"FETCH CANDIDATES ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})")
+                @if (isBatchProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    <span>SEARCHING METADATA...</span>
+                }
+                else
+                {
+                    <span>FETCH CANDIDATES ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})</span>
+                }
             </button>
             <button class="btn-nav btn-library" @onclick="ApplyBatchChangesAndSave" disabled="@(isBatchProcessing || !filteredItems.Any())">
                 SAVE ALL ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})
@@ -36,7 +44,7 @@
     @if (!string.IsNullOrEmpty(statusMessage))
     {
         <div class="status-alert @(isError ? "alert-error" : "alert-info")">
-            <p class="status-text">@statusMessage</p>
+            <p class="status-text m-0">@statusMessage</p>
         </div>
     }
 
@@ -82,8 +90,8 @@
                             <th style="width: 48px;">Cover</th>
                             <th>Metadata</th>
                             <th style="width: 70px;">Durasi</th>
-                            <th style="width: 90px;">Status</th>
-                            <th class="text-end" style="width: 90px;">Aksi</th>
+                            <th style="width: 100px;">Status</th>
+                            <th class="text-end" style="width: 110px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -128,11 +136,14 @@
                                     <td class="td-status">
                                         @if (item.IsProcessing)
                                         {
-                                            <span class="badge-new">MATCHING</span>
+                                            <span class="badge-new d-inline-flex align-items-center gap-1" style="background: rgba(255,193,7,0.2); border-color: #ffc107; color: #ffc107;">
+                                                <span class="spinner-border spinner-border-sm" style="width: 0.6rem; height: 0.6rem;" role="status"></span>
+                                                SEARCHING
+                                            </span>
                                         }
                                         else if (item.IsNeedsReview)
                                         {
-                                            <span class="badge-dup" style="border-color: #ffc107; color: #ffc107;" title="Perlu Pemilihan Kandidat">SELECT</span>
+                                            <span class="badge-dup" style="border-color: #ffc107; color: #ffc107;" title="Perlu Pemilihan Kandidat">REVIEW</span>
                                         }
                                         else if (item.MatchConfidenceReason == "Manual Selected")
                                         {
@@ -146,9 +157,20 @@
                                     <td class="text-end text-nowrap" @onclick:stopPropagation="true">
                                         <button class="btn-clear py-1 px-2 me-1"
                                                 @onclick="() => OpenCandidateModal(item)"
-                                                disabled="@(!item.Candidates.Any())"
+                                                disabled="@item.IsProcessing"
                                                 title="Pilih Kandidat">
-                                            KANDIDAT @(item.Candidates.Any() ? $"({Math.Min(item.Candidates.Count, 5)})" : "")
+                                            @if (item.IsProcessing)
+                                            {
+                                                <span>SEARCHING...</span>
+                                            }
+                                            else if (item.Candidates != null && item.Candidates.Any())
+                                            {
+                                                <span>KANDIDAT (@Math.Min(item.Candidates.Count, 5))</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">KANDIDAT (0)</span>
+                                            }
                                         </button>
                                     </td>
                                 </tr>
@@ -253,8 +275,16 @@
                 <div class="d-flex gap-2">
                     @if (SelectedCount <= 1 && activeEditItem != null)
                     {
-                        <button class="btn-action flex-fill" @onclick="() => ReMatchSingle(activeEditItem)" disabled="@isBatchProcessing">
-                            RE-MATCH
+                        <button class="btn-action flex-fill" @onclick="() => ReMatchSingle(activeEditItem)" disabled="@(isBatchProcessing || activeEditItem.IsProcessing)">
+                            @if (activeEditItem.IsProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>SEARCHING...</span>
+                            }
+                            else
+                            {
+                                <span>RE-MATCH</span>
+                            }
                         </button>
                         <button type="button" id="js-save-btn" class="btn-action btn-commit flex-fill" onclick="hypenSaveMetadata()">
                             SAVE TAGS
@@ -297,32 +327,42 @@
                     <p class="status-text m-0">Target File: <strong>@selectedItem.FileName</strong></p>
                 </div>
 
-                <div class="d-flex flex-column gap-2 mb-3" style="max-height: 50vh; overflow-y: auto;">
-                    @foreach (var candidate in selectedItem.Candidates.Take(5))
-                    {
-                        <div class="p-2 border rounded d-flex align-items-center justify-content-between gap-2"
-                             style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1) !important; cursor: pointer;"
-                             @onclick="() => SelectCandidate(candidate)">
-                            <div class="d-flex align-items-center gap-2 overflow-hidden">
-                                <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
-                                     class="rounded border border-secondary flex-shrink-0"
-                                     width="40" height="40" style="object-fit: cover;" alt="Cover" />
-                                <div class="overflow-hidden">
-                                    <div class="d-flex align-items-center gap-1 mb-1">
-                                        <span class="subtitle m-0" style="font-size: 0.65rem;">@candidate.ProviderName</span>
-                                    </div>
-                                    <div class="fw-bold text-white text-truncate" style="font-size: 0.8rem;">@candidate.Title</div>
-                                    <div class="subtitle text-truncate m-0" style="font-size: 0.68rem;">
-                                        @candidate.Artist — <em>@candidate.Album</em> (@(candidate.ReleaseYear?.ToString() ?? "-"))
+                @if (selectedItem.Candidates == null || !selectedItem.Candidates.Any())
+                {
+                    <div class="text-center py-4 border border-dashed border-secondary border-opacity-25 rounded mb-3">
+                        <span class="subtitle text-warning d-block mb-1">KANDIDAT TIDAK DITEMUKAN</span>
+                        <small class="text-secondary">Tidak ada metadata yang cocok dari layanan internet untuk file ini. Silakan isi tag secara manual lewat Inspector.</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2 mb-3" style="max-height: 50vh; overflow-y: auto;">
+                        @foreach (var candidate in selectedItem.Candidates.Take(5))
+                        {
+                            <div class="p-2 border rounded d-flex align-items-center justify-content-between gap-2"
+                                 style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1) !important; cursor: pointer;"
+                                 @onclick="() => SelectCandidate(candidate)">
+                                <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                    <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
+                                         class="rounded border border-secondary flex-shrink-0"
+                                         width="40" height="40" style="object-fit: cover;" alt="Cover" />
+                                    <div class="overflow-hidden">
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <span class="subtitle m-0" style="font-size: 0.65rem;">@candidate.ProviderName</span>
+                                        </div>
+                                        <div class="fw-bold text-white text-truncate" style="font-size: 0.8rem;">@candidate.Title</div>
+                                        <div class="subtitle text-truncate m-0" style="font-size: 0.68rem;">
+                                            @candidate.Artist — <em>@candidate.Album</em> (@(candidate.ReleaseYear?.ToString() ?? "-"))
+                                        </div>
                                     </div>
                                 </div>
+                                <button type="button" class="btn-action py-1 px-2 text-nowrap" style="font-size: 0.65rem;">
+                                    USE THIS
+                                </button>
                             </div>
-                            <button type="button" class="btn-action py-1 px-2 text-nowrap" style="font-size: 0.65rem;">
-                                USE THIS
-                            </button>
-                        </div>
-                    }
-                </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
