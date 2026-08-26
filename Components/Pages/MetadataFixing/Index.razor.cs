@@ -67,7 +67,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     Artist = s.Artist ?? string.Empty,
                     Album = s.Album ?? string.Empty,
                     ReleaseYear = s.ReleaseYear,
-                    Country = s.Country ?? string.Empty, // Ambil real metadata country dari entity Songs
+                    Country = s.Country ?? string.Empty,
                     AlbumCoverUrl = s.AlbumCoverUrl,
                     DurationSeconds = s.DurationSeconds ?? 0,
                     MusicBrainzId = s.MusicBrainzId,
@@ -90,7 +90,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     Artist = r.Artist ?? string.Empty,
                     Album = r.Album ?? string.Empty,
                     ReleaseYear = r.ReleaseYear,
-                    Country = r.Country ?? string.Empty, // Ambil real metadata country dari entity RawSongs
+                    Country = r.Country ?? string.Empty,
                     AlbumCoverUrl = r.AlbumCoverUrl,
                     DurationSeconds = r.DurationSeconds ?? 0,
                     MusicBrainzId = r.MusicBrainzId,
@@ -193,32 +193,27 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 item.IsSelected = isAllSelected;
             }
 
-            var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
-            if (selectedList.Count == 1)
-            {
-                SelectForEditing(selectedList.First());
-            }
-            else if (selectedList.Count > 1)
-            {
-                batchModel.CleanTitle = string.Empty;
-            }
+            SyncInspectorStateWithSelection();
         }
 
         protected void OnItemSelectionChanged(MetadataMatchCandidateModel item, bool isSelected)
         {
             item.IsSelected = isSelected;
-            var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
+            SyncInspectorStateWithSelection();
+            StateHasChanged();
+        }
 
+        private void SyncInspectorStateWithSelection()
+        {
+            var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
             if (selectedList.Count == 1)
             {
                 SelectForEditing(selectedList.First());
             }
             else if (selectedList.Count > 1)
             {
-                batchModel.CleanTitle = string.Empty;
+                batchModel.CleanTitle = string.Empty; // Reset title jika batch edit
             }
-
-            StateHasChanged();
         }
 
         protected void SelectForEditing(MetadataMatchCandidateModel item)
@@ -255,14 +250,14 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             foreach (var item in targets)
             {
                 await SmartMatchService.SmartMatchFromInternetAsync(item);
-                if (item == activeEditItem)
+                if (item == activeEditItem && SelectedCount <= 1)
                 {
                     PopulateInspectorFromModel(item);
                 }
             }
 
             isBatchProcessing = false;
-            statusMessage = "Match selesai. Klik Save untuk menyimpan perubahan ke Database.";
+            statusMessage = "Match selesai. Data kandidat tersimpan di draft preview (belum ke database).";
             StateHasChanged();
         }
 
@@ -295,7 +290,12 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 SmartMatchService.ApplyCandidateToItem(selectedItem, candidate);
                 selectedItem.IsNeedsReview = false;
                 selectedItem.MatchConfidenceReason = "Manual Selected";
-                PopulateInspectorFromModel(selectedItem);
+                
+                if (selectedItem == activeEditItem || SelectedCount <= 1)
+                {
+                    PopulateInspectorFromModel(selectedItem);
+                }
+                
                 CloseCandidateModal();
             }
         }
@@ -316,6 +316,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
+                // Jika single target, perbarui judul dari batchModel jika ada
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
                     target.Title = batchModel.CleanTitle;
@@ -323,7 +324,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
                 if (!string.IsNullOrWhiteSpace(batchModel.CleanArtist)) target.Artist = batchModel.CleanArtist;
                 if (!string.IsNullOrWhiteSpace(batchModel.Album)) target.Album = batchModel.Album;
-                if (batchModel.ReleaseYear > 0) target.ReleaseYear = batchModel.ReleaseYear;
+                if (batchModel.ReleaseYear.HasValue && batchModel.ReleaseYear > 0) target.ReleaseYear = batchModel.ReleaseYear;
                 if (!string.IsNullOrWhiteSpace(batchModel.Country)) target.Country = batchModel.Country;
                 if (!string.IsNullOrWhiteSpace(batchModel.AlbumCoverUrl)) target.AlbumCoverUrl = batchModel.AlbumCoverUrl;
                 if (batchModel.DurationSeconds > 0) target.DurationSeconds = batchModel.DurationSeconds;
@@ -379,7 +380,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 AlbumCoverUrl: item.AlbumCoverUrl,
                 DurationSeconds: item.DurationSeconds,
                 MusicBrainzId: item.MusicBrainzId,
-                Country: item.Country // Mengirim country yang terikat langsung di item model target
+                Country: item.Country
             );
 
             var response = await Http.PostAsJsonAsync("/api/metadata/save", payload);
