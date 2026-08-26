@@ -107,6 +107,6 @@ public class MatchingTrackModel
     public string AlbumCoverUrl { get; set; } = string.Empty;
     public int DurationSeconds { get; set; }
     
-    // Skor kemiripan kandidat ini terhadap LocalTrackModel (0.0 - 1.0)
+    // Skor kemiripan kandidat ini terhadap MetadataMatchCandidateModel (0.0 - 1.0)
     public double SimilarityScore { get; set; }
 }
