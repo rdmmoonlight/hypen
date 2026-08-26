@@ -30,28 +30,25 @@
         </div>
     }
 
-    <!-- EKSTRAKSI / INGESTION CONTENT (2 CARDS) -->
+    <!-- EXTRACTION / INGESTION CONTENT -->
     <div class="ingest-grid two-columns">
-        <!-- CARD 1: INGESTION VIA YOUTUBE -->
+        <!-- CARD 1: YOUTUBE INGEST -->
         <div class="card-ingest">
             <div class="source-tag">Source // Remote</div>
             <h3 class="card-title">YouTube Stream Ingest</h3>
-
             <div class="form-group">
                 <label class="form-label">Playlist / Video ID</label>
                 <input type="text" @bind="targetPlaylistId" placeholder="URL atau Playlist ID..." class="form-control" />
             </div>
-
             <button class="btn-action" @onclick="FetchYouTubeToPreview" disabled="@isProcessing">
                 @(isProcessing ? "PROCESSING..." : "FETCH TO PREVIEW QUEUE")
             </button>
         </div>
 
-        <!-- CARD 2: LOCAL SYNC INGEST (GABUNGAN FILE & FOLDER) -->
+        <!-- CARD 2: LOCAL SYNC INGEST -->
         <div class="card-ingest">
             <div class="source-tag">Source // Local Directory & Files</div>
             <h3 class="card-title">Local Sync Ingest</h3>
-
             <div class="form-group mb-2">
                 <label class="form-label">Scan Mode</label>
                 <div class="mode-toggle-group">
@@ -63,7 +60,6 @@
                     </button>
                 </div>
             </div>
-
             <div class="form-group">
                 <label class="form-label">Select @(uploadMode == "folder" ? "Directory" : "Audio Files")</label>
                 @if (uploadMode == "folder")
@@ -79,7 +75,7 @@
         </div>
     </div>
 
-    <!-- PREVIEW TABLE FILE (UNIFIED QUEUE) -->
+    <!-- RAW EXTRACTION PREVIEW QUEUE -->
     @if (extractedList.Count > 0)
     {
         <div class="preview-container">
@@ -125,11 +121,11 @@
                                 }
                             </td>
                             <td class="file-name">@item.FileName</td>
-                            <td>
-                                <input type="text" @bind="item.CleanArtist" disabled="@item.IsDuplicateInDb" class="form-control table-input" />
+                            <td class="metadata-value">
+                                @(string.IsNullOrEmpty(item.Artist) ? "—" : item.Artist)
                             </td>
-                            <td>
-                                <input type="text" @bind="item.CleanTitle" disabled="@item.IsDuplicateInDb" class="form-control table-input" />
+                            <td class="metadata-value">
+                                @(string.IsNullOrEmpty(item.Title) ? "—" : item.Title)
                             </td>
                         </tr>
                     }
