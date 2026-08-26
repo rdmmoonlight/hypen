@@ -61,7 +61,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 var songTracks = songs.Select(s => new MetadataMatchCandidateModel
                 {
                     Id = (int)s.Id,
-                    IsFromRawSongs = false, // Explicit marker untuk tabel Songs
+                    IsFromRawSongs = false,
                     FileName = s.YoutubeVideoId ?? $"song_{s.Id}",
                     Title = s.Title ?? string.Empty,
                     Artist = s.Artist ?? string.Empty,
@@ -84,7 +84,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 var rawTracks = rawSongs.Select(r => new MetadataMatchCandidateModel
                 {
                     Id = (int)r.Id,
-                    IsFromRawSongs = true, // Explicit marker untuk tabel RawSongs
+                    IsFromRawSongs = true,
                     FileName = r.YoutubeVideoId ?? $"raw_{r.Id}",
                     Title = r.Title ?? string.Empty,
                     Artist = r.Artist ?? string.Empty,
@@ -212,7 +212,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
             else if (selectedList.Count > 1)
             {
-                batchModel.CleanTitle = string.Empty; // Reset title jika batch edit
+                batchModel.CleanTitle = string.Empty;
             }
         }
 
@@ -243,36 +243,71 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             if (!targets.Any()) targets = filteredItems;
 
             isBatchProcessing = true;
-            statusMessage = $"Mencari kandidat metadata untuk {targets.Count} lagu...";
+            statusMessage = $"Mencari metadata di internet untuk {targets.Count} lagu...";
             isError = false;
             StateHasChanged();
 
+            int notFoundCount = 0;
+
             foreach (var item in targets)
             {
+                item.IsProcessing = true;
+                StateHasChanged();
+
                 await SmartMatchService.SmartMatchFromInternetAsync(item);
                 
-                // PENTING: Paksa item memerlukan review manual oleh user
+                item.IsProcessing = false;
                 item.IsNeedsReview = true;
                 item.MatchConfidenceReason = "Pending Manual Selection";
+
+                if (item.Candidates == null || !item.Candidates.Any())
+                {
+                    notFoundCount++;
+                }
+
+                StateHasChanged();
             }
 
             isBatchProcessing = false;
-            statusMessage = "Pencarian kandidat selesai. Silakan klik tombol 'KANDIDAT' untuk memilih metadata yang sesuai.";
+
+            if (notFoundCount > 0)
+            {
+                statusMessage = $"Pencarian selesai. {notFoundCount} lagu tidak menemukan kandidat. Klik 'KANDIDAT' untuk memilih.";
+                isError = true;
+            }
+            else
+            {
+                statusMessage = "Pencarian metadata selesai. Silakan klik tombol 'KANDIDAT' untuk memilih metadata yang sesuai.";
+                isError = false;
+            }
+
             StateHasChanged();
         }
 
         protected async Task ReMatchSingle(MetadataMatchCandidateModel item)
         {
             item.IsProcessing = true;
+            statusMessage = $"Mencari metadata untuk '{item.CleanTitle}'...";
+            isError = false;
             StateHasChanged();
 
             await SmartMatchService.SmartMatchFromInternetAsync(item);
             
-            // PENTING: Paksa item memerlukan review manual oleh user
+            item.IsProcessing = false;
             item.IsNeedsReview = true;
             item.MatchConfidenceReason = "Pending Manual Selection";
 
-            item.IsProcessing = false;
+            if (item.Candidates == null || !item.Candidates.Any())
+            {
+                statusMessage = $"Pencarian selesai: Tidak ada kandidat ditemukan untuk '{item.CleanTitle}'.";
+                isError = true;
+            }
+            else
+            {
+                statusMessage = $"Ditemukan {item.Candidates.Count} kandidat untuk '{item.CleanTitle}'. Silakan pilih lewat tombol KANDIDAT.";
+                isError = false;
+            }
+
             StateHasChanged();
         }
 
@@ -290,7 +325,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
         {
             if (selectedItem != null)
             {
-                // Terapkan kandidat HANYA saat user memilihnya secara manual via modal
                 SmartMatchService.ApplyCandidateToItem(selectedItem, candidate);
                 selectedItem.IsNeedsReview = false;
                 selectedItem.MatchConfidenceReason = "Manual Selected";
@@ -320,7 +354,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             foreach (var target in targets)
             {
-                // Jika single target, perbarui judul dari batchModel jika ada
                 if (targets.Count == 1 && !string.IsNullOrWhiteSpace(batchModel.CleanTitle))
                 {
                     target.Title = batchModel.CleanTitle;
@@ -369,7 +402,6 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        // Dikirim via HTTP POST murni ke /api/metadata/save
         private async Task SaveItemViaApiAsync(MetadataMatchCandidateModel item)
         {
             var payload = new SaveMetadataRequest(
