@@ -5,523 +5,335 @@
 @using Hypen.Web.Services
 @using Microsoft.EntityFrameworkCore
 
-<PageTitle>Advanced Tag Studio - Hypen</PageTitle>
+<PageTitle>Advanced Tag Studio - Hypen Music Vault</PageTitle>
 
 <script src="/js/metadata-save.js"></script>
 
-<div class="container-fluid py-2 px-2 px-md-3">
-
+<div class="sync-container">
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom border-secondary border-opacity-25 flex-wrap gap-2">
-        <div class="min-width-0">
-            <h5 class="fw-bold m-0 text-white d-flex align-items-center">
-                <i class="ti ti-music-code me-2 text-primary"></i>
-                Advanced Tag Studio
-            </h5>
-            <div class="text-secondary mt-1" style="font-size:.72rem;">
-                Kelola tag ID3/MP4 · Sinkronisasi DB · Auto-Promotion Raw Songs
-            </div>
+    <div class="sync-header">
+        <div>
+            <div class="subtitle">Metadata & Tag Management</div>
+            <h1 class="title">Advanced Tag Studio</h1>
         </div>
-
-        <div class="d-flex gap-1 flex-wrap">
-            <button class="btn btn-outline-light btn-sm py-1 px-2"
-                    @onclick="LoadDataFromDatabase"
-                    disabled="@isBatchProcessing">
-                <i class="ti ti-database me-1"></i>Refresh
+        <div class="nav-actions">
+            <button class="btn-nav" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
+                REFRESH DB
             </button>
-
-            <button class="btn btn-primary btn-sm py-1 px-2"
-                    @onclick="ProcessSmartMatchSelected"
-                    disabled="@(isBatchProcessing || !filteredItems.Any())">
-                @if (isBatchProcessing)
-                {
-                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                    <span>Processing</span>
-                }
-                else
-                {
-                    <i class="ti ti-wand me-1"></i>
-                    <span>Match (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))</span>
-                }
+            <button class="btn-nav btn-staging" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
+                @(isBatchProcessing ? "MATCHING..." : $"AUTO MATCH ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})")
             </button>
-
-            <button class="btn btn-success btn-sm py-1 px-2"
-                    @onclick="ApplyBatchChangesAndSave"
-                    disabled="@(isBatchProcessing || !filteredItems.Any())">
-                <i class="ti ti-device-floppy me-1"></i>
-                Save (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))
+            <button class="btn-nav btn-library" @onclick="ApplyBatchChangesAndSave" disabled="@(isBatchProcessing || !filteredItems.Any())">
+                SAVE ALL ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})
             </button>
         </div>
     </div>
 
     <!-- STATUS JS -->
-    <div id="js-save-status" class="alert py-1 px-2 small mb-2 shadow-sm rounded-2" style="display:none;"></div>
+    <div id="js-save-status" class="status-alert alert-info" style="display:none;"></div>
 
     <!-- STATUS BLAZOR -->
     @if (!string.IsNullOrEmpty(statusMessage))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-success") py-1 px-2 small mb-2 shadow-sm rounded-2">
-            @statusMessage
+        <div class="status-alert @(isError ? "alert-error" : "alert-info")">
+            <p class="status-text">@statusMessage</p>
         </div>
     }
 
-    <!-- MAIN LAYOUT -->
-    <div class="row g-2">
+    <!-- MAIN GRID LAYOUT -->
+    <div class="ingest-grid two-columns" style="grid-template-columns: 2fr 1fr; align-items: start;">
 
-        <!-- LEFT — SONG TABLE -->
-        <div class="col-lg-8">
-            <div class="card bg-dark text-white shadow-sm border border-secondary border-opacity-25 rounded-3">
-
-                <!-- TOOLBAR -->
-                <div class="card-body p-2 border-bottom border-secondary border-opacity-25">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="flex-grow-1">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-secondary text-white border-secondary py-1">
-                                    <i class="ti ti-search"></i>
-                                </span>
-                                <input type="text"
-                                       class="form-control bg-dark text-white border-secondary py-1"
-                                       placeholder="Cari judul, artis, album, atau file..."
-                                       @bind="searchQuery"
-                                       @bind:event="oninput"
-                                       @bind:after="OnSearchQueryChanged" />
-                                @if (!string.IsNullOrWhiteSpace(searchQuery))
-                                {
-                                    <button class="btn btn-outline-secondary text-white py-1 px-2"
-                                            type="button"
-                                            @onclick="ClearSearch">
-                                        <i class="ti ti-x"></i>
-                                    </button>
-                                }
-                            </div>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                            <span class="text-secondary d-none d-md-inline" style="font-size:.72rem;">
-                                Tampil
-                            </span>
-                            <select class="form-select form-select-sm bg-dark text-white border-secondary py-1"
-                                    style="width:68px;"
-                                    @bind="pageSize"
-                                    @bind:after="OnPageSizeChanged">
-                                <option value="5">5</option>
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                            <span class="text-secondary text-nowrap" style="font-size:.72rem;">
-                                / @filteredCount
-                            </span>
-                        </div>
+        <!-- LEFT PANEL: SONG QUEUE TABLE -->
+        <div class="card-ingest p-0 overflow-hidden">
+            <!-- TOOLBAR -->
+            <div class="p-3 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <div class="flex-grow-1" style="min-width: 220px;">
+                    <div class="form-group m-0">
+                        <input type="text"
+                               class="form-control"
+                               placeholder="Cari judul, artis, album, atau file..."
+                               @bind="searchQuery"
+                               @bind:event="oninput"
+                               @bind:after="OnSearchQueryChanged" />
                     </div>
                 </div>
 
-                <!-- TABLE -->
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover table-sm align-middle mb-0" style="font-size:.78rem;">
-                            <thead class="table-secondary text-dark">
-                                <tr>
-                                    <th style="width:34px;" class="text-center py-2">
-                                        <input type="checkbox"
-                                               class="form-check-input"
-                                               @checked="isAllSelected"
-                                               @onchange="ToggleSelectAll" />
-                                    </th>
-                                    <th style="width:42px;" class="py-2">Cover</th>
-                                    <th class="py-2">Metadata</th>
-                                    <th style="width:58px;" class="py-2">Time</th>
-                                    <th style="width:68px;" class="py-2">Status</th>
-                                    <th class="text-end py-2" style="width:82px;">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (pagedItems == null || !pagedItems.Any())
-                                {
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4 text-secondary">
-                                            <i class="ti ti-music-off fs-3 d-block mb-1"></i>
-                                            <span style="font-size:.78rem;">Tidak ada data lagu ditemukan.</span>
-                                        </td>
-                                    </tr>
-                                }
-                                else
-                                {
-                                    @foreach (var item in pagedItems)
-                                    {
-                                        <tr class="@(activeEditItem == item ? "table-active bg-primary bg-opacity-10" : "")"
-                                            style="cursor:pointer;"
-                                            @onclick="() => SelectForEditing(item)">
-
-                                            <!-- CHECKBOX -->
-                                            <td class="text-center py-1" @onclick:stopPropagation="true">
-                                                <input type="checkbox"
-                                                       class="form-check-input"
-                                                       checked="@item.IsSelected"
-                                                       @onchange="(e) => OnItemSelectionChanged(item, (bool)(e.Value ?? false))" />
-                                            </td>
-
-                                            <!-- COVER -->
-                                            <td class="py-1">
-                                                <img src="@(string.IsNullOrEmpty(item.AlbumCoverUrl)
-                                                    ? "https://placehold.co/32x32/1a1a1a/cccccc?text=🎵"
-                                                    : item.AlbumCoverUrl)"
-                                                     class="rounded shadow-sm"
-                                                     width="32" height="32" style="object-fit:cover;" alt="Cover" />
-                                            </td>
-
-                                            <!-- METADATA -->
-                                            <td class="py-1">
-                                                <div class="fw-semibold text-white text-truncate" style="max-width:260px;">
-                                                    @item.CleanTitle
-                                                </div>
-                                                <div class="text-secondary text-truncate" style="max-width:260px;font-size:.68rem;">
-                                                    <span>@item.CleanArtist</span>
-                                                    <span class="mx-1">•</span>
-                                                    <em>@(string.IsNullOrEmpty(item.Album) ? "Single" : item.Album)</em>
-                                                    @if (!string.IsNullOrEmpty(item.Country))
-                                                    {
-                                                        <span class="badge bg-secondary py-0 px-1 ms-1" style="font-size:.55rem;">
-                                                            @item.Country
-                                                        </span>
-                                                    }
-                                                </div>
-                                            </td>
-
-                                            <!-- DURATION -->
-                                            <td class="text-secondary text-nowrap py-1">
-                                                @FormatDuration(item.DurationSeconds)
-                                            </td>
-
-                                            <!-- STATUS -->
-                                            <td class="py-1">
-                                                @if (item.IsProcessing)
-                                                {
-                                                    <span class="badge bg-info text-dark px-1 py-1" style="font-size:.58rem;">Match</span>
-                                                }
-                                                else if (item.IsNeedsReview)
-                                                {
-                                                    <span class="badge bg-warning text-dark px-1 py-1" style="font-size:.58rem;" title="@item.MatchConfidenceReason">Review</span>
-                                                }
-                                                else if (item.MatchConfidenceReason.StartsWith("Exact Match"))
-                                                {
-                                                    <span class="badge bg-success px-1 py-1" style="font-size:.58rem;">Exact (≥98%)</span>
-                                                }
-                                                else if (item.MatchConfidenceReason == "Manual Selected")
-                                                {
-                                                    <span class="badge bg-primary px-1 py-1" style="font-size:.58rem;">Manual</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary px-1 py-1" style="font-size:.58rem;">Idle</span>
-                                                }
-                                            </td>
-
-                                            <!-- ACTIONS -->
-                                            <td class="text-end text-nowrap py-1" @onclick:stopPropagation="true">
-                                                <button class="btn btn-outline-light btn-sm py-0 px-1 me-1"
-                                                        @onclick="() => OpenCandidateModal(item)"
-                                                        disabled="@(!item.Candidates.Any())"
-                                                        title="Pilih Kandidat">
-                                                    <i class="ti ti-list-details"></i>
-                                                    @if (item.Candidates.Any())
-                                                    {
-                                                        <span style="font-size:.65rem;">@Math.Min(item.Candidates.Count, 5)</span>
-                                                    }
-                                                </button>
-                                                <button class="btn btn-outline-primary btn-sm py-0 px-1"
-                                                        @onclick="() => SelectForEditing(item)"
-                                                        title="Edit Detail">
-                                                    <i class="ti ti-edit"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="subtitle m-0 text-nowrap">TAMPIL</span>
+                    <select class="form-control py-1 px-2" style="width: auto;" @bind="pageSize" @bind:after="OnPageSizeChanged">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span class="count-tag m-0 text-nowrap">/ @filteredCount</span>
                 </div>
+            </div>
 
-                <!-- PAGINATION -->
-                @if (totalPages > 1)
-                {
-                    <div class="d-flex justify-content-between align-items-center px-2 py-2 border-top border-secondary border-opacity-25">
-                        <span class="text-secondary" style="font-size:.68rem;">
-                            Page @currentPage / @totalPages
-                        </span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-secondary py-0 px-2"
-                                    disabled="@(currentPage == 1)"
-                                    @onclick="() => ChangePage(currentPage - 1)">
-                                <i class="ti ti-chevron-left"></i>
-                            </button>
-                            @for (int i = 1; i <= totalPages; i++)
+            <!-- TABLE -->
+            <div class="table-responsive">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th class="th-check">
+                                <input type="checkbox" class="checkbox-input" @checked="isAllSelected" @onchange="ToggleSelectAll" />
+                            </th>
+                            <th style="width: 48px;">Cover</th>
+                            <th>Metadata</th>
+                            <th style="width: 70px;">Durasi</th>
+                            <th style="width: 90px;">Status</th>
+                            <th class="text-end" style="width: 90px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (pagedItems == null || !pagedItems.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-secondary">
+                                    <span class="subtitle d-block mb-1">NO RECORDS FOUND</span>
+                                    <small>Tidak ada data lagu ditemukan dalam database.</small>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in pagedItems)
                             {
-                                var pageIndex = i;
-                                <button class="btn @(currentPage == pageIndex ? "btn-primary" : "btn-outline-secondary") py-0 px-2"
-                                        @onclick="() => ChangePage(pageIndex)">
-                                    @pageIndex
-                                </button>
+                                <tr class="@(activeEditItem == item ? "row-duplicate" : "")" style="cursor: pointer;" @onclick="() => SelectForEditing(item)">
+                                    <td class="td-check" @onclick:stopPropagation="true">
+                                        <input type="checkbox"
+                                               class="checkbox-input"
+                                               checked="@item.IsSelected"
+                                               @onchange="(e) => OnItemSelectionChanged(item, (bool)(e.Value ?? false))" />
+                                    </td>
+                                    <td>
+                                        <img src="@(string.IsNullOrEmpty(item.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : item.AlbumCoverUrl)"
+                                             class="rounded border border-secondary"
+                                             width="36" height="36" style="object-fit: cover;" alt="Cover" />
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-white text-truncate" style="max-width: 240px;">@item.CleanTitle</div>
+                                        <div class="subtitle text-truncate m-0" style="max-width: 240px;">
+                                            <span>@item.CleanArtist</span> · <em>@(string.IsNullOrEmpty(item.Album) ? "Single" : item.Album)</em>
+                                            @if (!string.IsNullOrEmpty(item.Country))
+                                            {
+                                                <span class="count-tag ms-1 py-0 px-1" style="font-size: 0.6rem;">@item.Country</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td class="subtitle text-nowrap">
+                                        @FormatDuration(item.DurationSeconds)
+                                    </td>
+                                    <td class="td-status">
+                                        @if (item.IsProcessing)
+                                        {
+                                            <span class="badge-new">MATCHING</span>
+                                        }
+                                        else if (item.IsNeedsReview)
+                                        {
+                                            <span class="badge-dup" style="border-color: #ffc107; color: #ffc107;" title="@item.MatchConfidenceReason">REVIEW</span>
+                                        }
+                                        else if (item.MatchConfidenceReason.StartsWith("Exact Match"))
+                                        {
+                                            <span class="badge-new" style="background: rgba(40, 167, 69, 0.2); border-color: #28a745; color: #28a745;">EXACT</span>
+                                        }
+                                        else if (item.MatchConfidenceReason == "Manual Selected")
+                                        {
+                                            <span class="badge-new" style="background: rgba(13, 110, 253, 0.2); border-color: #0d6efd; color: #0d6efd;">MANUAL</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="count-tag">IDLE</span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-nowrap" @onclick:stopPropagation="true">
+                                        <button class="btn-clear py-1 px-2 me-1"
+                                                @onclick="() => OpenCandidateModal(item)"
+                                                disabled="@(!item.Candidates.Any())"
+                                                title="Pilih Kandidat">
+                                            KANDIDAT @(item.Candidates.Any() ? $"({Math.Min(item.Candidates.Count, 5)})" : "")
+                                        </button>
+                                    </td>
+                                </tr>
                             }
-                            <button class="btn btn-outline-secondary py-0 px-2"
-                                    disabled="@(currentPage == totalPages)"
-                                    @onclick="() => ChangePage(currentPage + 1)">
-                                <i class="ti ti-chevron-right"></i>
-                            </button>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINATION -->
+            @if (totalPages > 1)
+            {
+                <div class="preview-footer d-flex justify-content-between align-items-center">
+                    <span class="subtitle m-0">PAGE @currentPage / @totalPages</span>
+                    <div class="d-flex gap-1">
+                        <button class="btn-clear py-1 px-2" disabled="@(currentPage == 1)" @onclick="() => ChangePage(currentPage - 1)">PREV</button>
+                        <button class="btn-clear py-1 px-2" disabled="@(currentPage == totalPages)" @onclick="() => ChangePage(currentPage + 1)">NEXT</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- RIGHT PANEL: TAG INSPECTOR -->
+        <div class="card-ingest sticky-top" style="top: 1rem;">
+            <div class="source-tag">Inspector // Metadata Control</div>
+            <h3 class="card-title mb-3">
+                Tag Inspector @(SelectedCount > 1 ? $"({SelectedCount} Selected)" : "")
+            </h3>
+
+            @if (SelectedCount > 0 || activeEditItem != null)
+            {
+                @if (SelectedCount > 1)
+                {
+                    <div class="status-alert alert-info py-2 px-3 mb-3">
+                        <p class="status-text">Perubahan akan diterapkan secara masal ke <strong>@SelectedCount lagu</strong> terpilih.</p>
+                    </div>
+                }
+                else if (activeEditItem != null)
+                {
+                    <input type="hidden" id="active-item-id" value="@activeEditItem.Id" />
+                    <input type="hidden" id="active-item-israw" value="@(activeEditItem.IsFromRawSongs ? "true" : "false")" />
+                    <input type="hidden" id="active-item-filepath" value="@activeEditItem.FilePath" />
+                    <input type="hidden" id="active-item-filename" value="@activeEditItem.FileName" />
+
+                    <div class="d-flex align-items-center gap-3 mb-3 p-2 border border-secondary border-opacity-25 rounded bg-black bg-opacity-25">
+                        <img src="@(string.IsNullOrEmpty(batchModel.AlbumCoverUrl) ? "https://placehold.co/64x64/1a1a1a/cccccc?text=🎵" : batchModel.AlbumCoverUrl)"
+                             width="56" height="56" class="rounded border border-secondary flex-shrink-0" style="object-fit: cover;" alt="Cover" />
+                        <div class="overflow-hidden">
+                            <div class="subtitle m-0">TARGET FILE</div>
+                            <div class="text-white text-truncate fw-bold" style="font-size: 0.8rem;" title="@activeEditItem.FileName">@activeEditItem.FileName</div>
+                            <div class="subtitle text-truncate m-0">ID: @activeEditItem.Id · @(string.IsNullOrEmpty(activeEditItem.Country) ? "Global" : activeEditItem.Country)</div>
                         </div>
                     </div>
                 }
-            </div>
-        </div>
 
-        <!-- RIGHT — TAG INSPECTOR (FULLY DYNAMIC) -->
-        <div class="col-lg-4">
-            <div class="card bg-dark text-white shadow-sm border border-secondary border-opacity-25 rounded-3 sticky-top" style="top:.5rem;">
-
-                <div class="card-header bg-secondary bg-opacity-10 border-bottom border-secondary border-opacity-25 py-2 px-2 d-flex justify-content-between align-items-center">
-                    <h6 class="text-white m-0 fw-semibold" style="font-size:.78rem;">
-                        <i class="ti ti-adjustments me-1 text-primary"></i>
-                        Tag Inspector @(SelectedCount > 1 ? $"({SelectedCount} Terpilih)" : "")
-                    </h6>
-                    @if (SelectedCount == 1 && activeEditItem != null)
-                    {
-                        <span class="badge bg-secondary text-light" style="font-size:.55rem;">
-                            ID: @activeEditItem.Id
-                        </span>
-                    }
-                    else if (SelectedCount > 1)
-                    {
-                        <span class="badge bg-warning text-dark fw-bold" style="font-size:.58rem;">
-                            BATCH EDIT
-                        </span>
-                    }
+                <!-- FORM INPUTS -->
+                <div class="form-group mb-2">
+                    <label class="form-label d-flex justify-content-between">
+                        <span>Judul Lagu</span>
+                        @if (SelectedCount > 1) { <span class="text-warning">(Single Mode Only)</span> }
+                    </label>
+                    <input type="text" id="title-input" class="form-control" @bind="batchModel.CleanTitle" disabled="@(SelectedCount > 1)" placeholder="Judul lagu..." />
                 </div>
 
-                <div class="card-body p-2" style="max-height: 82vh; overflow-y: auto;">
-                    @if (SelectedCount > 0 || activeEditItem != null)
+                <div class="form-group mb-2">
+                    <label class="form-label">Artis</label>
+                    <input type="text" id="artist-input" class="form-control" @bind="batchModel.CleanArtist" placeholder="Artis..." />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label">Album</label>
+                    <input type="text" id="album-input" class="form-control" @bind="batchModel.Album" placeholder="Album..." />
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label">Cover Art URL</label>
+                    <input type="text" id="cover-input" class="form-control" @bind="batchModel.AlbumCoverUrl" placeholder="https://..." />
+                </div>
+
+                <div class="d-flex gap-2 mb-2">
+                    <div class="form-group flex-fill m-0">
+                        <label class="form-label">Tahun Rilis</label>
+                        <input type="number" id="year-input" class="form-control" @bind="batchModel.ReleaseYear" placeholder="YYYY" />
+                    </div>
+                    <div class="form-group flex-fill m-0">
+                        <label class="form-label">Region/Country</label>
+                        <input type="text" id="country-input" class="form-control" @bind="batchModel.Country" placeholder="ID/US/JP" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-3">
+                    <div class="form-group flex-fill m-0">
+                        <label class="form-label">Durasi (Detik)</label>
+                        <input type="number" id="duration-input" class="form-control" @bind="batchModel.DurationSeconds" placeholder="Detik" />
+                    </div>
+                    <div class="form-group flex-fill m-0">
+                        <label class="form-label">MusicBrainz ID</label>
+                        <input type="text" id="mbid-input" class="form-control" @bind="batchModel.MusicBrainzId" placeholder="MBID" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    @if (SelectedCount <= 1 && activeEditItem != null)
                     {
-                        @if (SelectedCount > 1)
-                        {
-                            <div class="alert alert-info py-1 px-2 mb-2" style="font-size:.68rem;">
-                                <i class="ti ti-info-circle me-1"></i>
-                                Perubahan diterapkan ke <strong>@SelectedCount lagu</strong> yang dicentang.
-                            </div>
-                        }
-                        else if (activeEditItem != null)
-                        {
-                            <!-- Hidden elements untuk dibaca oleh JS pendukung -->
-                            <input type="hidden" id="active-item-id" value="@activeEditItem.Id" />
-                            <input type="hidden" id="active-item-israw" value="@(activeEditItem.IsFromRawSongs ? "true" : "false")" />
-                            <input type="hidden" id="active-item-filepath" value="@activeEditItem.FilePath" />
-                            <input type="hidden" id="active-item-filename" value="@activeEditItem.FileName" />
-
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <img src="@(string.IsNullOrEmpty(batchModel.AlbumCoverUrl)
-                                    ? "https://placehold.co/72x72/1a1a1a/cccccc?text=🎵"
-                                    : batchModel.AlbumCoverUrl)"
-                                     width="64" height="64" class="rounded shadow-sm border border-secondary" style="object-fit:cover;" alt="Cover" />
-                                <div class="min-width-0 flex-grow-1">
-                                    <div class="text-secondary mb-1" style="font-size:.62rem;">FILE</div>
-                                    <div class="text-white text-truncate" style="font-size:.72rem;" title="@activeEditItem.FileName">
-                                        @activeEditItem.FileName
-                                    </div>
-                                    <div class="text-secondary mt-1" style="font-size:.62rem;">
-                                        ID @activeEditItem.Id · @(string.IsNullOrEmpty(activeEditItem.Country) ? "-" : activeEditItem.Country)
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- INPUT FORM INSPECTOR (DINAMIS SEPENUHNYA) -->
-                        <div class="mb-2">
-                            <label class="form-label text-secondary mb-1 d-flex justify-content-between" style="font-size:.65rem;">
-                                <span>Judul Lagu</span>
-                                @if (SelectedCount > 1)
-                                {
-                                    <span class="text-warning">(Satu lagu saja)</span>
-                                }
-                            </label>
-                            <input type="text" id="title-input"
-                                   class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="batchModel.CleanTitle"
-                                   disabled="@(SelectedCount > 1)"
-                                   placeholder="Judul lagu..." />
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Artis</label>
-                            <input type="text" id="artist-input"
-                                   class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="batchModel.CleanArtist"
-                                   placeholder="Artis..." />
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Album</label>
-                            <input type="text" id="album-input"
-                                   class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="batchModel.Album"
-                                   placeholder="Album..." />
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="form-label text-secondary mb-1" style="font-size:.65rem;">URL Cover Album</label>
-                            <input type="text" id="cover-input"
-                                   class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                   @bind="batchModel.AlbumCoverUrl"
-                                   placeholder="https://..." />
-                        </div>
-
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Tahun Rilis</label>
-                                <input type="number" id="year-input"
-                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="batchModel.ReleaseYear"
-                                       placeholder="Tahun..." />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Negara / Region</label>
-                                <input type="text" id="country-input"
-                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="batchModel.Country"
-                                       placeholder="Kode Negara..." />
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">Durasi (Detik)</label>
-                                <input type="number" id="duration-input"
-                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="batchModel.DurationSeconds"
-                                       placeholder="Detik..." />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label text-secondary mb-1" style="font-size:.65rem;">MusicBrainz ID</label>
-                                <input type="text" id="mbid-input"
-                                       class="form-control form-control-sm bg-dark text-white border-secondary py-1"
-                                       @bind="batchModel.MusicBrainzId"
-                                       placeholder="MBID..." />
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mt-2">
-                            @if (SelectedCount <= 1 && activeEditItem != null)
-                            {
-                                <div class="col-6">
-                                    <button class="btn btn-outline-info btn-sm text-white w-100 py-1"
-                                            @onclick="() => ReMatchSingle(activeEditItem)"
-                                            disabled="@isBatchProcessing">
-                                        <i class="ti ti-wand me-1"></i> Match
-                                    </button>
-                                </div>
-                            }
-                            <div class="@(SelectedCount > 1 ? "col-12" : "col-6")">
-                                @if (SelectedCount <= 1)
-                                {
-                                    <button type="button" id="js-save-btn" class="btn btn-success btn-sm w-100 py-1 fw-bold"
-                                            onclick="hypenSaveMetadata()">
-                                        <i class="ti ti-device-floppy me-1"></i>
-                                        Simpan
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button class="btn btn-success btn-sm w-100 py-1 fw-bold"
-                                            @onclick="ApplyBatchChangesAndSave"
-                                            disabled="@isBatchProcessing">
-                                        <i class="ti ti-device-floppy me-1"></i>
-                                        Simpan (@SelectedCount Lagu)
-                                    </button>
-                                }
-                            </div>
-                        </div>
+                        <button class="btn-action flex-fill" @onclick="() => ReMatchSingle(activeEditItem)" disabled="@isBatchProcessing">
+                            RE-MATCH
+                        </button>
+                        <button type="button" id="js-save-btn" class="btn-action btn-commit flex-fill" onclick="hypenSaveMetadata()">
+                            SAVE TAGS
+                        </button>
                     }
                     else
                     {
-                        <div class="text-center py-4 text-secondary">
-                            <i class="ti ti-click fs-3 d-block mb-1"></i>
-                            <p class="small m-0">Pilih atau centang lagu untuk mengedit metadata.</p>
-                        </div>
+                        <button class="btn-action btn-commit w-100" @onclick="ApplyBatchChangesAndSave" disabled="@isBatchProcessing">
+                            SAVE BATCH (@SelectedCount SONGS)
+                        </button>
                     }
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-secondary border border-dashed border-secondary border-opacity-25 rounded">
+                    <span class="subtitle d-block mb-1">INSPECTOR IDLE</span>
+                    <small>Pilih baris atau centang beberapa lagu untuk mulai mengedit metadata.</small>
+                </div>
+            }
         </div>
     </div>
 </div>
 
-<!-- MODAL KANDIDAT METADATA -->
+<!-- MODAL CANDIDATE MATCH -->
 @if (selectedItem != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.75);">
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);">
         <div class="modal-dialog modal-md modal-dialog-centered">
-            <div class="modal-content bg-dark text-white border border-secondary shadow-lg">
-                <div class="modal-header border-bottom border-secondary py-2 px-3">
-                    <h6 class="modal-title m-0 d-flex align-items-center" style="font-size:.82rem;">
-                        <i class="ti ti-list-check me-2 text-primary"></i>
-                        Pilih Kandidat Metadata (Maks 5 Tampilan)
-                    </h6>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseCandidateModal"></button>
-                </div>
-                <div class="modal-body p-2" style="max-height: 70vh; overflow-y: auto;">
-                    <div class="alert alert-dark border border-secondary py-1 px-2 mb-2" style="font-size:.68rem;">
-                        <div>Target File: <strong class="text-info">@selectedItem.FileName</strong></div>
-                        @if (selectedItem.IsNeedsReview)
-                        {
-                            <div class="text-warning mt-1">
-                                <i class="ti ti-alert-triangle me-1"></i><strong>Status Review:</strong> @selectedItem.MatchConfidenceReason
-                            </div>
-                        }
+            <div class="card-ingest w-100 p-3 shadow-lg border-primary">
+                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                    <div>
+                        <div class="source-tag">Matching Engine // Candidates</div>
+                        <h4 class="card-title m-0">Pilih Kandidat Metadata</h4>
                     </div>
+                    <button type="button" class="btn-clear py-1 px-2" @onclick="CloseCandidateModal">✕</button>
+                </div>
 
-                    <div class="d-flex flex-column gap-2">
-                        @foreach (var candidate in selectedItem.Candidates.Take(5))
-                        {
-                            var scorePercent = Math.Round(candidate.SimilarityScore * 100, 1);
-                            var badgeColor = scorePercent >= 98.0 ? "bg-success" : (scorePercent >= 80.0 ? "bg-warning text-dark" : "bg-danger");
+                <div class="status-alert alert-info py-2 px-3 mb-3">
+                    <p class="status-text m-0">Target File: <strong>@selectedItem.FileName</strong></p>
+                    @if (selectedItem.IsNeedsReview)
+                    {
+                        <small class="text-warning d-block mt-1">Status Review: @selectedItem.MatchConfidenceReason</small>
+                    }
+                </div>
 
-                            <div class="bg-dark text-white border border-secondary rounded-2 p-2 d-flex align-items-center justify-content-between"
-                                 style="cursor:pointer;"
-                                 @onclick="() => SelectCandidate(candidate)">
-                                <div class="d-flex align-items-center min-width-0">
-                                    <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
-                                         class="rounded me-2 shadow-sm flex-shrink-0"
-                                         width="40" height="40" style="object-fit:cover;" alt="Cover" />
-                                    <div class="min-width-0">
-                                        <div class="d-flex align-items-center gap-1 mb-1">
-                                            <span class="badge @badgeColor fw-bold" style="font-size:.6rem;">
-                                                Match @scorePercent%
-                                            </span>
-                                            @if (scorePercent < 98.0)
-                                            {
-                                                <span class="badge bg-outline-warning text-warning border border-warning" style="font-size:.52rem;">
-                                                    &lt; 98% (Manual)
-                                                </span>
-                                            }
-                                            @if (!string.IsNullOrEmpty(candidate.Country))
-                                            {
-                                                <span class="badge bg-secondary" style="font-size:.55rem;">@candidate.Country</span>
-                                            }
-                                            <span class="text-secondary" style="font-size:.6rem;">@candidate.ProviderName</span>
-                                        </div>
-                                        <div class="fw-semibold text-truncate" style="font-size:.78rem;">
-                                            @candidate.Title
-                                        </div>
-                                        <div class="text-secondary text-truncate" style="font-size:.68rem;">
-                                            @candidate.Artist — <em>@candidate.Album</em> (@(candidate.ReleaseYear?.ToString() ?? "-")) · @TimeSpan.FromSeconds(candidate.DurationSeconds).ToString(@"mm\:ss")
-                                        </div>
+                <div class="d-flex flex-column gap-2 mb-3" style="max-height: 50vh; overflow-y: auto;">
+                    @foreach (var candidate in selectedItem.Candidates.Take(5))
+                    {
+                        var scorePercent = Math.Round(candidate.SimilarityScore * 100, 1);
+                        var isHighMatch = scorePercent >= 98.0;
+
+                        <div class="p-2 border rounded d-flex align-items-center justify-content-between gap-2"
+                             style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1) !important; cursor: pointer;"
+                             @onclick="() => SelectCandidate(candidate)">
+                            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
+                                     class="rounded border border-secondary flex-shrink-0"
+                                     width="40" height="40" style="object-fit: cover;" alt="Cover" />
+                                <div class="overflow-hidden">
+                                    <div class="d-flex align-items-center gap-1 mb-1">
+                                        <span class="@(isHighMatch ? "badge-new" : "badge-dup")" style="font-size: 0.6rem;">MATCH @scorePercent%</span>
+                                        <span class="subtitle m-0" style="font-size: 0.6rem;">@candidate.ProviderName</span>
+                                    </div>
+                                    <div class="fw-bold text-white text-truncate" style="font-size: 0.8rem;">@candidate.Title</div>
+                                    <div class="subtitle text-truncate m-0" style="font-size: 0.68rem;">
+                                        @candidate.Artist — <em>@candidate.Album</em> (@(candidate.ReleaseYear?.ToString() ?? "-"))
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2 ms-2 flex-shrink-0" style="font-size:.65rem;">
-                                    Gunakan
-                                </button>
                             </div>
-                        }
-                    </div>
+                            <button type="button" class="btn-action py-1 px-2 text-nowrap" style="font-size: 0.65rem;">
+                                USE THIS
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
