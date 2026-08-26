@@ -17,23 +17,24 @@
             <h1 class="title">Advanced Tag Studio</h1>
         </div>
         <div class="nav-actions">
-    <button class="btn-nav" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
-        REFRESH DB
-    </button>
-    <button class="btn-nav btn-staging" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
-        @if (isBatchProcessing)
-        {
-            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-            <span>SEARCHING METADATA...</span>
-        }
-        else
-        {
-            <span>FETCH CANDIDATES (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))</span>
-        }
-    </button>
-    <button class="btn-nav btn-library" @onclick="ApplyBatchChangesAndSave" disabled="@(isBatchProcessing || !filteredItems.Any())">
-        SAVE ALL (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))
-    </button>
+            <button class="btn-nav" @onclick="LoadDataFromDatabase" disabled="@isBatchProcessing">
+                REFRESH DB
+            </button>
+            <button class="btn-nav btn-staging" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
+                @if (isBatchProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    <span>SEARCHING METADATA...</span>
+                }
+                else
+                {
+                    <span>FETCH CANDIDATES (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))</span>
+                }
+            </button>
+            <button class="btn-nav btn-library" @onclick="ApplyBatchChangesAndSave" disabled="@(isBatchProcessing || !filteredItems.Any())">
+                SAVE ALL (@(SelectedCount > 0 ? SelectedCount : filteredItems.Count))
+            </button>
+        </div>
     </div>
 
     <!-- STATUS JS -->
