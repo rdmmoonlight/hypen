@@ -205,9 +205,9 @@
                                                 {
                                                     <span class="badge bg-warning text-dark px-1 py-1" style="font-size:.58rem;" title="@item.MatchConfidenceReason">Review</span>
                                                 }
-                                                else if (item.MatchConfidenceReason == "Exact Match")
+                                                else if (item.MatchConfidenceReason.StartsWith("Exact Match"))
                                                 {
-                                                    <span class="badge bg-success px-1 py-1" style="font-size:.58rem;">Exact</span>
+                                                    <span class="badge bg-success px-1 py-1" style="font-size:.58rem;">Exact (≥98%)</span>
                                                 }
                                                 else if (item.MatchConfidenceReason == "Manual Selected")
                                                 {
@@ -228,7 +228,7 @@
                                                     <i class="ti ti-list-details"></i>
                                                     @if (item.Candidates.Any())
                                                     {
-                                                        <span style="font-size:.65rem;">@item.Candidates.Count</span>
+                                                        <span style="font-size:.65rem;">@Math.Min(item.Candidates.Count, 5)</span>
                                                     }
                                                 </button>
                                                 <button class="btn btn-outline-primary btn-sm py-0 px-1"
@@ -455,55 +455,70 @@
     </div>
 </div>
 
-<!-- MODAL CANDIDATE DENGAN SIMILARITY SCORE -->
+<!-- MODAL CANDIDATE DENGAN MAKSIMAL 5 KANDIDAT & STRICT 98% BADGE -->
 @if (selectedItem != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.7);">
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.75);">
         <div class="modal-dialog modal-md modal-dialog-centered">
-            <div class="modal-content bg-dark text-white border border-secondary">
+            <div class="modal-content bg-dark text-white border border-secondary shadow-lg">
                 <div class="modal-header border-bottom border-secondary py-2 px-3">
-                    <h6 class="modal-title m-0">Pilih Kandidat Metadata (@selectedItem.Candidates.Count Ditemukan)</h6>
+                    <h6 class="modal-title m-0 d-flex align-items-center" style="font-size:.82rem;">
+                        <i class="ti ti-list-check me-2 text-primary"></i>
+                        Pilih Kandidat Metadata (Maks 5 Tampilan)
+                    </h6>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseCandidateModal"></button>
                 </div>
                 <div class="modal-body p-2" style="max-height: 70vh; overflow-y: auto;">
-                    <div class="text-secondary mb-2" style="font-size:.7rem;">
-                        Target: <strong class="text-white">@selectedItem.FileName</strong>
-                        @if (!string.IsNullOrEmpty(selectedItem.MatchConfidenceReason))
+                    <div class="alert alert-dark border border-secondary py-1 px-2 mb-2" style="font-size:.68rem;">
+                        <div>Target File: <strong class="text-info">@selectedItem.FileName</strong></div>
+                        @if (selectedItem.IsNeedsReview)
                         {
-                            <div class="text-warning mt-1"><i class="ti ti-alert-circle me-1"></i>@selectedItem.MatchConfidenceReason</div>
+                            <div class="text-warning mt-1">
+                                <i class="ti ti-alert-triangle me-1"></i><strong>Status Review:</strong> @selectedItem.MatchConfidenceReason
+                            </div>
                         }
                     </div>
+
                     <div class="d-flex flex-column gap-2">
-                        @foreach (var candidate in selectedItem.Candidates)
+                        @foreach (var candidate in selectedItem.Candidates.Take(5))
                         {
-                            var scorePercent = (int)(candidate.SimilarityScore * 100);
-                            var badgeColor = scorePercent >= 80 ? "bg-success" : (scorePercent >= 60 ? "bg-warning text-dark" : "bg-danger");
+                            var scorePercent = Math.Round(candidate.SimilarityScore * 100, 1);
+                            // Kriteria Strict 98%: Hijau hanya jika >= 98%, Kuning 80%-97%, Merah < 80%
+                            var badgeColor = scorePercent >= 98.0 ? "bg-success" : (scorePercent >= 80.0 ? "bg-warning text-dark" : "bg-danger");
 
                             <div class="bg-dark text-white border border-secondary rounded-2 p-2 d-flex align-items-center justify-content-between"
                                  style="cursor:pointer;"
                                  @onclick="() => SelectCandidate(candidate)">
                                 <div class="d-flex align-items-center min-width-0">
-                                    <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/36x36/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
+                                    <img src="@(string.IsNullOrEmpty(candidate.AlbumCoverUrl) ? "https://placehold.co/40x40/1a1a1a/cccccc?text=🎵" : candidate.AlbumCoverUrl)"
                                          class="rounded me-2 shadow-sm flex-shrink-0"
-                                         width="36" height="36" style="object-fit:cover;" alt="Cover" />
+                                         width="40" height="40" style="object-fit:cover;" alt="Cover" />
                                     <div class="min-width-0">
                                         <div class="d-flex align-items-center gap-1 mb-1">
-                                            <span class="badge @badgeColor" style="font-size:.55rem;">Match @scorePercent%</span>
+                                            <span class="badge @badgeColor fw-bold" style="font-size:.6rem;">
+                                                Match @scorePercent%
+                                            </span>
+                                            @if (scorePercent < 98.0)
+                                            {
+                                                <span class="badge bg-outline-warning text-warning border border-warning" style="font-size:.52rem;">
+                                                    < 98% (Manual)
+                                                </span>
+                                            }
                                             @if (!string.IsNullOrEmpty(candidate.Country))
                                             {
                                                 <span class="badge bg-secondary" style="font-size:.55rem;">@candidate.Country</span>
                                             }
                                             <span class="text-secondary" style="font-size:.6rem;">@candidate.ProviderName</span>
                                         </div>
-                                        <div class="fw-semibold text-truncate" style="font-size:.75rem;">
+                                        <div class="fw-semibold text-truncate" style="font-size:.78rem;">
                                             @candidate.Title
                                         </div>
-                                        <div class="text-secondary text-truncate" style="font-size:.65rem;">
+                                        <div class="text-secondary text-truncate" style="font-size:.68rem;">
                                             @candidate.Artist — <em>@candidate.Album</em> (@(candidate.ReleaseYear?.ToString() ?? "-")) · @TimeSpan.FromSeconds(candidate.DurationSeconds).ToString(@"mm\:ss")
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-primary btn-sm py-0 px-2 ms-2 flex-shrink-0" style="font-size:.62rem;">
+                                <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2 ms-2 flex-shrink-0" style="font-size:.65rem;">
                                     Gunakan
                                 </button>
                             </div>
