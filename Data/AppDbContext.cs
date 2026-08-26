@@ -39,7 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<GDriveTrackModel> GDriveTracks { get; set; } = default!;
 
     // Local Sync Tracks
-    public DbSet<LocalTrackModel> LocalTracks { get; set; } = default!;
+    public DbSet<MetadataMatchCandidateModel> LocalTracks { get; set; } = default!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,7 +130,7 @@ public class AppDbContext : DbContext
         // =========================================================================
         // MAPPING TABEL: local_tracks
         // =========================================================================
-        modelBuilder.Entity<LocalTrackModel>(entity =>
+        modelBuilder.Entity<MetadataMatchCandidateModel>(entity =>
         {
             entity.ToTable("local_tracks");
 

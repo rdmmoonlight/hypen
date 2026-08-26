@@ -6,7 +6,7 @@ namespace Hypen.Web.Services;
 
 public class LocalMp3ExtractorService
 {
-    public async Task<LocalTrackModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
+    public async Task<MetadataMatchCandidateModel> ExtractMetadataFromStreamAsync(string originalFileName, Stream fileStream)
     {
         string tempPath = Path.Combine(Path.GetTempPath(), $"hypen_tag_{Guid.NewGuid():N}.mp3");
 
@@ -40,7 +40,7 @@ public class LocalMp3ExtractorService
                 embeddedCoverBase64 = $"data:{mimeType};base64,{Convert.ToBase64String(pic.Data.Data)}";
             }
 
-            return new LocalTrackModel
+            return new MetadataMatchCandidateModel
             {
                 FileName = originalFileName,
                 FilePath = tempPath,
@@ -66,7 +66,7 @@ public class LocalMp3ExtractorService
         }
     }
 
-    public LocalTrackModel ExtractMetadataFromFileName(string fileName)
+    public MetadataMatchCandidateModel ExtractMetadataFromFileName(string fileName)
     {
         string cleanName = Regex.Replace(fileName, @"(?i)\.mp3$", "").Trim();
         string cleanedText = CleanQueryForSearch(cleanName);
@@ -81,7 +81,7 @@ public class LocalMp3ExtractorService
             title = parts[1].Trim();
         }
 
-        return new LocalTrackModel
+        return new MetadataMatchCandidateModel
         {
             FileName = fileName,
             FilePath = string.Empty,

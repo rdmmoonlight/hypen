@@ -14,13 +14,13 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
         [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
         [Inject] protected HttpClient Http { get; set; } = default!;
 
-        protected List<LocalTrackModel> Items { get; set; } = new();
-        protected List<LocalTrackModel> filteredItems { get; set; } = new();
-        protected List<LocalTrackModel> pagedItems { get; set; } = new();
+        protected List<MetadataMatchCandidateModel> Items { get; set; } = new();
+        protected List<MetadataMatchCandidateModel> filteredItems { get; set; } = new();
+        protected List<MetadataMatchCandidateModel> pagedItems { get; set; } = new();
 
-        protected LocalTrackModel? selectedItem;
-        protected LocalTrackModel? activeEditItem;
-        protected LocalTrackModel batchModel { get; set; } = new();
+        protected MetadataMatchCandidateModel? selectedItem;
+        protected MetadataMatchCandidateModel? activeEditItem;
+        protected MetadataMatchCandidateModel batchModel { get; set; } = new();
 
         protected bool isBatchProcessing { get; set; } = false;
         protected bool isAllSelected { get; set; } = false;
@@ -58,7 +58,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 using var context = await DbContextFactory.CreateDbContextAsync();
 
                 var songs = await context.Songs.ToListAsync();
-                var songTracks = songs.Select(s => new LocalTrackModel
+                var songTracks = songs.Select(s => new MetadataMatchCandidateModel
                 {
                     Id = (int)s.Id,
                     IsFromRawSongs = false, // Explicit marker untuk tabel Songs
@@ -81,7 +81,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     .Where(r => r.Status != "COMPLETED" && r.IsComplete == false)
                     .ToListAsync();
 
-                var rawTracks = rawSongs.Select(r => new LocalTrackModel
+                var rawTracks = rawSongs.Select(r => new MetadataMatchCandidateModel
                 {
                     Id = (int)r.Id,
                     IsFromRawSongs = true, // Explicit marker untuk tabel RawSongs
@@ -204,7 +204,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
         }
 
-        protected void OnItemSelectionChanged(LocalTrackModel item, bool isSelected)
+        protected void OnItemSelectionChanged(MetadataMatchCandidateModel item, bool isSelected)
         {
             item.IsSelected = isSelected;
             var selectedList = filteredItems.Where(x => x.IsSelected).ToList();
@@ -221,7 +221,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        protected void SelectForEditing(LocalTrackModel item)
+        protected void SelectForEditing(MetadataMatchCandidateModel item)
         {
             activeEditItem = item;
             if (SelectedCount <= 1)
@@ -230,7 +230,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
         }
 
-        private void PopulateInspectorFromModel(LocalTrackModel item)
+        private void PopulateInspectorFromModel(MetadataMatchCandidateModel item)
         {
             batchModel.CleanTitle = item.CleanTitle;
             batchModel.CleanArtist = item.CleanArtist;
@@ -266,7 +266,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        protected async Task ReMatchSingle(LocalTrackModel item)
+        protected async Task ReMatchSingle(MetadataMatchCandidateModel item)
         {
             item.IsProcessing = true;
             StateHasChanged();
@@ -278,7 +278,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        protected void OpenCandidateModal(LocalTrackModel item)
+        protected void OpenCandidateModal(MetadataMatchCandidateModel item)
         {
             selectedItem = item;
         }
@@ -365,7 +365,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
         }
 
         // Dikirim via HTTP POST murni ke /api/metadata/save
-        private async Task SaveItemViaApiAsync(LocalTrackModel item)
+        private async Task SaveItemViaApiAsync(MetadataMatchCandidateModel item)
         {
             var payload = new SaveMetadataRequest(
                 Id: item.Id,

@@ -20,7 +20,7 @@ public class MusicSmartMatchService
         _extractorService = extractorService;
     }
 
-    public async Task SmartMatchFromInternetAsync(LocalTrackModel item)
+    public async Task SmartMatchFromInternetAsync(MetadataMatchCandidateModel item)
     {
         bool iTunesSuccess = await TryMatchiTunesAsync(item);
 
@@ -34,7 +34,7 @@ public class MusicSmartMatchService
         }
     }
 
-    private async Task<bool> TryMatchiTunesAsync(LocalTrackModel item)
+    private async Task<bool> TryMatchiTunesAsync(MetadataMatchCandidateModel item)
     {
         try
         {
@@ -61,7 +61,7 @@ public class MusicSmartMatchService
                     item.Candidates.Add(candidate);
                 }
 
-                LocalTrackModel? bestMatch = null; // Ganti penampung atau sesuaikan tipe logikanya ke kandidat
+                MetadataMatchCandidateModel? bestMatch = null; // Ganti penampung atau sesuaikan tipe logikanya ke kandidat
                 iTunesCandidateModel? bestCandidate = null;
                 int minDiff = int.MaxValue;
                 const int maxAllowedDiffSeconds = 8;
@@ -128,7 +128,7 @@ public class MusicSmartMatchService
         return false;
     }
 
-    public void ApplyCandidateToItem(LocalTrackModel item, iTunesCandidateModel candidate)
+    public void ApplyCandidateToItem(MetadataMatchCandidateModel item, iTunesCandidateModel candidate)
     {
         item.Artist = candidate.Artist;
         item.Title = candidate.Title;
@@ -138,7 +138,7 @@ public class MusicSmartMatchService
         item.DurationSeconds = candidate.DurationSeconds;
     }
 
-    private async Task TryMatchMusicBrainzAsync(LocalTrackModel item)
+    private async Task TryMatchMusicBrainzAsync(MetadataMatchCandidateModel item)
     {
         try
         {
@@ -158,7 +158,7 @@ public class MusicSmartMatchService
         catch { }
     }
 
-    private async Task FetchCountryFromMusicBrainzAsync(LocalTrackModel item)
+    private async Task FetchCountryFromMusicBrainzAsync(MetadataMatchCandidateModel item)
     {
         try
         {

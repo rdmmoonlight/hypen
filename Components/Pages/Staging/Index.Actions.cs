@@ -174,11 +174,11 @@ public partial class Index
     }
 
     // =========================================================================
-    // MAPPING HELPER (Penyesuaian Tipe Data Service ke LocalTrackModel)
+    // MAPPING HELPER (Penyesuaian Tipe Data Service ke MetadataMatchCandidateModel)
     // =========================================================================
-    private LocalTrackModel MapRawToTrackModel(RawSongsModel raw) => new()
+    private MetadataMatchCandidateModel MapRawToTrackModel(RawSongsModel raw) => new()
     {
-        Id = (int)raw.Id, // Casting eksplisit dari long ke int untuk LocalTrackModel.Id
+        Id = (int)raw.Id, // Casting eksplisit dari long ke int untuk MetadataMatchCandidateModel.Id
         Artist = raw.Artist ?? string.Empty,
         Title = raw.Title ?? string.Empty,
         Album = raw.Album,

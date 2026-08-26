@@ -2,7 +2,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Hypen.Web.Models;
 
-public class LocalTrackModel
+/// <summary>
+/// Model utama yang merepresentasikan file/track lokal yang sedang diproses di UI Tag Inspector
+/// </summary>
+public class MetadataMatchCandidateModel
 {
     public int Id { get; set; }
     public string FilePath { get; set; } = string.Empty;
@@ -14,7 +17,7 @@ public class LocalTrackModel
     public int DurationSeconds { get; set; }
     public bool IsSyncedToDb { get; set; }
     
-    // Diubah dari int? menjadi long? agar sesuai dengan SongsModel.Id (long)
+    // Sesuai dengan SongsModel.Id (long)
     public long? SongId { get; set; }
 
     public DateTime LastScannedAt { get; set; } = DateTime.UtcNow;
@@ -48,7 +51,7 @@ public class LocalTrackModel
     public int? ReleaseYear { get; set; }
 
     [NotMapped]
-    public string Country { get; set; } = "Unknown";
+    public string Country { get; set; } = string.Empty;
 
     [NotMapped]
     public string? AlbumCoverUrl { get; set; }
@@ -71,6 +74,9 @@ public class LocalTrackModel
     [NotMapped]
     public string DuplicateReason { get; set; } = string.Empty;
 
+    // ==========================================
+    // Safety & Multi-Match Verification Logic
+    // ==========================================
     [NotMapped]
     public bool IsNeedsReview { get; set; } = false;
 
@@ -78,15 +84,29 @@ public class LocalTrackModel
     public string MatchConfidenceReason { get; set; } = string.Empty;
 
     [NotMapped]
-    public List<iTunesCandidateModel> Candidates { get; set; } = new();
+    public double MatchConfidenceScore { get; set; } = 0.0;
+
+    // List menampung hasil kandidat pencarian dari API (iTunes/MusicBrainz/dll)
+    [NotMapped]
+    public List<MatchingTrackModel> Candidates { get; set; } = new();
 }
 
-public class iTunesCandidateModel
+/// <summary>
+/// Model kandidat hasil pencocokan dari API eksternal
+/// </summary>
+public class MatchingTrackModel
 {
+    public string ProviderName { get; set; } = "iTunes"; // "iTunes", "MusicBrainz", "Spotify"
+    public string ProviderId { get; set; } = string.Empty; // TrackId / MBID
+    
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = "Single";
     public int? ReleaseYear { get; set; }
+    public string Country { get; set; } = string.Empty;
     public string AlbumCoverUrl { get; set; } = string.Empty;
     public int DurationSeconds { get; set; }
+    
+    // Skor kemiripan kandidat ini terhadap LocalTrackModel (0.0 - 1.0)
+    public double SimilarityScore { get; set; }
 }

@@ -23,7 +23,7 @@ public partial class Index : ComponentBase
     protected string targetPlaylistId = "URL";
 
     // INGESTION STATE (Menampung seluruh hasil ekstrak di memori sebelum ke Staging)
-    protected List<LocalTrackModel> extractedList = [];
+    protected List<MetadataMatchCandidateModel> extractedList = [];
     protected bool isAllSelected = true;
 
     // METRICS STATE
@@ -60,7 +60,7 @@ public partial class Index : ComponentBase
                 return;
             }
 
-            var newItems = youtubeItems.Select(item => new LocalTrackModel
+            var newItems = youtubeItems.Select(item => new MetadataMatchCandidateModel
             {
                 FileName = item.VideoId,
                 Title = item.Title,
@@ -108,7 +108,7 @@ public partial class Index : ComponentBase
         {
             isProcessing = true;
             int scanned = 0;
-            var newItems = new List<LocalTrackModel>();
+            var newItems = new List<MetadataMatchCandidateModel>();
 
             foreach (var file in audioFiles)
             {
@@ -124,7 +124,7 @@ public partial class Index : ComponentBase
 
                     var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                    newItems.Add(new LocalTrackModel
+                    newItems.Add(new MetadataMatchCandidateModel
                     {
                         FileName = file.Name,
                         Title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
