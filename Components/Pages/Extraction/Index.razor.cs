@@ -65,6 +65,9 @@ public partial class Index : ComponentBase
                 FileName = item.VideoId,
                 Title = item.Title,
                 Artist = item.ChannelTitle,
+                Album = null,
+                AlbumCoverUrl = null,
+                Country = null,
                 IsSelected = true
             }).ToList();
 
@@ -128,8 +131,10 @@ public partial class Index : ComponentBase
                     {
                         FileName = file.Name,
                         Title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
-                        Artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist,
-                        Album = "Local Sync",
+                        Artist = string.IsNullOrWhiteSpace(extractedArtist) ? null : extractedArtist,
+                        Album = null,
+                        AlbumCoverUrl = null,
+                        Country = null,
                         IsSelected = true
                     });
                 }
@@ -179,10 +184,10 @@ public partial class Index : ComponentBase
                 {
                     Title = item.CleanTitle ?? string.Empty,
                     Artist = item.CleanArtist ?? string.Empty,
-                    Album = item.Album ?? "Extraction",
+                    Album = item.Album,
                     ReleaseYear = item.ReleaseYear,
-                    AlbumCoverUrl = item.AlbumCoverUrl ?? item.FileName,
-                    Country = item.Country ?? "ID",
+                    AlbumCoverUrl = item.AlbumCoverUrl,
+                    Country = item.Country,
                     DurationSeconds = item.DurationSeconds,
                     MusicBrainzId = item.MusicBrainzId,
                     CreatedAt = DateTime.UtcNow
