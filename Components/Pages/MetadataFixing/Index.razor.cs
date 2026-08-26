@@ -288,7 +288,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             selectedItem = null;
         }
 
-        protected void SelectCandidate(iTunesCandidateModel candidate)
+        protected void SelectCandidate(MatchingTrackModel candidate)
         {
             if (selectedItem != null)
             {
