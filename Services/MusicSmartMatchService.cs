@@ -8,7 +8,7 @@ public class MusicSmartMatchService
 {
     private readonly HttpClient _http;
     private readonly IMusicBrainzService _musicBrainzService;
-    private readonly LocalMp3ExtractorService _extractorService; // atau service lain yang Anda gunakan
+    private readonly LocalMp3ExtractorService _extractorService;
 
     public MusicSmartMatchService(
         HttpClient http, 
@@ -38,7 +38,6 @@ public class MusicSmartMatchService
     {
         try
         {
-            // Pastikan CleanQueryForSearch menerima string, sesuaikan jika method ini ada di extractor service
             string searchQuery = $"{item.CleanArtist} {item.CleanTitle}";
             string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(searchQuery)}&entity=song&limit=5";
             var res = await _http.GetFromJsonAsync<JsonElement>(url);
@@ -50,19 +49,30 @@ public class MusicSmartMatchService
 
                 foreach (var track in results)
                 {
-                    var candidate = new iTunesCandidateModel();
+                    var candidate = new MatchingTrackModel
+                    {
+                        ProviderName = "iTunes"
+                    };
+
                     if (track.TryGetProperty("artistName", out var a)) candidate.Artist = a.GetString() ?? "";
                     if (track.TryGetProperty("trackName", out var t)) candidate.Title = t.GetString() ?? "";
                     if (track.TryGetProperty("collectionName", out var al)) candidate.Album = al.GetString() ?? "Single";
+                    if (track.TryGetProperty("country", out var c)) candidate.Country = c.GetString() ?? "";
                     if (track.TryGetProperty("artworkUrl100", out var art)) candidate.AlbumCoverUrl = art.GetString()?.Replace("100x100bb", "600x600bb") ?? "";
                     if (track.TryGetProperty("trackTimeMillis", out var tm)) candidate.DurationSeconds = (int)(tm.GetInt64() / 1000);
                     if (track.TryGetProperty("releaseDate", out var rel) && DateTime.TryParse(rel.GetString(), out var dt)) candidate.ReleaseYear = dt.Year;
+                    if (track.TryGetProperty("trackId", out var id)) candidate.ProviderId = id.GetInt64().ToString();
+
+                    // Hitung skor kemiripan kandidat terhadap item lokal
+                    candidate.SimilarityScore = CalculateSimilarityScore(item, candidate);
 
                     item.Candidates.Add(candidate);
                 }
 
-                MetadataMatchCandidateModel? bestMatch = null; // Ganti penampung atau sesuaikan tipe logikanya ke kandidat
-                iTunesCandidateModel? bestCandidate = null;
+                // Urutkan kandidat berdasarkan skor tertinggi
+                item.Candidates = item.Candidates.OrderByDescending(c => c.SimilarityScore).ToList();
+
+                MatchingTrackModel? bestCandidate = null;
                 int minDiff = int.MaxValue;
                 const int maxAllowedDiffSeconds = 8;
 
@@ -103,9 +113,17 @@ public class MusicSmartMatchService
                     return false;
                 }
 
-                if (minDiff >= 3 || !isArtistExact)
+                // Safety Verification Gate: Jika ditemukan kandidat ganda dengan skor berdekatan
+                if (item.Candidates.Count > 1 && (item.Candidates[0].SimilarityScore - item.Candidates[1].SimilarityScore) < 0.10)
                 {
                     item.IsNeedsReview = true;
+                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
+                    item.MatchConfidenceReason = $"Ditemukan {item.Candidates.Count} versi lagu mirip (skor berdekatan). Perlu review manual.";
+                }
+                else if (minDiff >= 3 || !isArtistExact)
+                {
+                    item.IsNeedsReview = true;
+                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
                     item.MatchConfidenceReason = minDiff >= 3 
                         ? $"Selisih durasi {minDiff}s dari file asli." 
                         : "Nama artis kurang presisi.";
@@ -113,6 +131,7 @@ public class MusicSmartMatchService
                 else
                 {
                     item.IsNeedsReview = false;
+                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
                     item.MatchConfidenceReason = "Exact Match";
                 }
 
@@ -128,14 +147,50 @@ public class MusicSmartMatchService
         return false;
     }
 
-    public void ApplyCandidateToItem(MetadataMatchCandidateModel item, iTunesCandidateModel candidate)
+    public void ApplyCandidateToItem(MetadataMatchCandidateModel item, MatchingTrackModel candidate)
     {
         item.Artist = candidate.Artist;
         item.Title = candidate.Title;
         item.Album = candidate.Album;
         item.ReleaseYear = candidate.ReleaseYear;
+        if (!string.IsNullOrWhiteSpace(candidate.Country))
+        {
+            item.Country = candidate.Country;
+        }
         item.AlbumCoverUrl = candidate.AlbumCoverUrl;
         item.DurationSeconds = candidate.DurationSeconds;
+    }
+
+    private double CalculateSimilarityScore(MetadataMatchCandidateModel item, MatchingTrackModel candidate)
+    {
+        double score = 0.0;
+
+        // Bobot Durasi (Maks +0.40)
+        if (item.DurationSeconds > 0 && candidate.DurationSeconds > 0)
+        {
+            int diff = Math.Abs(item.DurationSeconds - candidate.DurationSeconds);
+            if (diff <= 3) score += 0.40;
+            else if (diff <= 7) score += 0.25;
+            else if (diff <= 15) score += 0.10;
+        }
+        else
+        {
+            score += 0.15;
+        }
+
+        // Bobot Judul (Maks +0.35)
+        if (string.Equals(item.CleanTitle.Trim(), candidate.Title.Trim(), StringComparison.OrdinalIgnoreCase))
+            score += 0.35;
+        else if (candidate.Title.Contains(item.CleanTitle, StringComparison.OrdinalIgnoreCase))
+            score += 0.20;
+
+        // Bobot Artis (Maks +0.25)
+        if (string.Equals(item.CleanArtist.Trim(), candidate.Artist.Trim(), StringComparison.OrdinalIgnoreCase))
+            score += 0.25;
+        else if (candidate.Artist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase))
+            score += 0.15;
+
+        return Math.Min(score, 1.0);
     }
 
     private async Task TryMatchMusicBrainzAsync(MetadataMatchCandidateModel item)
