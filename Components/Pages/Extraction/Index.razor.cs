@@ -9,248 +9,529 @@ namespace Hypen.Web.Components.Pages.Extraction;
 
 public partial class Index : ComponentBase
 {
-    [Inject] protected IYouTubeSyncService SyncService { get; set; } = default!;
-    [Inject] protected AudioMetadataService MetadataService { get; set; } = default!;
-    [Inject] protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
+    [Inject]
+    protected IYouTubeSyncService SyncService { get; set; } = default!;
 
-    // UI & Status State
-    protected string statusMsg = "";
-    protected bool isError;
-    protected bool isProcessing;
-    protected string uploadMode = "folder"; // "folder" atau "file" untuk Local Sync
+    [Inject]
+    protected AudioMetadataService MetadataService { get; set; } = default!;
 
-    // Extraction Inputs State
-    protected string targetPlaylistId = "URL";
+    [Inject]
+    protected IDbContextFactory<AppDbContext> DbContextFactory { get; set; } = default!;
 
-    // INGESTION STATE (Menampung seluruh hasil ekstrak di memori sebelum ke Staging)
-    protected List<MetadataMatchCandidateModel> extractedList = [];
-    protected bool isAllSelected = true;
 
-    // METRICS STATE
-    protected int pendingRawCount = 0;
-    protected int completedSongsCount = 0;
+    // =========================================================================
+    // UI & STATUS STATE
+    // =========================================================================
 
-    protected override async Task OnInitializedAsync()
-    {
-        await RefreshMetrics();
-    }
+    protected string statusMsg = "";
+    protected bool isError;
+    protected bool isProcessing;
+    protected string uploadMode = "folder";
 
-    protected void SetUploadMode(string mode)
-    {
-        uploadMode = mode;
-    }
 
-    // =========================================================================
-    // 1. EXTRACTION CARDS LOGIC
-    // =========================================================================
+    // =========================================================================
+    // EXTRACTION INPUT STATE
+    // =========================================================================
 
-    // CARD 1: YouTube Playlist Extractor
-    protected async Task FetchYouTubeToPreview()
-    {
-        try
-        {
-            isProcessing = true;
-            UpdateStatus("Mengambil metadata playlist dari YouTube...");
+    protected string targetPlaylistId = "URL";
 
-            var youtubeItems = await SyncService.FetchPlaylistItemsAsync(targetPlaylistId, int.MaxValue);
 
-            if (youtubeItems.Count == 0)
-            {
-                UpdateStatus("Tidak ada video/lagu yang ditemukan dari input YouTube tersebut.", true);
-                return;
-            }
+    // =========================================================================
+    // INGESTION STATE
+    // =========================================================================
+    // Menampung metadata hasil ekstraksi secara apa adanya.
+    //
+    // Tidak dilakukan:
+    // - cleaning
+    // - normalization
+    // - enrichment
+    // - fallback value
+    // - hardcoded metadata
+    //
+    // Data di sini adalah representasi langsung dari hasil extractor.
+    // =========================================================================
 
-            var newItems = youtubeItems.Select(item => new MetadataMatchCandidateModel
-            {
-                FileName = item.VideoId,
-                Title = item.Title,
-                Artist = item.ChannelTitle,
-                IsSelected = true
-            }).ToList();
+    protected List<MetadataMatchCandidateModel> extractedList = [];
 
-            extractedList.AddRange(newItems);
-            isAllSelected = true;
-            
-            UpdateStatus($"Berhasil mengekstrak {newItems.Count:N0} lagu dari YouTube ke preview.");
-        }
-        catch (Exception ex)
-        {
-            var detail = ex.InnerException?.Message ?? ex.Message;
-            UpdateStatus($"Gagal mengekstrak dari YouTube: {detail}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
+    protected bool isAllSelected = true;
 
-    // CARD 2: Local Sync (Gabungan File & Folder Extractor)
-    protected async Task HandleLocalSyncSelection(InputFileChangeEventArgs e)
-    {
-        var files = e.GetMultipleFiles(5000);
-        if (files.Count == 0) return;
 
-        var validExtensions = new[] { ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac" };
-        var audioFiles = files
-            .Where(f => validExtensions.Contains(Path.GetExtension(f.Name).ToLowerInvariant()))
-            .ToList();
+    // =========================================================================
+    // METRICS STATE
+    // =========================================================================
 
-        if (audioFiles.Count == 0)
-        {
-            UpdateStatus(uploadMode == "folder" 
-                ? "Tidak ditemukan file audio di dalam folder tersebut." 
-                : "File yang dipilih bukan format audio yang didukung.", true);
-            return;
-        }
+    protected int pendingRawCount = 0;
+    protected int completedSongsCount = 0;
 
-        try
-        {
-            isProcessing = true;
-            int scanned = 0;
-            var newItems = new List<MetadataMatchCandidateModel>();
 
-            foreach (var file in audioFiles)
-            {
-                scanned++;
-                UpdateStatus($"[{scanned:N0}/{audioFiles.Count:N0}] Parsing Local Sync: '{file.Name}'...");
+    // =========================================================================
+    // LIFECYCLE
+    // =========================================================================
 
-                try
-                {
-                    await using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 100);
-                    using var memoryStream = new MemoryStream();
-                    await stream.CopyToAsync(memoryStream);
-                    memoryStream.Position = 0;
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshMetrics();
+    }
 
-                    var (extractedArtist, extractedTitle) = MetadataService.ExtractMetadata(file.Name, memoryStream);
 
-                    newItems.Add(new MetadataMatchCandidateModel
-                    {
-                        FileName = file.Name,
-                        Title = string.IsNullOrWhiteSpace(extractedTitle) ? Path.GetFileNameWithoutExtension(file.Name) : extractedTitle,
-                        Artist = string.IsNullOrWhiteSpace(extractedArtist) ? "Unknown Artist" : extractedArtist,
-                        Album = "Local Sync",
-                        IsSelected = true
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Gagal ekstraksi {file.Name}: {ex.Message}");
-                }
-            }
+    // =========================================================================
+    // UPLOAD MODE
+    // =========================================================================
 
-            extractedList.AddRange(newItems);
-            isAllSelected = true;
+    protected void SetUploadMode(string mode)
+    {
+        uploadMode = mode;
+    }
 
-            UpdateStatus($"Berhasil mengekstrak {newItems.Count:N0} file audio melalui Local Sync.");
-        }
-        catch (Exception ex)
-        {
-            var detail = ex.InnerException?.Message ?? ex.Message;
-            UpdateStatus($"Gagal mengekstrak Local Sync: {detail}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
 
-    // =========================================================================
-    // 2. COMMIT STAGE (SIMPAN KE TABEL RAW_SONGS)
-    // =========================================================================
+    // =========================================================================
+    // CARD 1: YOUTUBE PLAYLIST EXTRACTOR
+    // =========================================================================
 
-    protected async Task SaveSelectedToRaw()
-    {
-        var selected = extractedList.Where(i => i.IsSelected).ToList();
-        if (selected.Count == 0) return;
+    protected async Task FetchYouTubeToPreview()
+    {
+        try
+        {
+            isProcessing = true;
 
-        try
-        {
-            isProcessing = true;
-            UpdateStatus($"Memasukkan {selected.Count:N0} lagu ke tabel raw_songs (Staging)...");
+            UpdateStatus(
+                "Mengambil metadata playlist dari YouTube..."
+            );
 
-            await using var context = await DbContextFactory.CreateDbContextAsync();
-            int savedCount = 0;
+            var youtubeItems =
+                await SyncService.FetchPlaylistItemsAsync(
+                    targetPlaylistId,
+                    int.MaxValue
+                );
 
-            foreach (var item in selected)
-            {
-                var rawEntity = new RawSongsModel
-                {
-                    Title = item.CleanTitle ?? string.Empty,
-                    Artist = item.CleanArtist ?? string.Empty,
-                    Album = item.Album ?? "Extraction",
-                    ReleaseYear = item.ReleaseYear,
-                    AlbumCoverUrl = item.AlbumCoverUrl ?? item.FileName,
-                    Country = item.Country ?? "ID",
-                    DurationSeconds = item.DurationSeconds,
-                    MusicBrainzId = item.MusicBrainzId,
-                    CreatedAt = DateTime.UtcNow
-                };
+            if (youtubeItems.Count == 0)
+            {
+                UpdateStatus(
+                    "Tidak ada video/lagu yang ditemukan dari input YouTube tersebut.",
+                    true
+                );
 
-                context.RawSongs.Add(rawEntity);
-                savedCount++;
-            }
+                return;
+            }
 
-            await context.SaveChangesAsync();
 
-            UpdateStatus($"Berhasil! {savedCount:N0} lagu masuk ke Staging Buffer.");
-            extractedList.RemoveAll(i => i.IsSelected);
-            await RefreshMetrics();
-        }
-        catch (Exception ex)
-        {
-            var detail = ex.InnerException?.Message ?? ex.Message;
-            UpdateStatus($"Gagal Simpan ke Staging: {detail}", true);
-        }
-        finally
-        {
-            isProcessing = false;
-            StateHasChanged();
-        }
-    }
+            // -----------------------------------------------------------------
+            // RAW EXTRACTION ONLY
+            //
+            // Setiap field metadata diambil langsung dari hasil extractor.
+            // Tidak ada fallback atau nilai metadata buatan.
+            // -----------------------------------------------------------------
 
-    // =========================================================================
-    // HELPERS & UTILITIES
-    // =========================================================================
+            var newItems = youtubeItems
+                .Select(item => new MetadataMatchCandidateModel
+                {
+                    FileName = item.VideoId,
+                    Title = item.Title,
+                    Artist = item.ChannelTitle,
 
-    protected void ToggleSelectAll(ChangeEventArgs e)
-    {
-        isAllSelected = e.Value is bool val && val;
-        foreach (var item in extractedList)
-        {
-            item.IsSelected = isAllSelected;
-        }
-    }
+                    IsSelected = true
+                })
+                .ToList();
 
-    protected void ClearPreview()
-    {
-        extractedList.Clear();
-        UpdateStatus("Antrean preview dibersihkan.");
-    }
 
-    private async Task RefreshMetrics()
-    {
-        try
-        {
-            await using var context = await DbContextFactory.CreateDbContextAsync();
-            pendingRawCount = await context.RawSongs.CountAsync();
-            completedSongsCount = await SyncService.GetCompletedCountAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error RefreshMetrics: {ex.Message}");
-        }
-        finally
-        {
-            StateHasChanged();
-        }
-    }
+            extractedList.AddRange(newItems);
 
-    private void UpdateStatus(string msg, bool error = false)
-    {
-        statusMsg = msg;
-        isError = error;
-        StateHasChanged();
-    }
+            isAllSelected = true;
+
+
+            UpdateStatus(
+                $"Berhasil mengekstrak {newItems.Count:N0} lagu dari YouTube ke preview."
+            );
+        }
+        catch (Exception ex)
+        {
+            var detail =
+                ex.InnerException?.Message ??
+                ex.Message;
+
+            UpdateStatus(
+                $"Gagal mengekstrak dari YouTube: {detail}",
+                true
+            );
+        }
+        finally
+        {
+            isProcessing = false;
+
+            StateHasChanged();
+        }
+    }
+
+
+    // =========================================================================
+    // CARD 2: LOCAL SYNC
+    // =========================================================================
+    // File audio dibaca dan metadata diekstrak langsung dari file.
+    //
+    // Tidak ada:
+    // - Title fallback ke filename
+    // - Artist fallback ke "Unknown Artist"
+    // - Album buatan
+    // - Country buatan
+    // - Cover fallback
+    //
+    // Jika metadata memang kosong, field tetap kosong/null.
+    // =========================================================================
+
+    protected async Task HandleLocalSyncSelection(
+        InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(5000);
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+
+        var validExtensions = new[]
+        {
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".flac",
+            ".ogg",
+            ".aac"
+        };
+
+
+        var audioFiles = files
+            .Where(file =>
+                validExtensions.Contains(
+                    Path.GetExtension(file.Name),
+                    StringComparer.OrdinalIgnoreCase
+                ))
+            .ToList();
+
+
+        if (audioFiles.Count == 0)
+        {
+            UpdateStatus(
+                uploadMode == "folder"
+                    ? "Tidak ditemukan file audio di dalam folder tersebut."
+                    : "File yang dipilih bukan format audio yang didukung.",
+                true
+            );
+
+            return;
+        }
+
+
+        try
+        {
+            isProcessing = true;
+
+            int scanned = 0;
+
+            var newItems =
+                new List<MetadataMatchCandidateModel>();
+
+
+            foreach (var file in audioFiles)
+            {
+                scanned++;
+
+                UpdateStatus(
+                    $"[{scanned:N0}/{audioFiles.Count:N0}] Parsing Local Sync: '{file.Name}'..."
+                );
+
+
+                try
+                {
+                    await using var stream =
+                        file.OpenReadStream(
+                            maxAllowedSize: 1024 * 1024 * 100
+                        );
+
+
+                    using var memoryStream =
+                        new MemoryStream();
+
+
+                    await stream.CopyToAsync(
+                        memoryStream
+                    );
+
+
+                    memoryStream.Position = 0;
+
+
+                    // ---------------------------------------------------------
+                    // Metadata extractor adalah satu-satunya sumber metadata.
+                    // ---------------------------------------------------------
+
+                    var (
+                        extractedArtist,
+                        extractedTitle
+                    ) =
+                        MetadataService.ExtractMetadata(
+                            file.Name,
+                            memoryStream
+                        );
+
+
+                    // ---------------------------------------------------------
+                    // RAW INGEST
+                    //
+                    // Jangan mengisi nilai pengganti jika metadata kosong.
+                    // Jangan mengubah hasil extractor.
+                    // ---------------------------------------------------------
+
+                    newItems.Add(
+                        new MetadataMatchCandidateModel
+                        {
+                            FileName = file.Name,
+
+                            Title = extractedTitle,
+
+                            Artist = extractedArtist,
+
+                            IsSelected = true
+                        }
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Gagal ekstraksi {file.Name}: {ex.Message}"
+                    );
+                }
+            }
+
+
+            extractedList.AddRange(newItems);
+
+            isAllSelected = true;
+
+
+            UpdateStatus(
+                $"Berhasil mengekstrak {newItems.Count:N0} file audio melalui Local Sync."
+            );
+        }
+        catch (Exception ex)
+        {
+            var detail =
+                ex.InnerException?.Message ??
+                ex.Message;
+
+            UpdateStatus(
+                $"Gagal mengekstrak Local Sync: {detail}",
+                true
+            );
+        }
+        finally
+        {
+            isProcessing = false;
+
+            StateHasChanged();
+        }
+    }
+
+
+    // =========================================================================
+    // COMMIT STAGE
+    // =========================================================================
+    //
+    // extractedList -> raw_songs
+    //
+    // Prinsip:
+    // RawSongs menerima metadata hasil extraction apa adanya.
+    //
+    // Tidak menggunakan:
+    // - CleanTitle
+    // - CleanArtist
+    // - fallback metadata
+    // - hardcoded metadata
+    // =========================================================================
+
+    protected async Task SaveSelectedToRaw()
+    {
+        var selected =
+            extractedList
+                .Where(item => item.IsSelected)
+                .ToList();
+
+
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+
+        try
+        {
+            isProcessing = true;
+
+
+            UpdateStatus(
+                $"Memasukkan {selected.Count:N0} lagu ke tabel raw_songs (Staging)..."
+            );
+
+
+            await using var context =
+                await DbContextFactory.CreateDbContextAsync();
+
+
+            int savedCount = 0;
+
+
+            foreach (var item in selected)
+            {
+                // -------------------------------------------------------------
+                // IMPORTANT:
+                //
+                // Jangan melakukan transformasi metadata di sini.
+                //
+                // RawSongs harus menjadi salinan hasil ingestion.
+                // -------------------------------------------------------------
+
+                var rawEntity = new RawSongsModel
+                {
+                    Title = item.Title,
+
+                    Artist = item.Artist,
+
+                    Album = item.Album,
+
+                    ReleaseYear = item.ReleaseYear,
+
+                    AlbumCoverUrl = item.AlbumCoverUrl,
+
+                    Country = item.Country,
+
+                    DurationSeconds = item.DurationSeconds,
+
+                    MusicBrainzId = item.MusicBrainzId,
+
+                    CreatedAt = DateTime.UtcNow
+                };
+
+
+                context.RawSongs.Add(rawEntity);
+
+                savedCount++;
+            }
+
+
+            await context.SaveChangesAsync();
+
+
+            UpdateStatus(
+                $"Berhasil! {savedCount:N0} lagu masuk ke Staging Buffer."
+            );
+
+
+            extractedList.RemoveAll(
+                item => item.IsSelected
+            );
+
+
+            await RefreshMetrics();
+        }
+        catch (Exception ex)
+        {
+            var detail =
+                ex.InnerException?.Message ??
+                ex.Message;
+
+
+            UpdateStatus(
+                $"Gagal Simpan ke Staging: {detail}",
+                true
+            );
+        }
+        finally
+        {
+            isProcessing = false;
+
+            StateHasChanged();
+        }
+    }
+
+
+    // =========================================================================
+    // SELECT ALL
+    // =========================================================================
+
+    protected void ToggleSelectAll(ChangeEventArgs e)
+    {
+        isAllSelected =
+            e.Value is bool value &&
+            value;
+
+
+        foreach (var item in extractedList)
+        {
+            item.IsSelected = isAllSelected;
+        }
+    }
+
+
+    // =========================================================================
+    // CLEAR PREVIEW
+    // =========================================================================
+
+    protected void ClearPreview()
+    {
+        extractedList.Clear();
+
+        isAllSelected = true;
+
+        UpdateStatus(
+            "Antrean preview dibersihkan."
+        );
+    }
+
+
+    // =========================================================================
+    // REFRESH METRICS
+    // =========================================================================
+
+    private async Task RefreshMetrics()
+    {
+        try
+        {
+            await using var context =
+                await DbContextFactory.CreateDbContextAsync();
+
+
+            pendingRawCount =
+                await context.RawSongs.CountAsync();
+
+
+            completedSongsCount =
+                await SyncService.GetCompletedCountAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error RefreshMetrics: {ex.Message}"
+            );
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+
+    // =========================================================================
+    // STATUS
+    // =========================================================================
+
+    private void UpdateStatus(
+        string msg,
+        bool error = false)
+    {
+        statusMsg = msg;
+
+        isError = error;
+
+        StateHasChanged();
+    }
 }
