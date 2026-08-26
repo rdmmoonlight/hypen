@@ -21,7 +21,7 @@
                 REFRESH DB
             </button>
             <button class="btn-nav btn-staging" @onclick="ProcessSmartMatchSelected" disabled="@(isBatchProcessing || !filteredItems.Any())">
-                @(isBatchProcessing ? "MATCHING..." : $"AUTO MATCH ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})")
+                @(isBatchProcessing ? "SEARCHING..." : $"FETCH CANDIDATES ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})")
             </button>
             <button class="btn-nav btn-library" @onclick="ApplyBatchChangesAndSave" disabled="@(isBatchProcessing || !filteredItems.Any())">
                 SAVE ALL ({(SelectedCount > 0 ? SelectedCount : filteredItems.Count)})
@@ -132,15 +132,11 @@
                                         }
                                         else if (item.IsNeedsReview)
                                         {
-                                            <span class="badge-dup" style="border-color: #ffc107; color: #ffc107;" title="@item.MatchConfidenceReason">REVIEW</span>
-                                        }
-                                        else if (item.MatchConfidenceReason.StartsWith("Exact Match"))
-                                        {
-                                            <span class="badge-new" style="background: rgba(40, 167, 69, 0.2); border-color: #28a745; color: #28a745;">EXACT</span>
+                                            <span class="badge-dup" style="border-color: #ffc107; color: #ffc107;" title="Perlu Pemilihan Kandidat">SELECT</span>
                                         }
                                         else if (item.MatchConfidenceReason == "Manual Selected")
                                         {
-                                            <span class="badge-new" style="background: rgba(13, 110, 253, 0.2); border-color: #0d6efd; color: #0d6efd;">MANUAL</span>
+                                            <span class="badge-new" style="background: rgba(13, 110, 253, 0.2); border-color: #0d6efd; color: #0d6efd;">MATCHED</span>
                                         }
                                         else
                                         {
@@ -299,18 +295,11 @@
 
                 <div class="status-alert alert-info py-2 px-3 mb-3">
                     <p class="status-text m-0">Target File: <strong>@selectedItem.FileName</strong></p>
-                    @if (selectedItem.IsNeedsReview)
-                    {
-                        <small class="text-warning d-block mt-1">Status Review: @selectedItem.MatchConfidenceReason</small>
-                    }
                 </div>
 
                 <div class="d-flex flex-column gap-2 mb-3" style="max-height: 50vh; overflow-y: auto;">
                     @foreach (var candidate in selectedItem.Candidates.Take(5))
                     {
-                        var scorePercent = Math.Round(candidate.SimilarityScore * 100, 1);
-                        var isHighMatch = scorePercent >= 98.0;
-
                         <div class="p-2 border rounded d-flex align-items-center justify-content-between gap-2"
                              style="background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1) !important; cursor: pointer;"
                              @onclick="() => SelectCandidate(candidate)">
@@ -320,8 +309,7 @@
                                      width="40" height="40" style="object-fit: cover;" alt="Cover" />
                                 <div class="overflow-hidden">
                                     <div class="d-flex align-items-center gap-1 mb-1">
-                                        <span class="@(isHighMatch ? "badge-new" : "badge-dup")" style="font-size: 0.6rem;">MATCH @scorePercent%</span>
-                                        <span class="subtitle m-0" style="font-size: 0.6rem;">@candidate.ProviderName</span>
+                                        <span class="subtitle m-0" style="font-size: 0.65rem;">@candidate.ProviderName</span>
                                     </div>
                                     <div class="fw-bold text-white text-truncate" style="font-size: 0.8rem;">@candidate.Title</div>
                                     <div class="subtitle text-truncate m-0" style="font-size: 0.68rem;">
