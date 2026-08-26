@@ -67,7 +67,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     Artist = s.Artist ?? string.Empty,
                     Album = s.Album ?? string.Empty,
                     ReleaseYear = s.ReleaseYear,
-                    Country = "Songs",
+                    Country = s.Country ?? string.Empty, // Ambil real metadata country dari entity Songs
                     AlbumCoverUrl = s.AlbumCoverUrl,
                     DurationSeconds = s.DurationSeconds ?? 0,
                     MusicBrainzId = s.MusicBrainzId,
@@ -90,7 +90,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     Artist = r.Artist ?? string.Empty,
                     Album = r.Album ?? string.Empty,
                     ReleaseYear = r.ReleaseYear,
-                    Country = "RawSongs",
+                    Country = r.Country ?? string.Empty, // Ambil real metadata country dari entity RawSongs
                     AlbumCoverUrl = r.AlbumCoverUrl,
                     DurationSeconds = r.DurationSeconds ?? 0,
                     MusicBrainzId = r.MusicBrainzId,
@@ -324,6 +324,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 if (!string.IsNullOrWhiteSpace(batchModel.CleanArtist)) target.Artist = batchModel.CleanArtist;
                 if (!string.IsNullOrWhiteSpace(batchModel.Album)) target.Album = batchModel.Album;
                 if (batchModel.ReleaseYear > 0) target.ReleaseYear = batchModel.ReleaseYear;
+                if (!string.IsNullOrWhiteSpace(batchModel.Country)) target.Country = batchModel.Country;
                 if (!string.IsNullOrWhiteSpace(batchModel.AlbumCoverUrl)) target.AlbumCoverUrl = batchModel.AlbumCoverUrl;
                 if (batchModel.DurationSeconds > 0) target.DurationSeconds = batchModel.DurationSeconds;
                 if (!string.IsNullOrWhiteSpace(batchModel.MusicBrainzId)) target.MusicBrainzId = batchModel.MusicBrainzId;
@@ -363,9 +364,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
         }
 
-        // Dikirim via HTTP POST murni ke /api/metadata/save, tidak bergantung circuit Blazor.
-        // Kalau circuit sempat putus-sambung, request ini tetap sampai selama browser bisa
-        // melakukan HTTP request biasa (tidak butuh SignalR).
+        // Dikirim via HTTP POST murni ke /api/metadata/save
         private async Task SaveItemViaApiAsync(LocalTrackModel item)
         {
             var payload = new SaveMetadataRequest(
@@ -380,7 +379,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                 AlbumCoverUrl: item.AlbumCoverUrl,
                 DurationSeconds: item.DurationSeconds,
                 MusicBrainzId: item.MusicBrainzId,
-                Country: batchModel.Country
+                Country: item.Country // Mengirim country yang terikat langsung di item model target
             );
 
             var response = await Http.PostAsJsonAsync("/api/metadata/save", payload);
