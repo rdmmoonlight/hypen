@@ -1,517 +1,414 @@
 /* =========================================================================
-   METADATA FIXING PAGE - STAGING MATCHED DARK THEME
-   Unified Palette: Deep Obsidian (#0a0b0e) + Cyan Accent (#4cc9f0)
+   METADATA FIXING PAGE — DISELARASKAN DENGAN STAGING PAGE
+   Palette: Deep Obsidian (#0a0b0e) + Cyan Accent (#4cc9f0) + White Text
+   Catatan: sebelumnya file ini memakai nama class "nebula" (card-nebula,
+   table-nebula, dsb) yang TIDAK dipakai di markup Index.razor, sehingga
+   halaman ini tampil tanpa styling. Semua class di bawah disesuaikan
+   dengan class yang benar-benar dipakai di Index.razor, dan warnanya
+   disamakan dengan Staging/Index.razor.css.
    ========================================================================= */
 
-.metadata-fixing-container {
+.sync-container {
     padding: 24px;
     background: #0a0b0e;
     color: #ffffff;
     min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 0.78rem;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 /* =========================================================================
-   TEXT UTILITIES
+   HEADER
    ========================================================================= */
 
-.text-accent {
-    color: #4cc9f0 !important;
+.sync-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
-.text-secondary {
-    color: #a0a5b1 !important;
+.subtitle {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #a0a5b1;
+    margin-bottom: 4px;
+    font-weight: 600;
 }
 
-/* =========================================================================
-   CARD CONTAINER & INSPECTOR
-   ========================================================================= */
+.title {
+    font-size: 1.25rem;
+    color: #ffffff;
+    margin: 0;
+    font-weight: 500;
+    letter-spacing: -0.2px;
+}
 
-.card-nebula,
-.metadata-inspector {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+.nav-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-nav {
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    padding: 6px 14px;
     border-radius: 4px;
-    overflow: hidden;
+    font-size: 0.75rem;
+    font-family: monospace;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
 }
 
-.card-nebula .card-body,
-.metadata-inspector-body {
-    padding: 12px;
+.btn-nav:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
 }
 
-.card-nebula .card-header,
-.metadata-inspector-header {
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 10px 14px;
-    min-height: 38px;
+.btn-nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-staging {
+    background: rgba(76, 201, 240, 0.15);
+    border: 1px solid rgba(76, 201, 240, 0.4);
+    color: #4cc9f0;
+}
+
+.btn-staging:hover:not(:disabled) {
+    background: rgba(76, 201, 240, 0.25);
+}
+
+.btn-library {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.btn-library:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* =========================================================================
+   STATUS ALERT
+   ========================================================================= */
+
+.status-alert {
+    padding: 8px 14px;
+    margin-bottom: 20px;
+    border-radius: 2px;
+}
+
+.alert-info {
+    background: rgba(76, 201, 240, 0.1);
+    border-left: 2px solid #4cc9f0;
+}
+
+.alert-info .status-text {
+    color: #4cc9f0;
+}
+
+.alert-error {
+    background: rgba(247, 37, 133, 0.1);
+    border-left: 2px solid #ff4d6d;
+}
+
+.alert-error .status-text {
+    color: #ff4d6d;
+}
+
+.status-text {
+    font-weight: 400;
+    font-size: 0.75rem;
+    margin: 0;
+    letter-spacing: 0.3px;
+    font-family: monospace;
+}
+
+/* =========================================================================
+   GRID & CARD
+   ========================================================================= */
+
+.ingest-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.ingest-grid.two-columns {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+    .ingest-grid.two-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.card-ingest {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-ingest.sticky-top {
+    position: sticky;
+}
+
+.source-tag {
     font-size: 0.7rem;
     font-family: monospace;
+    color: #a0a5b1;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.card-title {
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0 0 16px 0;
 }
 
 /* =========================================================================
-   TABLE STYLING
+   FORM CONTROLS
    ========================================================================= */
 
-.table-wrapper {
-    background: rgba(255, 255, 255, 0.02);
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group.mb-2 {
+    margin-bottom: 8px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.65rem;
+    color: #a0a5b1;
+    margin-bottom: 6px;
+    font-family: monospace;
+    text-transform: uppercase;
+}
+
+.sync-container input.form-control,
+.sync-container select.form-control {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.78rem;
+    font-family: monospace;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.sync-container input.form-control::placeholder {
+    color: #a0a5b1;
+}
+
+.sync-container input.form-control:focus,
+.sync-container select.form-control:focus {
+    border-color: #4cc9f0;
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2);
+}
+
+/* =========================================================================
+   TABLE
+   ========================================================================= */
+
+.table-responsive {
     overflow-x: auto;
 }
 
-.table-nebula {
+.preview-table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
     font-size: 0.78rem;
     color: #ffffff;
-    margin-bottom: 0;
 }
 
-.table-nebula thead tr {
-    background: transparent;
+.preview-table thead tr {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.table-nebula th {
     color: #ffffff;
-    font-weight: 600;
     font-size: 0.7rem;
-    padding: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     text-transform: uppercase;
     font-family: monospace;
-    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.02);
 }
 
-.table-nebula tbody tr {
+.preview-table th,
+.preview-table td {
+    padding: 8px 10px;
+}
+
+.preview-table tbody tr {
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     transition: background 0.15s ease;
 }
 
-.table-nebula tbody tr:hover {
+.preview-table tbody tr:hover {
     background: rgba(255, 255, 255, 0.03);
 }
 
-.table-nebula tbody tr.table-active,
-.table-nebula tbody tr.active,
-.table-nebula tbody tr.selected-row {
-    background: rgba(76, 201, 240, 0.08);
-}
-
-.table-nebula td {
-    padding: 8px 10px;
-    color: #ffffff;
-    vertical-align: middle;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-/* =========================================================================
-   SONG METADATA & COVERS
-   ========================================================================= */
-
-.table-nebula .song-title {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #ffffff;
-    line-height: 1.2;
-}
-
-.table-nebula .song-meta {
-    color: #a0a5b1;
-    font-size: 0.68rem;
-    font-family: monospace;
-    line-height: 1.2;
-    margin-top: 2px;
-}
-
-.cover-placeholder {
+.th-check,
+.td-check {
     width: 32px;
-    height: 32px;
-    background: rgba(76, 201, 240, 0.1);
-    border: 1px solid rgba(76, 201, 240, 0.3);
-    color: #4cc9f0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 3px;
-    flex-shrink: 0;
+    text-align: center;
+}
+
+.td-status {
+    width: 110px;
+}
+
+.checkbox-input {
+    accent-color: #4cc9f0;
+    cursor: pointer;
+}
+
+.row-duplicate {
+    background: rgba(76, 201, 240, 0.08) !important;
+}
+
+.count-tag {
+    color: #a0a5b1;
+    font-weight: 600;
     font-family: monospace;
     font-size: 0.7rem;
-}
-
-.table-nebula .album-cover,
-.metadata-inspector .inspector-cover {
-    object-fit: cover;
-    border-radius: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    flex-shrink: 0;
-}
-
-.table-nebula .album-cover {
-    width: 32px;
-    height: 32px;
-}
-
-.metadata-inspector .inspector-cover {
-    width: 72px;
-    height: 72px;
-}
-
-/* =========================================================================
-   SEARCH & INPUT CONTROL
-   ========================================================================= */
-
-.metadata-search,
-.metadata-inspector .form-control,
-.metadata-inspector .form-select {
     background: rgba(255, 255, 255, 0.04);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    font-size: 0.75rem;
-    padding: 6px 12px;
-    outline: none;
-    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
 }
 
-.metadata-inspector .form-control,
-.metadata-inspector .form-select {
-    font-size: 0.72rem;
-    min-height: 30px;
-    padding: 4px 8px;
-}
-
-.metadata-search:focus,
-.metadata-inspector .form-control:focus,
-.metadata-inspector .form-select:focus {
-    background: rgba(255, 255, 255, 0.07);
-    color: #ffffff;
-    border-color: #4cc9f0;
-    box-shadow: 0 0 0 2px rgba(76, 201, 240, 0.2);
-}
-
-.metadata-search::placeholder,
-.metadata-inspector .form-control::placeholder {
-    color: #a0a5b1;
-}
-
-.metadata-inspector .form-label {
-    color: #a0a5b1 !important;
-    font-size: 0.65rem;
+.badge-new {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.62rem;
     font-family: monospace;
-    text-transform: uppercase;
-    margin-bottom: 4px;
+    font-weight: 600;
+    background: rgba(76, 201, 240, 0.15);
+    border: 1px solid rgba(76, 201, 240, 0.4);
+    color: #4cc9f0;
 }
 
-.metadata-inspector .field-group {
-    margin-bottom: 8px;
+.badge-dup {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.62rem;
+    font-family: monospace;
+    font-weight: 600;
+    background: rgba(255, 183, 3, 0.15);
+    border: 1px solid rgba(255, 183, 3, 0.4);
+    color: #ffb703;
+}
+
+.preview-footer {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* =========================================================================
    BUTTONS
    ========================================================================= */
 
-.btn-nebula-primary {
-    background: rgba(76, 201, 240, 0.15);
-    color: #4cc9f0;
-    border: 1px solid rgba(76, 201, 240, 0.4);
-    font-weight: 500;
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-nebula-primary:hover:not(:disabled) {
-    background: rgba(76, 201, 240, 0.25);
-    color: #ffffff;
-}
-
-.btn-nebula-outline {
-    background: rgba(255, 255, 255, 0.04);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 0.72rem;
-    font-family: monospace;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-nebula-outline:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-}
-
-.btn-nebula-icon {
+.btn-clear {
     background: transparent;
-    border: none;
-    color: #ffffff;
-    padding: 4px 6px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-}
-
-.btn-nebula-icon:hover {
-    opacity: 0.8;
-    color: #4cc9f0;
-}
-
-.metadata-fixing-container .btn-sm {
-    font-size: 0.72rem;
-    line-height: 1.2;
-}
-
-.metadata-fixing-container .btn-group-sm > .btn {
-    padding: 4px 8px;
-}
-
-/* =========================================================================
-   BADGES & TAGS
-   ========================================================================= */
-
-.badge-year,
-.badge-nebula-secondary {
-    background: rgba(255, 255, 255, 0.04);
-    color: #a0a5b1;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.62rem;
-    font-family: monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-}
-
-.badge-nebula-success {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    font-size: 0.62rem;
-    font-family: monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-}
-
-.badge-nebula-warning {
-    background: rgba(255, 183, 3, 0.15);
-    color: #ffb703;
-    border: 1px solid rgba(255, 183, 3, 0.4);
-    font-size: 0.62rem;
-    font-family: monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-}
-
-.badge-nebula-info,
-.badge-nebula-primary {
-    background: rgba(76, 201, 240, 0.15);
-    color: #4cc9f0;
-    border: 1px solid rgba(76, 201, 240, 0.3);
-    font-size: 0.62rem;
-    font-family: monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-}
-
-/* =========================================================================
-   PAGINATION
-   ========================================================================= */
-
-.metadata-pagination {
-    margin-top: 16px;
-    padding: 0;
-    border-top: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-family: monospace;
-    font-size: 0.75rem;
-    color: #ffffff;
-}
-
-.metadata-pagination .pagination {
-    display: flex;
-    gap: 4px;
-    margin: 0;
-}
-
-.metadata-pagination .page-link {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    padding: 4px 10px;
+    border: 1px solid rgba(255, 77, 109, 0.3);
+    color: #ff4d6d;
+    padding: 3px 8px;
     border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.75rem;
-    transition: all 0.2s;
-    text-decoration: none;
-}
-
-.metadata-pagination .page-link:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.metadata-pagination .page-item.active .page-link {
-    background: #4cc9f0;
-    color: #0a0b0e;
-    font-weight: bold;
-    border-color: #4cc9f0;
-}
-
-.metadata-pagination .page-item.disabled .page-link {
-    opacity: 0.3;
-    cursor: not-allowed;
-    background: rgba(255, 255, 255, 0.04);
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-/* =========================================================================
-   MODAL & CANDIDATE CARDS
-   ========================================================================= */
-
-.nebula-modal-backdrop {
-    background-color: rgba(10, 11, 14, 0.85);
-    backdrop-filter: blur(4px);
-}
-
-.modal-nebula {
-    background: #0a0b0e;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    color: #ffffff;
-}
-
-.modal-nebula .modal-header,
-.modal-nebula .modal-footer {
-    padding: 10px 14px;
-    border-color: rgba(255, 255, 255, 0.08);
-}
-
-.modal-nebula .modal-body {
-    padding: 14px;
-}
-
-.candidate-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    border-radius: 4px;
-    padding: 8px 10px;
-}
-
-.candidate-card:hover {
-    border-color: #4cc9f0;
-    background: rgba(76, 201, 240, 0.05);
-}
-
-.candidate-card img {
-    width: 36px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: 3px;
-}
-
-.candidate-card .candidate-title {
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.2;
-}
-
-.candidate-card .candidate-meta {
-    color: #a0a5b1;
     font-size: 0.65rem;
     font-family: monospace;
-    line-height: 1.2;
-    margin-top: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-/* =========================================================================
-   ALERTS & UTILITIES
-   ========================================================================= */
-
-.metadata-fixing-container .alert {
-    padding: 8px 14px;
-    margin-bottom: 16px;
-    border-radius: 2px;
-    font-size: 0.75rem;
+.btn-clear:hover:not(:disabled) {
+    background: rgba(255, 77, 109, 0.1);
 }
 
-.metadata-fixing-container .alert-info {
-    background: rgba(76, 201, 240, 0.1);
-    border-left: 2px solid #4cc9f0;
-    color: #4cc9f0;
+.btn-clear:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
-.metadata-fixing-container .alert-danger {
-    background: rgba(247, 37, 133, 0.1);
-    border-left: 2px solid #ff4d6d;
-    color: #ff4d6d;
-}
-
-.border-bottom-nebula {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.empty-state {
-    padding: 40px;
-    text-align: center;
+.btn-action {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
-    font-family: monospace;
-    font-size: 0.75rem;
-    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 9px 12px;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    font-size: 0.72rem;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.metadata-fixing-container .sticky-top {
-    top: 16px;
+.btn-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-commit {
+    background: rgba(76, 201, 240, 0.15);
+    border-color: rgba(76, 201, 240, 0.4);
+    color: #4cc9f0;
+    font-weight: 600;
+}
+
+.btn-commit:hover:not(:disabled) {
+    background: rgba(76, 201, 240, 0.25);
 }
 
 /* =========================================================================
-   RESPONSIVE OVERRIDES
+   RESPONSIVE
    ========================================================================= */
 
 @media (max-width: 991.98px) {
-    .metadata-inspector {
+    .card-ingest.sticky-top {
         position: static !important;
-    }
-
-    .table-nebula th,
-    .table-nebula td {
-        padding-left: 8px;
-        padding-right: 8px;
     }
 }
 
 @media (max-width: 575.98px) {
-    .metadata-fixing-container {
+    .sync-container {
         padding: 16px;
     }
 
-    .table-nebula {
+    .preview-table {
         font-size: 0.72rem;
     }
 
-    .table-nebula th {
+    .preview-table th {
         font-size: 0.65rem;
     }
 
-    .table-nebula td {
+    .preview-table td {
         padding: 6px 8px;
     }
 }
