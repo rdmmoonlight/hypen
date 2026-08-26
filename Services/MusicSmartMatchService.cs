@@ -39,7 +39,8 @@ public class MusicSmartMatchService
         try
         {
             string searchQuery = $"{item.CleanArtist} {item.CleanTitle}";
-            string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(searchQuery)}&entity=song&limit=5";
+            // Ambil kandidat lebih banyak (limit 10) untuk pengurutan presisi
+            string url = $"https://itunes.apple.com/search?term={Uri.EscapeDataString(searchQuery)}&entity=song&limit=10";
             var res = await _http.GetFromJsonAsync<JsonElement>(url);
 
             if (res.TryGetProperty("resultCount", out var countProp) && countProp.GetInt32() > 0)
@@ -69,73 +70,42 @@ public class MusicSmartMatchService
                     item.Candidates.Add(candidate);
                 }
 
-                // Urutkan kandidat berdasarkan skor tertinggi
-                item.Candidates = item.Candidates.OrderByDescending(c => c.SimilarityScore).ToList();
+                // Urutkan berdasarkan skor kemiripan tertinggi dan batasi MAKSIMAL 5 kandidat
+                item.Candidates = item.Candidates
+                    .OrderByDescending(c => c.SimilarityScore)
+                    .Take(5)
+                    .ToList();
 
-                MatchingTrackModel? bestCandidate = null;
-                int minDiff = int.MaxValue;
-                const int maxAllowedDiffSeconds = 8;
+                var topCandidate = item.Candidates.FirstOrDefault();
+                if (topCandidate == null) return false;
 
-                if (item.DurationSeconds > 0)
-                {
-                    int localDuration = item.DurationSeconds;
+                // Threshold keamanan wajib minimal 98% (0.98)
+                const double strictThreshold = 0.98;
 
-                    foreach (var c in item.Candidates)
-                    {
-                        int diff = Math.Abs(c.DurationSeconds - localDuration);
-                        if (diff <= maxAllowedDiffSeconds && diff < minDiff)
-                        {
-                            minDiff = diff;
-                            bestCandidate = c;
-                        }
-                    }
-                }
-
-                if (bestCandidate == null && item.DurationSeconds == 0)
-                {
-                    bestCandidate = item.Candidates.FirstOrDefault();
-                }
-
-                if (bestCandidate == null)
-                {
-                    return false;
-                }
-
-                bool isArtistExact = string.IsNullOrWhiteSpace(item.CleanArtist)
-                    || item.CleanArtist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)
-                    || bestCandidate.Artist.Equals(item.CleanArtist, StringComparison.OrdinalIgnoreCase);
-
-                bool isArtistPartial = bestCandidate.Artist.Contains(item.CleanArtist, StringComparison.OrdinalIgnoreCase)
-                    || item.CleanArtist.Contains(bestCandidate.Artist, StringComparison.OrdinalIgnoreCase);
-
-                if (!isArtistExact && !isArtistPartial)
-                {
-                    return false;
-                }
-
-                // Safety Verification Gate: Jika ditemukan kandidat ganda dengan skor berdekatan
-                if (item.Candidates.Count > 1 && (item.Candidates[0].SimilarityScore - item.Candidates[1].SimilarityScore) < 0.10)
+                // 1. Kasus Skor dibawah 98%: JANGAN Auto-Apply, wajibkan review manual
+                if (topCandidate.SimilarityScore < strictThreshold)
                 {
                     item.IsNeedsReview = true;
-                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
-                    item.MatchConfidenceReason = $"Ditemukan {item.Candidates.Count} versi lagu mirip (skor berdekatan). Perlu review manual.";
-                }
-                else if (minDiff >= 3 || !isArtistExact)
-                {
-                    item.IsNeedsReview = true;
-                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
-                    item.MatchConfidenceReason = minDiff >= 3 
-                        ? $"Selisih durasi {minDiff}s dari file asli." 
-                        : "Nama artis kurang presisi.";
-                }
-                else
-                {
-                    item.IsNeedsReview = false;
-                    item.MatchConfidenceScore = bestCandidate.SimilarityScore;
-                    item.MatchConfidenceReason = "Exact Match";
+                    item.MatchConfidenceScore = topCandidate.SimilarityScore;
+                    item.MatchConfidenceReason = $"Kemiripan tertinggi ({(topCandidate.SimilarityScore * 100):F1}%) di bawah 98%. Wajib pilih manual.";
+                    return true;
                 }
 
-                ApplyCandidateToItem(item, bestCandidate);
+                // 2. Kasus kandidat ganda dengan skor mirip & tinggi (misal selisih < 5%)
+                if (item.Candidates.Count > 1 && (topCandidate.SimilarityScore - item.Candidates[1].SimilarityScore) < 0.05)
+                {
+                    item.IsNeedsReview = true;
+                    item.MatchConfidenceScore = topCandidate.SimilarityScore;
+                    item.MatchConfidenceReason = $"Ditemukan {item.Candidates.Count} versi lagu dengan kemiripan hampir identik. Perlu verifikasi manual.";
+                    return true;
+                }
+
+                // 3. Hanya jika >= 98% dan aman dari ambiguitas, lakukan Auto-Apply
+                item.IsNeedsReview = false;
+                item.MatchConfidenceScore = topCandidate.SimilarityScore;
+                item.MatchConfidenceReason = $"Exact Match ({(topCandidate.SimilarityScore * 100):F1}%)";
+
+                ApplyCandidateToItem(item, topCandidate);
                 return true;
             }
         }
@@ -169,9 +139,10 @@ public class MusicSmartMatchService
         if (item.DurationSeconds > 0 && candidate.DurationSeconds > 0)
         {
             int diff = Math.Abs(item.DurationSeconds - candidate.DurationSeconds);
-            if (diff <= 3) score += 0.40;
-            else if (diff <= 7) score += 0.25;
-            else if (diff <= 15) score += 0.10;
+            if (diff == 0) score += 0.40;
+            else if (diff <= 2) score += 0.35;
+            else if (diff <= 5) score += 0.20;
+            else if (diff <= 10) score += 0.05;
         }
         else
         {
