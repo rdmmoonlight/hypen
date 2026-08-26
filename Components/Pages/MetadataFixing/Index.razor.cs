@@ -243,21 +243,21 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             if (!targets.Any()) targets = filteredItems;
 
             isBatchProcessing = true;
-            statusMessage = $"Menjalankan match untuk {targets.Count} lagu...";
+            statusMessage = $"Mencari kandidat metadata untuk {targets.Count} lagu...";
             isError = false;
             StateHasChanged();
 
             foreach (var item in targets)
             {
                 await SmartMatchService.SmartMatchFromInternetAsync(item);
-                if (item == activeEditItem && SelectedCount <= 1)
-                {
-                    PopulateInspectorFromModel(item);
-                }
+                
+                // PENTING: Paksa item memerlukan review manual oleh user
+                item.IsNeedsReview = true;
+                item.MatchConfidenceReason = "Pending Manual Selection";
             }
 
             isBatchProcessing = false;
-            statusMessage = "Match selesai. Data kandidat tersimpan di draft preview (belum ke database).";
+            statusMessage = "Pencarian kandidat selesai. Silakan klik tombol 'KANDIDAT' untuk memilih metadata yang sesuai.";
             StateHasChanged();
         }
 
@@ -267,7 +267,10 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             StateHasChanged();
 
             await SmartMatchService.SmartMatchFromInternetAsync(item);
-            PopulateInspectorFromModel(item);
+            
+            // PENTING: Paksa item memerlukan review manual oleh user
+            item.IsNeedsReview = true;
+            item.MatchConfidenceReason = "Pending Manual Selection";
 
             item.IsProcessing = false;
             StateHasChanged();
@@ -287,6 +290,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
         {
             if (selectedItem != null)
             {
+                // Terapkan kandidat HANYA saat user memilihnya secara manual via modal
                 SmartMatchService.ApplyCandidateToItem(selectedItem, candidate);
                 selectedItem.IsNeedsReview = false;
                 selectedItem.MatchConfidenceReason = "Manual Selected";
