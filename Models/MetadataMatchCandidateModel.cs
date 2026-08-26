@@ -101,7 +101,7 @@ public class MatchingTrackModel
     
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
-    public string Album { get; set; } = "Single";
+    public string Album { get; set; } = string.Empty;
     public int? ReleaseYear { get; set; }
     public string Country { get; set; } = string.Empty;
     public string AlbumCoverUrl { get; set; } = string.Empty;
