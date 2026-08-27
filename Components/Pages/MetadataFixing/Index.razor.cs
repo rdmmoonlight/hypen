@@ -57,7 +57,11 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             {
                 using var context = await DbContextFactory.CreateDbContextAsync();
 
-                var songs = await context.Songs.ToListAsync();
+                // 1. Filter Songs: Abaikan lagu yang sudah COMPLETED atau IsComplete == true
+                var songs = await context.Songs
+                    .Where(s => s.Status != "COMPLETED" && s.IsComplete != true)
+                    .ToListAsync();
+
                 var songTracks = songs.Select(s => new MetadataMatchCandidateModel
                 {
                     Id = (int)s.Id,
@@ -77,8 +81,9 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     IsSelected = false
                 });
 
+                // 2. Filter RawSongs: Abaikan lagu yang sudah COMPLETED atau IsComplete == true
                 var rawSongs = await context.RawSongs
-                    .Where(r => r.Status != "COMPLETED" && r.IsComplete == false)
+                    .Where(r => r.Status != "COMPLETED" && r.IsComplete != true)
                     .ToListAsync();
 
                 var rawTracks = rawSongs.Select(r => new MetadataMatchCandidateModel
@@ -110,7 +115,7 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
                     SelectForEditing(filteredItems.First());
                 }
 
-                statusMessage = $"Berhasil memuat {totalCount} lagu dari database.";
+                statusMessage = $"Berhasil memuat {totalCount} lagu yang belum selesai dari database.";
                 isError = false;
             }
             catch (Exception ex)
