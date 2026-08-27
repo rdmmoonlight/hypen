@@ -48,7 +48,7 @@ builder.Services.AddHttpClient();
 
 // Environment Variables
 string dbConnectionStringConfig = builder.Configuration.GetConnectionString("NEON_DB_CONNECTION")
-    ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION") 
+    ?? Environment.GetEnvironmentVariable("NEON_DB_CONNECTION")
     ?? "";
 
 string youtubeOAuthClientId = Environment.GetEnvironmentVariable("YOUTUBE_OAUTH_CLIENT_ID") ?? "";
@@ -75,7 +75,7 @@ builder.Services.AddScoped<IYouTubeSyncService, YouTubeSyncService>();
 builder.Services.AddScoped<ISongProcessorService, SongProcessorService>();
 builder.Services.AddScoped<LocalMp3ExtractorService>();
 builder.Services.AddScoped<MusicSmartMatchService>();
-builder.Services.AddScoped<SongDeduplicationEngine>(); 
+builder.Services.AddScoped<SongDeduplicationEngine>();
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<GoogleDriveScannerEngine>();
 builder.Services.AddScoped<AudioMetadataService>();
@@ -119,9 +119,9 @@ app.UseAntiforgery();
 // =========================================================================
 // 3. HEALTH CHECK & API ENDPOINTS
 // =========================================================================
-app.MapMethods("/", new[] { "HEAD" }, () => Results.Ok());
+app.MapMethods("/", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "Live", service = "Hypen Vault Web", version = "2.1.0" }));
 
-app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () => 
+app.MapMethods("/api/health", new[] { "GET", "HEAD" }, () =>
     Results.Ok(new { status = "Live", service = "Hypen Vault Engine", version = "2.1.0" }));
 
 app.MapControllers();
