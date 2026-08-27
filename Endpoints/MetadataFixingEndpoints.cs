@@ -24,9 +24,6 @@ public static class MetadataFixingEndpoints
 {
     public static void MapMetadataFixingEndpoints(this IEndpointRouteBuilder app)
     {
-        // ------------------------------------------------------------
-        // SAVE METADATA (Songs / RawSongs) - HTTP murni, tidak bergantung circuit Blazor
-        // ------------------------------------------------------------
         app.MapPost("/api/metadata/save", async (
             SaveMetadataRequest req,
             IDbContextFactory<AppDbContext> dbContextFactory,
@@ -35,7 +32,7 @@ public static class MetadataFixingEndpoints
         {
             try
             {
-                // Update tag file fisik (best-effort, tidak menggagalkan save DB)
+                // Update tag file fisik
                 try
                 {
                     if (!string.IsNullOrEmpty(req.FilePath) && File.Exists(req.FilePath))
@@ -57,7 +54,7 @@ public static class MetadataFixingEndpoints
 
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
-                // ROUTING EKSPLISIT BERDASARKAN IsFromRawSongs
+                // 1. RUTE UNTUK TABEL SONGS
                 if (!req.IsFromRawSongs)
                 {
                     var song = await context.Songs.FindAsync(req.Id);
@@ -70,6 +67,7 @@ public static class MetadataFixingEndpoints
                     song.AlbumCoverUrl = req.AlbumCoverUrl ?? "";
                     song.DurationSeconds = req.DurationSeconds;
                     song.MusicBrainzId = req.MusicBrainzId;
+                    song.Country = req.Country ?? song.Country;
 
                     song.IsComplete = IsTrackDataComplete(req);
                     song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
@@ -79,7 +77,7 @@ public static class MetadataFixingEndpoints
                     return Results.Ok(new { message = "OK", table = "songs" });
                 }
 
-                // RUTE UNTUK TABEL RAW_SONGS (STAGING)
+                // 2. RUTE UNTUK TABEL RAW_SONGS
                 var raw = await context.RawSongs.FindAsync(req.Id);
                 if (raw == null) return Results.NotFound(new { message = $"RawSongs ID={req.Id} tidak ditemukan" });
 
@@ -90,6 +88,7 @@ public static class MetadataFixingEndpoints
                 raw.AlbumCoverUrl = req.AlbumCoverUrl ?? "";
                 raw.DurationSeconds = req.DurationSeconds;
                 raw.MusicBrainzId = req.MusicBrainzId;
+                raw.Country = req.Country ?? raw.Country;
 
                 bool isFullyComplete = IsTrackDataComplete(req);
 
@@ -165,12 +164,25 @@ public static class MetadataFixingEndpoints
     private static bool IsTrackDataComplete(SaveMetadataRequest req)
     {
         bool hasTitle = !string.IsNullOrWhiteSpace(req.Title);
-        bool hasArtist = !string.IsNullOrWhiteSpace(req.Artist);
+        bool hasArtist = !string.IsNullOrWhiteSpace(req.Artist) && req.Artist != "Unknown Artist";
         bool hasAlbum = !string.IsNullOrWhiteSpace(req.Album);
         bool hasYear = req.ReleaseYear.HasValue && req.ReleaseYear > 0;
         bool hasCover = !string.IsNullOrWhiteSpace(req.AlbumCoverUrl);
         bool hasDuration = req.DurationSeconds > 0;
+        
+        bool hasCountry = !string.IsNullOrWhiteSpace(req.Country) 
+                          && !req.Country.Equals("Unknown", StringComparison.OrdinalIgnoreCase) 
+                          && !req.Country.Equals("RawSongs", StringComparison.OrdinalIgnoreCase);
+                          
+        bool hasMusicBrainz = !string.IsNullOrWhiteSpace(req.MusicBrainzId);
 
-        return hasTitle && hasArtist && hasAlbum && hasYear && hasCover && hasDuration;
+        return hasTitle 
+            && hasArtist 
+            && hasAlbum 
+            && hasYear 
+            && hasCover 
+            && hasDuration 
+            && hasCountry 
+            && hasMusicBrainz;
     }
 }
