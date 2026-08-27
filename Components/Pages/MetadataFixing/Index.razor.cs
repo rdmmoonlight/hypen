@@ -277,12 +277,14 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
 
             if (notFoundCount > 0)
             {
-                statusMessage = $"Pencarian selesai. {notFoundCount} lagu tidak menemukan kandidat. Klik 'KANDIDAT' untuk memilih.";
+                statusMessage = $"Pencarian selesai. {notFoundCount} dari {targets.Count} lagu tidak menemukan kandidat. Klik 'KANDIDAT' untuk memilih.";
                 isError = true;
             }
             else
             {
-                statusMessage = "Pencarian metadata selesai. Silakan klik tombol 'KANDIDAT' untuk memilih metadata yang sesuai.";
+                statusMessage = targets.Count > 1 
+                    ? $"Pencarian metadata selesai untuk {targets.Count} lagu. Silakan klik 'KANDIDAT' pada masing-masing lagu untuk memilih."
+                    : "Pencarian metadata selesai. Silakan klik tombol 'KANDIDAT' untuk memilih metadata yang sesuai.";
                 isError = false;
             }
 
@@ -395,12 +397,14 @@ namespace Hypen.Web.Components.Pages.MetadataFixing
             }
             else if (failCount > 0)
             {
-                statusMessage = $"Simpan selesai: {successCount} berhasil, {failCount} gagal.";
+                statusMessage = $"Simpan selesai: {successCount} lagu berhasil disimpan/diedit, {failCount} gagal.";
                 isError = true;
             }
             else
             {
-                statusMessage = $"Berhasil menyimpan data untuk {successCount} lagu ke database.";
+                statusMessage = successCount > 1
+                    ? $"Berhasil mengedit & menyimpan data untuk {successCount} lagu ke database."
+                    : $"Berhasil menyimpan data lagu ke database.";
                 isError = false;
             }
 
