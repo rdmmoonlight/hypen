@@ -39,17 +39,6 @@ public partial class Index : ComponentBase
     // =========================================================================
     // INGESTION STATE
     // =========================================================================
-    // Menampung metadata hasil ekstraksi secara apa adanya.
-    //
-    // Tidak dilakukan:
-    // - cleaning
-    // - normalization
-    // - enrichment
-    // - fallback value
-    // - hardcoded metadata
-    //
-    // Data di sini adalah representasi langsung dari hasil extractor.
-    // =========================================================================
 
     protected List<MetadataMatchCandidateModel> extractedList = [];
 
@@ -117,14 +106,12 @@ public partial class Index : ComponentBase
 
             // -----------------------------------------------------------------
             // RAW EXTRACTION ONLY
-            //
-            // Setiap field metadata diambil langsung dari hasil extractor.
-            // Tidak ada fallback atau nilai metadata buatan.
             // -----------------------------------------------------------------
 
             var newItems = youtubeItems
                 .Select(item => new MetadataMatchCandidateModel
                 {
+                    // Menyiapkan ID YouTube pada kandidat model
                     FileName = item.VideoId,
                     Title = item.Title,
                     Artist = item.ChannelTitle,
@@ -165,17 +152,6 @@ public partial class Index : ComponentBase
 
     // =========================================================================
     // CARD 2: LOCAL SYNC
-    // =========================================================================
-    // File audio dibaca dan metadata diekstrak langsung dari file.
-    //
-    // Tidak ada:
-    // - Title fallback ke filename
-    // - Artist fallback ke "Unknown Artist"
-    // - Album buatan
-    // - Country buatan
-    // - Cover fallback
-    //
-    // Jika metadata memang kosong, field tetap kosong/null.
     // =========================================================================
 
     protected async Task HandleLocalSyncSelection(
@@ -261,10 +237,6 @@ public partial class Index : ComponentBase
                     memoryStream.Position = 0;
 
 
-                    // ---------------------------------------------------------
-                    // Metadata extractor adalah satu-satunya sumber metadata.
-                    // ---------------------------------------------------------
-
                     var (
                         extractedArtist,
                         extractedTitle
@@ -274,13 +246,6 @@ public partial class Index : ComponentBase
                             memoryStream
                         );
 
-
-                    // ---------------------------------------------------------
-                    // RAW INGEST
-                    //
-                    // Jangan mengisi nilai pengganti jika metadata kosong.
-                    // Jangan mengubah hasil extractor.
-                    // ---------------------------------------------------------
 
                     newItems.Add(
                         new MetadataMatchCandidateModel
@@ -336,18 +301,6 @@ public partial class Index : ComponentBase
     // =========================================================================
     // COMMIT STAGE
     // =========================================================================
-    //
-    // extractedList -> raw_songs
-    //
-    // Prinsip:
-    // RawSongs menerima metadata hasil extraction apa adanya.
-    //
-    // Tidak menggunakan:
-    // - CleanTitle
-    // - CleanArtist
-    // - fallback metadata
-    // - hardcoded metadata
-    // =========================================================================
 
     protected async Task SaveSelectedToRaw()
     {
@@ -382,16 +335,11 @@ public partial class Index : ComponentBase
 
             foreach (var item in selected)
             {
-                // -------------------------------------------------------------
-                // IMPORTANT:
-                //
-                // Jangan melakukan transformasi metadata di sini.
-                //
-                // RawSongs harus menjadi salinan hasil ingestion.
-                // -------------------------------------------------------------
-
                 var rawEntity = new RawSongsModel
                 {
+                    // Pemetaan ID YouTube ke kolom database
+                    YoutubeVideoId = item.FileName,
+
                     Title = item.Title,
 
                     Artist = item.Artist,
