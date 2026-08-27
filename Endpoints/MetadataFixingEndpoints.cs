@@ -32,7 +32,7 @@ public static class MetadataFixingEndpoints
         {
             try
             {
-                // Update tag file fisik
+                // Update tag file fisik (best-effort)
                 try
                 {
                     if (!string.IsNullOrEmpty(req.FilePath) && File.Exists(req.FilePath))
@@ -54,43 +54,55 @@ public static class MetadataFixingEndpoints
 
                 await using var context = await dbContextFactory.CreateDbContextAsync();
 
+                // Bersihkan nilai opsional yang mengandung nilai placeholder/default sebelum disimpan
+                string? cleanCountry = IsValidCountry(req.Country) ? req.Country?.Trim() : null;
+                string? cleanMusicBrainz = string.IsNullOrWhiteSpace(req.MusicBrainzId) ? null : req.MusicBrainzId.Trim();
+                string? cleanArtist = (string.IsNullOrWhiteSpace(req.Artist) || req.Artist.Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase)) 
+                    ? null 
+                    : req.Artist.Trim();
+
+                // Evaluasi status kelengkapan data
+                bool isFullyComplete = IsTrackDataComplete(req);
+
+                // ------------------------------------------------------------
                 // 1. RUTE UNTUK TABEL SONGS
+                // ------------------------------------------------------------
                 if (!req.IsFromRawSongs)
                 {
                     var song = await context.Songs.FindAsync(req.Id);
                     if (song == null) return Results.NotFound(new { message = $"Songs ID={req.Id} tidak ditemukan" });
 
-                    song.Title = req.Title ?? song.Title;
-                    song.Artist = req.Artist ?? song.Artist;
-                    song.Album = string.IsNullOrWhiteSpace(req.Album) ? "Single" : req.Album;
+                    song.Title = req.Title?.Trim() ?? song.Title;
+                    song.Artist = cleanArtist ?? song.Artist;
+                    song.Album = string.IsNullOrWhiteSpace(req.Album) ? "Single" : req.Album.Trim();
                     song.ReleaseYear = req.ReleaseYear;
                     song.AlbumCoverUrl = req.AlbumCoverUrl ?? "";
                     song.DurationSeconds = req.DurationSeconds;
-                    song.MusicBrainzId = req.MusicBrainzId;
-                    song.Country = req.Country ?? song.Country;
+                    song.MusicBrainzId = cleanMusicBrainz;
+                    song.Country = cleanCountry;
 
-                    song.IsComplete = IsTrackDataComplete(req);
-                    song.Status = song.IsComplete ? "COMPLETED" : "INCOMPLETE";
+                    song.IsComplete = isFullyComplete;
+                    song.Status = isFullyComplete ? "COMPLETED" : "INCOMPLETE";
 
                     context.Songs.Update(song);
                     await context.SaveChangesAsync();
                     return Results.Ok(new { message = "OK", table = "songs" });
                 }
 
+                // ------------------------------------------------------------
                 // 2. RUTE UNTUK TABEL RAW_SONGS
+                // ------------------------------------------------------------
                 var raw = await context.RawSongs.FindAsync(req.Id);
                 if (raw == null) return Results.NotFound(new { message = $"RawSongs ID={req.Id} tidak ditemukan" });
 
-                raw.Title = req.Title ?? raw.Title;
-                raw.Artist = req.Artist ?? raw.Artist;
-                raw.Album = string.IsNullOrWhiteSpace(req.Album) ? "Single" : req.Album;
+                raw.Title = req.Title?.Trim() ?? raw.Title;
+                raw.Artist = cleanArtist ?? raw.Artist;
+                raw.Album = string.IsNullOrWhiteSpace(req.Album) ? "Single" : req.Album.Trim();
                 raw.ReleaseYear = req.ReleaseYear;
                 raw.AlbumCoverUrl = req.AlbumCoverUrl ?? "";
                 raw.DurationSeconds = req.DurationSeconds;
-                raw.MusicBrainzId = req.MusicBrainzId;
-                raw.Country = req.Country ?? raw.Country;
-
-                bool isFullyComplete = IsTrackDataComplete(req);
+                raw.MusicBrainzId = cleanMusicBrainz;
+                raw.Country = cleanCountry;
 
                 if (isFullyComplete)
                 {
@@ -107,10 +119,10 @@ public static class MetadataFixingEndpoints
                         existingSong.Artist = raw.Artist;
                         existingSong.Album = raw.Album;
                         existingSong.ReleaseYear = raw.ReleaseYear;
-                        existingSong.Country = string.IsNullOrWhiteSpace(req.Country) || req.Country == "RawSongs" ? "Unknown" : req.Country;
+                        existingSong.Country = cleanCountry;
                         existingSong.AlbumCoverUrl = raw.AlbumCoverUrl;
                         existingSong.DurationSeconds = raw.DurationSeconds;
-                        existingSong.MusicBrainzId = raw.MusicBrainzId;
+                        existingSong.MusicBrainzId = cleanMusicBrainz;
                         existingSong.Status = "COMPLETED";
                         existingSong.IsComplete = true;
 
@@ -122,12 +134,12 @@ public static class MetadataFixingEndpoints
                         {
                             RawId = raw.Id,
                             YoutubeVideoId = ytId,
-                            MusicBrainzId = raw.MusicBrainzId,
+                            MusicBrainzId = cleanMusicBrainz,
                             Title = raw.Title,
                             Artist = raw.Artist,
                             Album = raw.Album,
                             ReleaseYear = raw.ReleaseYear,
-                            Country = string.IsNullOrWhiteSpace(req.Country) || req.Country == "RawSongs" ? "Unknown" : req.Country,
+                            Country = cleanCountry,
                             AlbumCoverUrl = raw.AlbumCoverUrl,
                             AudioUrl = raw.AudioUrl ?? $"/downloads/{req.FileName}",
                             DurationSeconds = raw.DurationSeconds,
@@ -161,19 +173,24 @@ public static class MetadataFixingEndpoints
         });
     }
 
+    private static bool IsValidCountry(string? country)
+    {
+        if (string.IsNullOrWhiteSpace(country)) return false;
+        var trimmed = country.Trim();
+        return !trimmed.Equals("Unknown", StringComparison.OrdinalIgnoreCase) 
+            && !trimmed.Equals("RawSongs", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsTrackDataComplete(SaveMetadataRequest req)
     {
         bool hasTitle = !string.IsNullOrWhiteSpace(req.Title);
-        bool hasArtist = !string.IsNullOrWhiteSpace(req.Artist) && req.Artist != "Unknown Artist";
+        bool hasArtist = !string.IsNullOrWhiteSpace(req.Artist) 
+                         && !req.Artist.Trim().Equals("Unknown Artist", StringComparison.OrdinalIgnoreCase);
         bool hasAlbum = !string.IsNullOrWhiteSpace(req.Album);
         bool hasYear = req.ReleaseYear.HasValue && req.ReleaseYear > 0;
         bool hasCover = !string.IsNullOrWhiteSpace(req.AlbumCoverUrl);
         bool hasDuration = req.DurationSeconds > 0;
-        
-        bool hasCountry = !string.IsNullOrWhiteSpace(req.Country) 
-                          && !req.Country.Equals("Unknown", StringComparison.OrdinalIgnoreCase) 
-                          && !req.Country.Equals("RawSongs", StringComparison.OrdinalIgnoreCase);
-                          
+        bool hasCountry = IsValidCountry(req.Country);
         bool hasMusicBrainz = !string.IsNullOrWhiteSpace(req.MusicBrainzId);
 
         return hasTitle 
