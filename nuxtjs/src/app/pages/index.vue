@@ -1,9 +1,9 @@
 <!-- pages/index.vue -->
 <script setup lang="ts">
-import { Button } from '@/components/ui/button'
+// Hapus import { Button } manual karena Nuxt 3 / shadcn otomatis meng-import komponen.
+// Jika di proyekmu tidak auto-import, gunakan pemanggilan nama komponen sesuai konvensi.
 
 const handleEnter = () => {
-  // Pindah halaman ke /home
   navigateTo('/home')
 }
 </script>
@@ -14,15 +14,18 @@ const handleEnter = () => {
     <NuxtWelcome />
 
     <!-- Floating Action Button di kanan atas -->
-    <div class="fixed top-6 right-6 z-[9999]">
-      <Button 
+    <div class="fixed top-6 right-6 z-[99999]">
+      <UiButton 
         size="lg" 
-        class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-6 shadow-xl transition-all hover:scale-105 gap-2 cursor-pointer relative"
+        class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-6 shadow-xl transition-all hover:scale-105 gap-2 cursor-pointer relative pointer-events-auto"
         @click="handleEnter"
       >
         <span>Masuk ke Dalam Web</span>
-        <Icon name="tabler:arrow-right" class="w-5 h-5" />
-      </Button>
+        <!-- Gunakan ClientOnly agar komponen Icon tidak crash saat SSR -->
+        <ClientOnly>
+          <Icon name="tabler:arrow-right" class="w-5 h-5" />
+        </ClientOnly>
+      </UiButton>
     </div>
   </div>
 </template>
