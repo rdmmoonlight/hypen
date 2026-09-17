@@ -1,22 +1,31 @@
 // nuxt.config.ts
 export default defineNuxtConfig({
-  // Modul utama yang digunakan
-  modules: ['@nuxt/icon'],
+  // Modul utama yang digunakan (Tambahkan @nuxtjs/tailwindcss)
+  modules: [
+    '@nuxt/icon',
+    '@nuxtjs/tailwindcss'
+  ],
 
-  // Konfigurasi CSS utama (pilih salah satu path yang kamu gunakan di project)
-  css: ['~/assets/css/main.css'],
+  // Path CSS utama disesuaikan ke struktur Nuxt 4 (app/assets/css/main.css)
+  css: ['~/app/assets/css/main.css'],
 
-  // Fitur kompatibilitas Nuxt 4 (jika menggunakan struktur folder app/)
+  // Mengaktifkan fitur kompatibilitas Nuxt 4 secara penuh
   future: {
     compatibilityVersion: 4,
   },
 
+  // Konfigurasi registrasi komponen untuk mencegah peringatan ganda (UiButton)
+  components: [
+    {
+      path: '~/components',
+      extensions: ['.vue'],
+    },
+  ],
+
   // Environment Variables & Runtime Config
   runtimeConfig: {
-    youtubeApiKey: process.env.YOUTUBE_API_KEY, // Hanya tersedia di server-side (Nitro)
-    public: {
-      // Masukkan variabel client-side di sini jika ada (misal: process.env.NEXT_PUBLIC_...)
-    }
+    youtubeApiKey: process.env.YOUTUBE_API_KEY,
+    public: {}
   },
 
   // Nitro engine untuk deployment Vercel
@@ -24,7 +33,6 @@ export default defineNuxtConfig({
     preset: 'vercel'
   },
 
-  // Fitur eksperimental opsional untuk optimasi rendering
   experimental: {
     payloadExtraction: false
   }
