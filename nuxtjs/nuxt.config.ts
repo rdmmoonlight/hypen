@@ -1,20 +1,21 @@
 // nuxt.config.ts
 export default defineNuxtConfig({
-  // Modul utama yang digunakan (Tambahkan @nuxtjs/tailwindcss)
+  // Modul utama yang digunakan
   modules: [
     '@nuxt/icon',
     '@nuxtjs/tailwindcss'
   ],
 
-  // Path CSS utama disesuaikan ke struktur Nuxt 4 (app/assets/css/main.css)
-  css: ['~/app/assets/css/main.css'],
+  // Cukup '~/assets/css/main.css'
+  // Di Nuxt 4 (compatibilityVersion: 4), alias '~' sudah otomatis mengarah ke folder app/
+  css: ['~/assets/css/main.css'],
 
-  // Mengaktifkan fitur kompatibilitas Nuxt 4 secara penuh
+  // Fitur kompatibilitas Nuxt 4
   future: {
     compatibilityVersion: 4,
   },
 
-  // Konfigurasi registrasi komponen untuk mencegah peringatan ganda (UiButton)
+  // Filter ekstensi komponen agar tidak ada peringatan UiButton ganda dari index.ts
   components: [
     {
       path: '~/components',
