@@ -1,9 +1,9 @@
-// nuxt.config.ts
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   // Modul utama yang digunakan
   modules: [
     '@nuxt/icon',
-    '@nuxtjs/tailwindcss'
   ],
 
   // Cukup '~/assets/css/main.css'
