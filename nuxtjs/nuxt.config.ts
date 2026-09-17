@@ -15,6 +15,12 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
+  vite: {
+    plugins: [
+      tailwindcss()
+    ]
+  },
+  
   // Filter ekstensi komponen agar tidak ada peringatan UiButton ganda dari index.ts
   components: [
     {
