@@ -8,10 +8,23 @@ datasource db {
 }
 
 model Song {
-  id        Int      @id @default(autoincrement())
-  title     String
-  artist    String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  title           String
+  artist          String?
+  coverUrl        String?  @map("cover_url")
+  audioUrl        String?  @map("audio_url")
+  durationSeconds Int?     @map("duration_seconds")
+  createdAt       DateTime @default(now()) @map("created_at")
+  youtubeVideoId  String?  @map("youtube_video_id")
+  album           String?
+  releaseYear     Int?     @map("release_year")
+  country         String?
+  albumCoverUrl   String?  @map("album_cover_url")
+  status          String   @default("PENDING")
+  rawId           Int?     @map("raw_id")
+  musicbrainzId   String?  @map("musicbrainz_id")
+  isDownloaded    Boolean  @default(false) @map("is_downloaded")
+  isComplete      Boolean? @map("is_complete")
 
   @@map("songs")
 }
