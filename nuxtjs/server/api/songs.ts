@@ -1,5 +1,3 @@
-// Hapus baris import { prisma } ... (Nuxt otomatis meng-import prisma)
-
 export default defineEventHandler(async (event) => {
   const { search } = getQuery(event) as { search?: string }
 
@@ -9,6 +7,7 @@ export default defineEventHandler(async (event) => {
           OR: [
             { title: { contains: search, mode: 'insensitive' } },
             { artist: { contains: search, mode: 'insensitive' } },
+            { album: { contains: search, mode: 'insensitive' } },
           ],
         }
       : {},
