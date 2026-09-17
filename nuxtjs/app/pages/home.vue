@@ -14,7 +14,7 @@
 
       <div class="text-center mb-12">
         <div class="text- tracking-[0.4em] text-zinc-500 font-mono uppercase mb-3">Hypen Music Vault // System Pipeline</div>
-        <h1 class="text-5xl md:text-7xl font-black tracking-tighter">CONTROL CENTER</h1>
+        <h1 class="text-5xl md:text-7xl font-black tracking-tighter">./</h1>
         <p class="text-zinc-400 font-mono text-sm mt-4 max-w- mx-auto">Pilih pipeline stage. Semua flow Extraction -> Staging -> Library sudah terhubung.</p>
       </div>
 
