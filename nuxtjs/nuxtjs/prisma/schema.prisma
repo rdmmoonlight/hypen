@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RawSongs {
+  id             Int      @id @default(autoincrement())
+  youtubeVideoId String?  @map("youtube_video_id")
+  fileName       String   @map("file_name")
+  title          String
+  artist         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  @@map("raw_songs")
+}
+
+model Song {
+  id        Int      @id @default(autoincrement())
+  title     String
+  artist    String?
+  createdAt DateTime @default(now())
+  @@map("songs")
+}
