@@ -8,9 +8,11 @@ const handleEnter = () => {
 </script>
 
 <template>
-  <div class="relative w-screen h-screen overflow-hidden">
-    <!-- Floating Action Button (Ditaruh SEBELUM NuxtWelcome dengan fixed + inset/z-index khusus Nuxt 4) -->
-    <div class="fixed top-6 right-6 z-[9999999] pointer-events-auto">
+  <!-- Wrapper utama dibuat relatif dengan tinggi penuh viewport -->
+  <div class="relative w-full h-screen overflow-hidden">
+    
+    <!-- 1. Floating Action Button ditaruh PADA CONTAINER TERPISAH ber-z-index sangat tinggi -->
+    <div class="fixed top-6 right-6 z-[99999] pointer-events-auto">
       <Button 
         size="lg" 
         class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-6 shadow-2xl transition-all hover:scale-105 gap-2 cursor-pointer relative"
@@ -23,9 +25,10 @@ const handleEnter = () => {
       </Button>
     </div>
 
-    <!-- NuxtWelcome Nuxt 4 dibatasi agar z-index nya tidak menguasai viewport root -->
-    <div class="absolute inset-0 z-0 pointer-events-none [&_*]:pointer-events-auto">
+    <!-- 2. NuxtWelcome ditaruh di dalam pembungkus ber-z-index rendah -->
+    <div class="relative z-0 h-full overflow-y-auto">
       <NuxtWelcome />
     </div>
+
   </div>
 </template>
