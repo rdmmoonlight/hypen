@@ -1,0 +1,19 @@
+name = "hypen"
+compatibility_date = "2026-09-18"
+pages_build_output_dir = "./.output/public"
+
+# Mengaktifkan kompatibilitas Node.js untuk Prisma Client
+compatibility_flags = ["nodejs_compat"]
+
+# -----------------------------------------------------------------
+# PENTING: Jika menggunakan Cloudflare Workers (bukan Cloudflare Pages)
+# Hapus `pages_build_output_dir` di atas dan gunakan baris di bawah:
+# -----------------------------------------------------------------
+# main = "./.output/server/index.mjs"
+# [assets]
+# directory = "./.output/public"
+
+# Database Hyperdrive / D1 (Jika Prisma terhubung ke Cloudflare Hyperdrive)
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "your-hyperdrive-id"
